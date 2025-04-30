@@ -32,6 +32,9 @@ class _EditContactScreenState extends State<EditContactScreen> {
   final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
   File? _profileImage;
   bool _isDeleteLoading = false;
+  
+  // Add interest rate period selector (monthly or yearly)
+  String _interestPeriod = 'yearly'; // 'monthly' or 'yearly'
 
   late TransactionProvider _transactionProvider;
   String get _contactId => widget.contact['phone'] ?? '';
@@ -60,6 +63,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
     if (_isWithInterest) {
       _selectedType = widget.contact['type'] ?? 'borrower';
       _interestRateController.text = widget.contact['interestRate']?.toString() ?? '0.0';
+      _interestPeriod = widget.contact['interestPeriod'] ?? 'yearly';
     }
 
     // Initialize profile image if it exists
@@ -197,12 +201,13 @@ class _EditContactScreenState extends State<EditContactScreen> {
       return;
     }
 
-    // Prepare updated contact data
+    // Prepare updated contact data with safe handling of null values
     final updatedContact = {
       ...widget.contact,
       'name': _nameController.text.trim(),
       'phone': _phoneController.text.trim(),
       'category': _selectedCategory,
+      // Handle possible null profileImagePath
       'profileImagePath': _profileImage?.path,
     };
 
@@ -210,11 +215,22 @@ class _EditContactScreenState extends State<EditContactScreen> {
     if (_isWithInterest) {
       updatedContact['type'] = _selectedType;
       updatedContact['interestRate'] = double.tryParse(_interestRateController.text) ?? 0.0;
+      updatedContact['interestPeriod'] = _interestPeriod;
     } else {
       // Remove interest-related fields if this is not a with-interest contact
       updatedContact.remove('type');
       updatedContact.remove('interestRate');
+      updatedContact.remove('interestPeriod');
     }
+
+    // Ensure all string values are non-null
+    updatedContact.forEach((key, value) {
+      // Replace null string values with empty strings
+      if (value == null && (key == 'name' || key == 'phone' || key == 'category' || 
+          key == 'type' || key == 'interestPeriod')) {
+        updatedContact[key] = '';
+      }
+    });
 
     // Update the contact
     final success = await _transactionProvider.updateContact(updatedContact);
@@ -299,454 +315,591 @@ class _EditContactScreenState extends State<EditContactScreen> {
       appBar: AppBar(
         title: const Text('Edit Contact'),
         actions: [
+          // Add delete button to app bar
           IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _updateContact,
+            icon: _isDeleteLoading ? 
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ) :
+              const Icon(Icons.delete),
+            onPressed: _isDeleteLoading ? null : _confirmDeleteContact,
+            tooltip: 'Delete Contact',
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Profile Image
-                Center(
-                  child: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundColor: Colors.grey.shade200,
-                        backgroundImage: _profileImage != null 
-                            ? FileImage(_profileImage!) 
-                            : null,
-                        child: _profileImage == null
-                            ? Icon(
-                                Icons.person,
-                                size: 60,
-                                color: Colors.grey.shade400,
-                              )
-                            : null,
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: _showProfileImageOptions,
-                          child: CircleAvatar(
-                            backgroundColor: themeProvider.primaryColor,
-                            radius: 20,
-                            child: const Icon(
-                              Icons.camera_alt,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Contact Summary
-                if (hasTransactions) 
-                  Card(
-                    elevation: 2,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  children: [
+                    // Profile Image
+                    Center(
+                      child: Stack(
                         children: [
-                          Text(
-                            'Current Balance',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade700,
-                            ),
+                          CircleAvatar(
+                            radius: 50, // Smaller radius to save space
+                            backgroundColor: Colors.grey.shade200,
+                            backgroundImage: _profileImage != null 
+                                ? FileImage(_profileImage!) 
+                                : null,
+                            child: _profileImage == null
+                                ? Icon(
+                                    Icons.person,
+                                    size: 50,
+                                    color: Colors.grey.shade400,
+                                  )
+                                : null,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            currencyFormat.format(balance.abs()),
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: balance >= 0 ? Colors.green : Colors.red,
-                            ),
-                          ),
-                          Text(
-                            balance >= 0 ? 'You will get' : 'You will give',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: balance >= 0 ? Colors.green : Colors.red,
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: _showProfileImageOptions,
+                              child: CircleAvatar(
+                                backgroundColor: themeProvider.primaryColor,
+                                radius: 18,
+                                child: const Icon(
+                                  Icons.camera_alt,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
 
-                // Name Field
-                const Text(
-                  'Name',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    hintText: 'Enter contact name',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a name';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+                    // Contact Summary (only show if has transactions)
+                    if (hasTransactions)
+                      Card(
+                        elevation: 2,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Current Balance',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      currencyFormat.format(balance.abs()),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: balance >= 0 ? Colors.green : Colors.red,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                balance >= 0 ? 'You will get' : 'You will give',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: balance >= 0 ? Colors.green : Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
 
-                // Phone Field
-                const Text(
-                  'Phone Number',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _phoneController,
-                  decoration: InputDecoration(
-                    hintText: 'Enter phone number',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                  ),
-                  keyboardType: TextInputType.phone,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a phone number';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Category Dropdown
-                const Text(
-                  'Category',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: _selectedCategory,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                  ),
-                  items: _categories.map((category) {
-                    return DropdownMenuItem(
-                      value: category,
-                      child: Text(category),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedCategory = value;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                // With Interest Toggle
-                Row(
-                  children: [
+                    // Name Field
                     const Text(
-                      'With Interest Account',
+                      'Name',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 14,
                       ),
                     ),
-                    const Spacer(),
-                    Switch(
-                      value: _isWithInterest,
-                      onChanged: hasTransactions && !_isWithInterest
-                          ? null // Disable converting to interest if there are transactions and it's not already interest
-                          : (value) {
-                              setState(() {
-                                _isWithInterest = value;
-                                
-                                // If switching to with-interest, set default values
-                                if (value && _interestRateController.text.isEmpty) {
-                                  _interestRateController.text = '12.0'; // Default interest rate
-                                }
-                              });
-                            },
-                      activeColor: themeProvider.primaryColor,
-                    ),
-                  ],
-                ),
-                if (hasTransactions && !_isWithInterest)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Cannot convert to interest account after transactions',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 12,
+                    const SizedBox(height: 4),
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: InputDecoration(
+                        hintText: 'Enter contact name',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                       ),
-                    ),
-                  ),
-                if (_isWithInterest)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Specify if this contact is a borrower (owes you money) or lender (you owe them)',
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 16),
-
-                // Interest Rate and Type (Only if with interest)
-                if (_isWithInterest) ...[
-                  const Text(
-                    'Interest Rate (%)',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _interestRateController,
-                    decoration: InputDecoration(
-                      hintText: 'Enter interest rate',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      suffixText: '% p.a.',
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (value) {
-                      if (_isWithInterest) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter an interest rate';
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter a name';
                         }
-                        if (double.tryParse(value) == null) {
-                          return 'Please enter a valid number';
-                        }
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  const Text(
-                    'Account Type',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                        return null;
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Card(
-                          elevation: _selectedType == 'borrower' ? 4 : 0,
-                          color: _selectedType == 'borrower' 
-                              ? Colors.red.withOpacity(0.1) 
-                              : Colors.grey.shade50,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            side: BorderSide(
+                    const SizedBox(height: 12),
+
+                    // Phone Field
+                    const Text(
+                      'Phone Number',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: InputDecoration(
+                        hintText: 'Enter phone number',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter a phone number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Category Dropdown
+                    const Text(
+                      'Category',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    DropdownButtonFormField<String>(
+                      value: _selectedCategory,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                      items: _categories.map((category) {
+                        return DropdownMenuItem(
+                          value: category,
+                          child: Text(category),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedCategory = value;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // With Interest Toggle
+                    Row(
+                      children: [
+                        const Text(
+                          'With Interest Account',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Spacer(),
+                        Switch(
+                          value: _isWithInterest,
+                          onChanged: hasTransactions && !_isWithInterest
+                              ? null // Disable converting to interest if there are transactions and it's not already interest
+                              : (value) {
+                                  setState(() {
+                                    _isWithInterest = value;
+                                    
+                                    // If switching to with-interest, set default values
+                                    if (value && _interestRateController.text.isEmpty) {
+                                      _interestRateController.text = '12.0'; // Default interest rate
+                                    }
+                                  });
+                                },
+                          activeColor: themeProvider.primaryColor,
+                        ),
+                      ],
+                    ),
+                    if (hasTransactions && !_isWithInterest)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Cannot convert to interest account after transactions',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    if (_isWithInterest)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Specify if this contact is a borrower (owes you money) or lender (you owe them)',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+
+                    // Interest Rate and Type (Only if with interest)
+                    if (_isWithInterest) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Interest Rate',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                TextFormField(
+                                  controller: _interestRateController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter rate',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                    suffixText: '%',
+                                  ),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  validator: (value) {
+                                    if (_isWithInterest) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter a rate';
+                                      }
+                                      if (double.tryParse(value) == null) {
+                                        return 'Enter a valid number';
+                                      }
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Per Period',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade400),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              _interestPeriod = 'monthly';
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                            decoration: BoxDecoration(
+                                              color: _interestPeriod == 'monthly' 
+                                                ? Colors.amber.withOpacity(0.2) 
+                                                : Colors.transparent,
+                                              borderRadius: const BorderRadius.horizontal(
+                                                left: Radius.circular(7),
+                                              ),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              'Monthly',
+                                              style: TextStyle(
+                                                fontWeight: _interestPeriod == 'monthly' 
+                                                  ? FontWeight.bold 
+                                                  : FontWeight.normal,
+                                                color: _interestPeriod == 'monthly'
+                                                  ? Colors.amber.shade900
+                                                  : Colors.grey.shade700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                        width: 1,
+                                        height: 30,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              _interestPeriod = 'yearly';
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                            decoration: BoxDecoration(
+                                              color: _interestPeriod == 'yearly' 
+                                                ? Colors.amber.withOpacity(0.2) 
+                                                : Colors.transparent,
+                                              borderRadius: const BorderRadius.horizontal(
+                                                right: Radius.circular(7),
+                                              ),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              'Yearly',
+                                              style: TextStyle(
+                                                fontWeight: _interestPeriod == 'yearly' 
+                                                  ? FontWeight.bold 
+                                                  : FontWeight.normal,
+                                                color: _interestPeriod == 'yearly'
+                                                  ? Colors.amber.shade900
+                                                  : Colors.grey.shade700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      const Text(
+                        'Account Type',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Card(
+                              elevation: _selectedType == 'borrower' ? 4 : 0,
                               color: _selectedType == 'borrower' 
-                                  ? Colors.red 
-                                  : Colors.grey.shade300,
-                              width: 1,
-                            ),
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              setState(() {
-                                _selectedType = 'borrower';
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                              child: Column(
-                                children: [
-                                  Row(
+                                  ? Colors.red.withOpacity(0.1) 
+                                  : Colors.grey.shade50,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: BorderSide(
+                                  color: _selectedType == 'borrower' 
+                                      ? Colors.red 
+                                      : Colors.grey.shade300,
+                                  width: 1,
+                                ),
+                              ),
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedType = 'borrower';
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                  child: Column(
                                     children: [
-                                      Radio<String>(
-                                        value: 'borrower',
-                                        groupValue: _selectedType,
-                                        onChanged: (value) {
-                                          setState(() {
-                                            _selectedType = value!;
-                                          });
-                                        },
-                                        activeColor: Colors.red,
+                                      Row(
+                                        children: [
+                                          Radio<String>(
+                                            value: 'borrower',
+                                            groupValue: _selectedType,
+                                            onChanged: (value) {
+                                              setState(() {
+                                                _selectedType = value!;
+                                              });
+                                            },
+                                            activeColor: Colors.red,
+                                          ),
+                                          const Text(
+                                            'Lene Wale',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const Text(
-                                        'Borrower',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
+                                      const Padding(
+                                        padding: EdgeInsets.only(left: 32),
+                                        child: Text(
+                                          'This contact owes you money',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.red,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const Padding(
-                                    padding: EdgeInsets.only(left: 32),
-                                    child: Text(
-                                      'This contact owes you money',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.red,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Card(
-                          elevation: _selectedType == 'lender' ? 4 : 0,
-                          color: _selectedType == 'lender' 
-                              ? Colors.green.withOpacity(0.1) 
-                              : Colors.grey.shade50,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            side: BorderSide(
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Card(
+                              elevation: _selectedType == 'lender' ? 4 : 0,
                               color: _selectedType == 'lender' 
-                                  ? Colors.green 
-                                  : Colors.grey.shade300,
-                              width: 1,
-                            ),
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              setState(() {
-                                _selectedType = 'lender';
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                              child: Column(
-                                children: [
-                                  Row(
+                                  ? Colors.green.withOpacity(0.1) 
+                                  : Colors.grey.shade50,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: BorderSide(
+                                  color: _selectedType == 'lender' 
+                                      ? Colors.green 
+                                      : Colors.grey.shade300,
+                                  width: 1,
+                                ),
+                              ),
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedType = 'lender';
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                  child: Column(
                                     children: [
-                                      Radio<String>(
-                                        value: 'lender',
-                                        groupValue: _selectedType,
-                                        onChanged: (value) {
-                                          setState(() {
-                                            _selectedType = value!;
-                                          });
-                                        },
-                                        activeColor: Colors.green,
+                                      Row(
+                                        children: [
+                                          Radio<String>(
+                                            value: 'lender',
+                                            groupValue: _selectedType,
+                                            onChanged: (value) {
+                                              setState(() {
+                                                _selectedType = value!;
+                                              });
+                                            },
+                                            activeColor: Colors.green,
+                                          ),
+                                          const Text(
+                                            'Dene Wale',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const Text(
-                                        'Lender',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
+                                      const Padding(
+                                        padding: EdgeInsets.only(left: 32),
+                                        child: Text(
+                                          'You owe money to this contact',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.green,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const Padding(
-                                    padding: EdgeInsets.only(left: 32),
-                                    child: Text(
-                                      'You owe money to this contact',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
-                  ),
-                ],
-                const SizedBox(height: 32),
-
-                // Delete Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isDeleteLoading ? null : _confirmDeleteContact,
-                    icon: _isDeleteLoading 
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.delete),
-                    label: Text(_isDeleteLoading ? 'Deleting...' : 'Delete Contact'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          // Save Button bottom bar
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, -2),
                 ),
               ],
             ),
+            child: ElevatedButton(
+              onPressed: _updateContact,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeProvider.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Save Changes',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

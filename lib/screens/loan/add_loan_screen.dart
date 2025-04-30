@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../providers/loan_provider.dart';
 import '../../constants/app_theme.dart';
 import 'loan_details_screen.dart';
+import '../../services/notification_service.dart';
+import '../../main.dart' show notificationService;
 
 class AddLoanScreen extends StatefulWidget {
   const AddLoanScreen({super.key});
@@ -140,6 +142,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   label: 'Loan Provider',
                   icon: Icons.business,
                   helper: 'E.g., HDFC Bank, SBI, ICICI',
+                  isRequired: false,
                 ),
                 const SizedBox(height: 16),
                 
@@ -150,6 +153,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   icon: Icons.credit_card,
                   keyboardType: TextInputType.text,
                   helper: 'Your loan reference number',
+                  isRequired: false,
                 ),
                 const SizedBox(height: 24),
                 
@@ -305,7 +309,8 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     FilteringTextInputFormatter.digitsOnly,
                     LengthLimitingTextInputFormatter(10),
                   ],
-                  helper: 'Customer care number',
+                  helper: 'Customer care number (optional)',
+                  isRequired: false,
                 ),
                 const SizedBox(height: 16),
                 
@@ -319,7 +324,8 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     FilteringTextInputFormatter.digitsOnly,
                     LengthLimitingTextInputFormatter(10),
                   ],
-                  helper: 'Your loan manager/relationship manager number',
+                  helper: 'Your loan manager number (optional)',
+                  isRequired: false,
                 ),
                 const SizedBox(height: 32),
                 
@@ -381,6 +387,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     TextInputType keyboardType = TextInputType.text,
     List<TextInputFormatter>? inputFormatters,
     String? helper,
+    bool isRequired = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -425,7 +432,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
               ),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) {
+              if (isRequired && (value == null || value.isEmpty)) {
                 return 'Please enter $label';
               }
               return null;
@@ -662,6 +669,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
       // Save the loan using provider
       final loanProvider = Provider.of<LoanProvider>(context, listen: false);
       loanProvider.addLoan(loanData);
+      
+      // Schedule notifications for this loan
+      notificationService.scheduleLoanPaymentNotifications(loanProvider);
       
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(

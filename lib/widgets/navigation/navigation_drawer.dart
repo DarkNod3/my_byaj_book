@@ -6,6 +6,7 @@ import 'package:my_byaj_book/screens/loan/loan_screen.dart';
 import 'package:my_byaj_book/screens/bill_diary/bill_diary_screen.dart';
 import 'package:my_byaj_book/screens/tools/more_tools_screen.dart';
 import 'package:my_byaj_book/screens/settings/nav_settings_screen.dart';
+import 'package:my_byaj_book/screens/settings/settings_screen.dart';
 import '../../constants/app_theme.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
@@ -110,7 +111,10 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                   icon: Icons.settings_outlined,
                   onTap: () {
                     Navigator.pop(context);
-                    _showComingSoonSnackbar(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                    );
                   },
                 ),
                 _buildMenuItem(

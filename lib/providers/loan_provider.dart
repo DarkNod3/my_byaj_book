@@ -22,13 +22,8 @@ class LoanProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     
-    // Try to load saved loans first
+    // Load saved loans
     await _loadLoans();
-    
-    // If no saved loans, initialize with sample data
-    if (_activeLoans.isEmpty && _completedLoans.isEmpty) {
-      await _initializeWithSampleData();
-    }
     
     _isLoading = false;
     notifyListeners();
@@ -38,133 +33,11 @@ class LoanProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     
-    // Try to load saved loans first
+    // Load saved loans
     await _loadLoans();
-    
-    // If no saved loans, initialize with sample data
-    if (_activeLoans.isEmpty && _completedLoans.isEmpty) {
-      await _initializeWithSampleData();
-    }
     
     _isLoading = false;
     notifyListeners();
-  }
-
-  Future<void> _initializeWithSampleData() async {
-    await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
-    
-    // Sample loan data
-    _activeLoans = [
-      {
-        'id': '1',
-        'loanName': 'Car Loan',
-        'loanType': 'Car Loan',
-        'category': 'Car',
-        'loanAmount': '50000',
-        'interestRate': '12.0',
-        'loanTerm': '12',
-        'periodType': 'Months',
-        'interestType': 'Fixed',
-        'startDate': DateTime(2023, 4, 25),
-        'firstPaymentDate': DateTime(2023, 5, 25),
-        'paymentMethod': 'UPI',
-        'createdDate': DateTime.now().subtract(const Duration(days: 2)),
-        'progress': 0.25,
-        'status': 'Active',
-      },
-      {
-        'id': '2',
-        'loanName': 'Home Renovation',
-        'loanType': 'Home Loan',
-        'category': 'Home',
-        'loanAmount': '200000',
-        'interestRate': '8.5',
-        'loanTerm': '24',
-        'periodType': 'Months',
-        'interestType': 'Fixed',
-        'startDate': DateTime(2023, 2, 10),
-        'firstPaymentDate': DateTime(2023, 3, 10),
-        'paymentMethod': 'Bank Transfer',
-        'createdDate': DateTime.now().subtract(const Duration(days: 90)),
-        'progress': 0.15,
-        'status': 'Active',
-      },
-      {
-        'id': '3',
-        'loanName': 'Education Loan',
-        'loanType': 'Education Loan',
-        'category': 'Education',
-        'loanAmount': '100000',
-        'interestRate': '7.0',
-        'loanTerm': '36',
-        'periodType': 'Months',
-        'interestType': 'Fixed',
-        'startDate': DateTime(2022, 8, 15),
-        'firstPaymentDate': DateTime(2022, 9, 15),
-        'paymentMethod': 'Bank Transfer',
-        'createdDate': DateTime.now().subtract(const Duration(days: 240)),
-        'progress': 0.40,
-        'status': 'Active',
-      },
-      {
-        'id': '4',
-        'loanName': 'Business Expansion',
-        'loanType': 'Business Loan',
-        'category': 'Business',
-        'loanAmount': '500000',
-        'interestRate': '11.5',
-        'loanTerm': '60',
-        'periodType': 'Months',
-        'interestType': 'Fixed',
-        'startDate': DateTime(2023, 1, 5),
-        'firstPaymentDate': DateTime(2023, 2, 5),
-        'paymentMethod': 'Bank Transfer',
-        'createdDate': DateTime.now().subtract(const Duration(days: 120)),
-        'progress': 0.10,
-        'status': 'Active',
-      },
-      {
-        'id': '5',
-        'loanName': 'Personal Expenses',
-        'loanType': 'Personal Loan',
-        'category': 'Personal',
-        'loanAmount': '30000',
-        'interestRate': '14.0',
-        'loanTerm': '6',
-        'periodType': 'Months',
-        'interestType': 'Fixed',
-        'startDate': DateTime(2023, 3, 20),
-        'firstPaymentDate': DateTime(2023, 4, 20),
-        'paymentMethod': 'UPI',
-        'createdDate': DateTime.now().subtract(const Duration(days: 30)),
-        'progress': 0.33,
-        'status': 'Active',
-      },
-    ];
-    
-    _completedLoans = [
-      {
-        'id': '6',
-        'loanName': 'Phone Purchase',
-        'loanType': 'Personal Loan',
-        'category': 'Personal',
-        'loanAmount': '15000',
-        'interestRate': '0.0',
-        'loanTerm': '3',
-        'periodType': 'Months',
-        'interestType': 'Fixed',
-        'startDate': DateTime(2023, 1, 1),
-        'firstPaymentDate': DateTime(2023, 2, 1),
-        'paymentMethod': 'UPI',
-        'createdDate': DateTime.now().subtract(const Duration(days: 120)),
-        'progress': 1.0,
-        'status': 'Completed',
-        'completionDate': DateTime(2023, 4, 1),
-      },
-    ];
-    
-    // Save the sample data to preferences
-    await _saveLoans();
   }
 
   Future<void> addLoan(Map<String, dynamic> loan) async {

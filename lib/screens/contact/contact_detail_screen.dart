@@ -747,6 +747,12 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     final TextEditingController noteController = TextEditingController();
     DateTime selectedDate = DateTime.now();
     String? imagePath;
+    
+    // Check if this is a with-interest contact
+    final bool isWithInterest = widget.contact['type'] != null;
+    
+    // Default to principal amount
+    bool isPrincipalAmount = true;
 
     showDialog(
       context: context,
@@ -814,6 +820,64 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
                   ),
+                  
+                  // Principal/Interest Switch (Only for with-interest contacts)
+                  if (isWithInterest) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text(
+                          'Is this amount for:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        Row(
+                          children: [
+                            Text(
+                              'Interest',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: !isPrincipalAmount ? Colors.amber.shade800 : Colors.grey,
+                              ),
+                            ),
+                            Switch(
+                              value: isPrincipalAmount,
+                              activeColor: Colors.blue,
+                              thumbColor: MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
+                                if (states.contains(MaterialState.selected)) {
+                                  return Colors.blue;
+                                }
+                                return Colors.amber;
+                              }),
+                              trackColor: MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
+                                if (states.contains(MaterialState.selected)) {
+                                  return Colors.blue.withOpacity(0.5);
+                                }
+                                return Colors.amber.withOpacity(0.5);
+                              }),
+                              onChanged: (value) {
+                                setState(() {
+                                  isPrincipalAmount = value;
+                                });
+                              },
+                            ),
+                            Text(
+                              'Principal',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: isPrincipalAmount ? Colors.blue : Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   
                   // Date Picker
@@ -1020,15 +1084,23 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                               return;
                             }
 
+                            // Create note with principal/interest info if applicable
+                            String note = noteController.text.isNotEmpty
+                                ? noteController.text
+                                : (type == 'gave' ? 'Payment sent' : 'Payment received');
+                                
+                            // Add info about principal/interest to the note
+                            if (isWithInterest) {
+                              note = '${isPrincipalAmount ? 'Principal' : 'Interest'}: $note';
+                            }
+
                             // Add new transaction using the provider
                             _transactionProvider.addTransactionDetails(
                               _contactId,
                               amount,
                               type,
                               selectedDate,
-                              noteController.text.isNotEmpty
-                                  ? noteController.text
-                                  : (type == 'gave' ? 'Payment sent' : 'Payment received'),
+                              note,
                               imagePath,
                             );
                             

@@ -246,8 +246,23 @@ class TransactionProvider extends ChangeNotifier {
         return false; // Contact already exists
       }
       
-      // Add the contact
-      _contacts.add(contact);
+      // Sanitize the contact data to prevent null values
+      final sanitizedContact = Map<String, dynamic>.from(contact);
+      
+      // Handle common string fields
+      ['name', 'phone', 'category', 'type', 'interestPeriod'].forEach((key) {
+        if (sanitizedContact.containsKey(key) && sanitizedContact[key] == null) {
+          sanitizedContact[key] = '';
+        }
+      });
+      
+      // Handle numeric fields
+      if (sanitizedContact.containsKey('interestRate') && sanitizedContact['interestRate'] == null) {
+        sanitizedContact['interestRate'] = 0.0;
+      }
+      
+      // Add the sanitized contact
+      _contacts.add(sanitizedContact);
       
       // Save to SharedPreferences
       await _saveContacts();
@@ -276,8 +291,23 @@ class TransactionProvider extends ChangeNotifier {
         return true;
       }
       
-      // Add the contact since it doesn't exist
-      _contacts.add(contact);
+      // Sanitize the contact data to prevent null values
+      final sanitizedContact = Map<String, dynamic>.from(contact);
+      
+      // Handle common string fields
+      ['name', 'phone', 'category', 'type', 'interestPeriod'].forEach((key) {
+        if (sanitizedContact.containsKey(key) && sanitizedContact[key] == null) {
+          sanitizedContact[key] = '';
+        }
+      });
+      
+      // Handle numeric fields
+      if (sanitizedContact.containsKey('interestRate') && sanitizedContact['interestRate'] == null) {
+        sanitizedContact['interestRate'] = 0.0;
+      }
+      
+      // Add the sanitized contact since it doesn't exist
+      _contacts.add(sanitizedContact);
       
       // Save to SharedPreferences
       await _saveContacts();
@@ -293,6 +323,7 @@ class TransactionProvider extends ChangeNotifier {
   // Update an existing contact
   Future<bool> updateContact(Map<String, dynamic> updatedContact) async {
     try {
+      // Ensure we have a valid phone number (contact ID)
       final contactId = updatedContact['phone'] as String?;
       
       if (contactId == null || contactId.isEmpty) {
@@ -319,8 +350,23 @@ class TransactionProvider extends ChangeNotifier {
         }
       }
       
-      // Update the contact
-      _contacts[index] = updatedContact;
+      // Ensure all string values are non-null before updating
+      final sanitizedContact = Map<String, dynamic>.from(updatedContact);
+      
+      // Handle common string fields
+      ['name', 'phone', 'category', 'type', 'interestPeriod'].forEach((key) {
+        if (sanitizedContact.containsKey(key) && sanitizedContact[key] == null) {
+          sanitizedContact[key] = '';
+        }
+      });
+      
+      // Handle numeric fields
+      if (sanitizedContact.containsKey('interestRate') && sanitizedContact['interestRate'] == null) {
+        sanitizedContact['interestRate'] = 0.0;
+      }
+      
+      // Update the contact with sanitized data
+      _contacts[index] = sanitizedContact;
       
       // Save to SharedPreferences
       await _saveContacts();
@@ -366,5 +412,129 @@ class TransactionProvider extends ChangeNotifier {
       return null;
     }
     return _contacts[index];
+  }
+  
+  // Export all data as JSON for backup
+  Future<Map<String, dynamic>> exportAllData() async {
+    try {
+      // Create a data structure that includes all app data
+      final exportData = {
+        'contacts': _contacts,
+        'transactions': _contactTransactions,
+        'exportDate': DateTime.now().toIso8601String(),
+        'appVersion': '1.0.0', // Update with your app version
+      };
+      
+      // Convert any DateTime objects in transactions to ISO strings
+      final Map<String, List<Map<String, dynamic>>> serializedTransactions = {};
+      
+      _contactTransactions.forEach((contactId, transactions) {
+        serializedTransactions[contactId] = transactions.map((tx) {
+          final txCopy = Map<String, dynamic>.from(tx);
+          if (txCopy['date'] is DateTime) {
+            txCopy['date'] = txCopy['date'].toIso8601String();
+          }
+          return txCopy;
+        }).toList();
+      });
+      
+      exportData['transactions'] = serializedTransactions;
+      
+      return exportData;
+    } catch (e) {
+      debugPrint('Error exporting data: $e');
+      return {'error': e.toString()};
+    }
+  }
+  
+  // Import data from backup JSON
+  Future<bool> importAllData(Map<String, dynamic> importData) async {
+    try {
+      // Validate the import data
+      if (!importData.containsKey('contacts') || !importData.containsKey('transactions')) {
+        debugPrint('Import data is missing required fields');
+        return false;
+      }
+      
+      // Import contacts
+      final contactsList = List<Map<String, dynamic>>.from(
+        (importData['contacts'] as List).map((c) => Map<String, dynamic>.from(c))
+      );
+      
+      // Import transactions
+      final transactionsMap = importData['transactions'] as Map<String, dynamic>;
+      final Map<String, List<Map<String, dynamic>>> parsedTransactions = {};
+      
+      transactionsMap.forEach((contactId, transactions) {
+        parsedTransactions[contactId] = List<Map<String, dynamic>>.from(
+          (transactions as List).map((tx) {
+            final txMap = Map<String, dynamic>.from(tx);
+            // Convert ISO date strings back to DateTime
+            if (txMap['date'] is String) {
+              txMap['date'] = DateTime.parse(txMap['date']);
+            }
+            return txMap;
+          })
+        );
+      });
+      
+      // Replace the current data with imported data
+      _contacts = contactsList;
+      _contactTransactions = parsedTransactions;
+      
+      // Save the imported data to SharedPreferences
+      await _saveContacts();
+      await _saveTransactions();
+      
+      // Notify listeners of the data change
+      notifyListeners();
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error importing data: $e');
+      return false;
+    }
+  }
+  
+  // Check if backup data exists
+  Future<bool> hasBackupData() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey('contacts') && prefs.containsKey('transaction_contacts');
+  }
+  
+  // Create automatic backup of data
+  Future<bool> createAutomaticBackup() async {
+    try {
+      final backupData = await exportAllData();
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Store backup as a JSON string
+      final backupString = jsonEncode(backupData);
+      await prefs.setString('data_backup', backupString);
+      await prefs.setString('last_backup_date', DateTime.now().toIso8601String());
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error creating automatic backup: $e');
+      return false;
+    }
+  }
+  
+  // Restore from automatic backup
+  Future<bool> restoreFromAutomaticBackup() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final backupString = prefs.getString('data_backup');
+      
+      if (backupString == null || backupString.isEmpty) {
+        return false;
+      }
+      
+      final backupData = jsonDecode(backupString) as Map<String, dynamic>;
+      return await importAllData(backupData);
+    } catch (e) {
+      debugPrint('Error restoring from automatic backup: $e');
+      return false;
+    }
   }
 } 

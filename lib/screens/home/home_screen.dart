@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'package:my_byaj_book/screens/card/card_screen.dart';
 import 'package:my_byaj_book/screens/loan/loan_screen.dart';
 import 'package:my_byaj_book/screens/tools/more_tools_screen.dart';
@@ -26,6 +27,9 @@ import 'package:my_byaj_book/screens/tea_diary/tea_diary_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:flutter/services.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:my_byaj_book/screens/settings/settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,6 +41,51 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   DateTime? _lastBackPressTime;
+  
+  // Timer for automatic backups
+  Timer? _backupTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Schedule regular automatic backups
+    _setupAutomaticBackups();
+  }
+  
+  @override
+  void dispose() {
+    _backupTimer?.cancel();
+    super.dispose();
+  }
+  
+  // Setup automatic backup timer
+  void _setupAutomaticBackups() {
+    // Create an immediate backup when app starts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _createBackup();
+    });
+    
+    // Schedule periodic backups every 30 minutes
+    _backupTimer = Timer.periodic(const Duration(minutes: 30), (_) {
+      _createBackup();
+    });
+  }
+  
+  // Create a backup of all app data
+  Future<void> _createBackup() async {
+    try {
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      final success = await transactionProvider.createAutomaticBackup();
+      
+      if (success) {
+        debugPrint('Automatic backup created successfully');
+      } else {
+        debugPrint('Failed to create automatic backup');
+      }
+    } catch (e) {
+      debugPrint('Error during automatic backup: $e');
+    }
+  }
 
   // Handle back button press to exit the app
   Future<bool> _onWillPop() async {
@@ -188,10 +237,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showAddContactOptions(BuildContext context) {
+    // Find HomeContent state to get the current tab (with interest or without interest)
+    final homeContentState = _findHomeContentState(context);
+    final bool isWithInterest = homeContentState?._isWithInterest ?? false;
+    
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const SelectContactScreen(),
+        builder: (context) => SelectContactScreen(isWithInterest: isWithInterest),
       ),
     );
   }
@@ -575,6 +628,11 @@ class _HomeScreenState extends State<HomeScreen> {
         color: color,
       );
       
+      // If this is a with-interest contact, make sure we switch to that tab
+      if (withInterest) {
+        homeContentState._tabController.animateTo(1); // Index 1 is the With Interest tab
+      }
+      
       // Force a rebuild of the HomeContent
       homeContentState.setState(() {});
     }
@@ -633,6 +691,10 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     // Get all contacts from the provider
     final allContacts = transactionProvider.contacts;
     
+    // Clear existing contact lists to rebuild them properly
+    _withoutInterestContacts.clear();
+    _withInterestContacts.clear();
+    
     // Process each contact from provider to ensure it's in our local lists
     for (var providerContact in allContacts) {
       final phone = providerContact['phone'] ?? '';
@@ -641,25 +703,14 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       // Determine if this is a "with interest" contact
       final isWithInterest = providerContact['type'] != null || providerContact['interestRate'] != null;
       
-      // Check if the contact is already in our local lists
-      bool contactExists = false;
-      
       if (isWithInterest) {
-        // Check in with-interest list
-        contactExists = _withInterestContacts.any((c) => c['phone'] == phone);
-        if (!contactExists) {
-          // Add to with-interest list
-          print('Adding to with-interest list: ${providerContact['name']}');
-          _withInterestContacts.add(Map<String, dynamic>.from(providerContact));
-        }
+        // Add to with-interest list only
+        print('Adding to with-interest list: ${providerContact['name']}');
+        _withInterestContacts.add(Map<String, dynamic>.from(providerContact));
       } else {
-        // Check in without-interest list
-        contactExists = _withoutInterestContacts.any((c) => c['phone'] == phone);
-        if (!contactExists) {
-          // Add to without-interest list
-          print('Adding to without-interest list: ${providerContact['name']}');
-          _withoutInterestContacts.add(Map<String, dynamic>.from(providerContact));
-        }
+        // Add to without-interest list only
+        print('Adding to without-interest list: ${providerContact['name']}');
+        _withoutInterestContacts.add(Map<String, dynamic>.from(providerContact));
       }
     }
     
@@ -2112,7 +2163,9 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
 }
 
 class SelectContactScreen extends StatefulWidget {
-  const SelectContactScreen({super.key});
+  const SelectContactScreen({super.key, required this.isWithInterest});
+
+  final bool isWithInterest;
 
   @override
   State<SelectContactScreen> createState() => _SelectContactScreenState();
@@ -2238,7 +2291,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Contact'),
+        title: Text(widget.isWithInterest ? 'Add With Interest Contact' : 'Add Contact'),
         centerTitle: true,
         backgroundColor: AppTheme.primaryColor,
         elevation: 0,
@@ -2377,6 +2430,13 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
   }
   
   Widget _buildContactItem(Map<String, dynamic> contact) {
+    // Check if this contact already exists in the transaction provider
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    final phone = contact['phone'] ?? '';
+    final existingContact = transactionProvider.getContactById(phone);
+    final bool hasExistingInterestType = existingContact != null && 
+        (existingContact['type'] != null || existingContact['interestRate'] != null);
+    
     // For contacts from device, use a simpler display without transaction info
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -2415,53 +2475,213 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         final name = contact['name'] ?? '';
         final phone = contact['phone'] ?? '';
         
-        // Create a new contact map with required fields for ContactDetailScreen
-        final contactData = {
-          'name': name,
-          'phone': phone,
-          'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
-          'color': Colors.primaries[name.length % Colors.primaries.length],
-          'amount': 0.0,
-          'isGet': true,
-          'daysAgo': 0,
-        };
-        
-        // Get transaction provider to add this contact if it doesn't exist
-        final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-        transactionProvider.addContactIfNotExists(contactData);
-        
-        // Find the home screen state to refresh contacts
-        final homeScreenState = context.findAncestorStateOfType<_HomeScreenState>();
-        if (homeScreenState != null) {
-          // Try to find HomeContent state to refresh its contacts
-          final homeContentState = homeScreenState._findHomeContentState(context);
-          if (homeContentState != null) {
-            homeContentState.setState(() {
-              // Force refresh
-              homeContentState._syncContactsWithTransactions();
-            });
-          }
+        // If contact exists with interest type, respect that setting regardless of current tab
+        if (hasExistingInterestType) {
+          final contactData = Map<String, dynamic>.from(existingContact!);
+          _refreshHomeScreenAndNavigateToDetail(context, contactData);
+        } 
+        // Otherwise, if we're in the With Interest tab, show the relationship selection
+        else if (widget.isWithInterest) {
+          // Show borrower/lender selection dialog for with interest contacts
+          _showRelationshipTypeDialog(context, name, phone);
+        } 
+        // If we're in Without Interest tab, create a non-interest contact
+        else {
+          // Create a new contact map with required fields for ContactDetailScreen
+          final contactData = {
+            'name': name,
+            'phone': phone,
+            'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
+            'color': Colors.primaries[name.length % Colors.primaries.length],
+            'amount': 0.0,
+            'isGet': true,
+            'daysAgo': 0,
+          };
+          
+          // Get transaction provider to add this contact if it doesn't exist
+          transactionProvider.addContactIfNotExists(contactData);
+          
+          // Find the home screen state to refresh contacts
+          _refreshHomeScreenAndNavigateToDetail(context, contactData);
         }
-        
-        // Navigate directly to contact detail screen
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ContactDetailScreen(contact: contactData),
-          ),
-        ).then((_) {
-          // Refresh the contacts list when returning from detail screen
-          if (homeScreenState != null) {
-            final homeContentState = homeScreenState._findHomeContentState(context);
-            if (homeContentState != null) {
-              homeContentState.setState(() {
-                homeContentState._syncContactsWithTransactions();
-              });
-            }
-          }
-        });
       },
     );
+  }
+  
+  void _showRelationshipTypeDialog(BuildContext context, String name, String phone) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Select Relationship',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Contact: $name',
+                style: const TextStyle(
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        _createContactWithType(context, name, phone, 'borrower');
+                      },
+                      child: _buildRelationshipCard(
+                        title: 'Lene\nWale',
+                        emoji: '👋',
+                        color: Colors.red.shade100,
+                        borderColor: Colors.red,
+                        description: 'They borrow money from you',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        _createContactWithType(context, name, phone, 'lender');
+                      },
+                      child: _buildRelationshipCard(
+                        title: 'Dene\nWale',
+                        emoji: '💵',
+                        color: Colors.green.shade100,
+                        borderColor: Colors.green,
+                        description: 'They lend money to you',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRelationshipCard({
+    required String title,
+    required String emoji,
+    required Color color,
+    required Color borderColor,
+    required String description,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 1.0),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            emoji,
+            style: const TextStyle(fontSize: 36),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: borderColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.black54,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _createContactWithType(BuildContext context, String name, String phone, String relationshipType) {
+    // Create contact data with interest type
+    final contactData = {
+      'name': name,
+      'phone': phone,
+      'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
+      'color': Colors.primaries[name.length % Colors.primaries.length],
+      'amount': 0.0,
+      'isGet': true,
+      'daysAgo': 0,
+      'type': relationshipType,
+      'interestRate': 12.0, // Default interest rate
+    };
+    
+    // Get transaction provider to add this contact
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    transactionProvider.addContactIfNotExists(contactData);
+    
+    // Refresh home screen and navigate to detail
+    _refreshHomeScreenAndNavigateToDetail(context, contactData);
+  }
+  
+  void _refreshHomeScreenAndNavigateToDetail(BuildContext context, Map<String, dynamic> contactData) {
+    // Find the home screen state to refresh contacts
+    final homeScreenState = context.findAncestorStateOfType<_HomeScreenState>();
+    if (homeScreenState != null) {
+      // Try to find HomeContent state to refresh its contacts
+      final homeContentState = homeScreenState._findHomeContentState(context);
+      if (homeContentState != null) {
+        homeContentState.setState(() {
+          // Force refresh
+          homeContentState._syncContactsWithTransactions();
+          
+          // If this is a with-interest contact, switch to with-interest tab
+          if (contactData.containsKey('type')) {
+            homeContentState._tabController.animateTo(1); // Index 1 is With Interest tab
+          }
+        });
+      }
+    }
+    
+    // Navigate directly to contact detail screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ContactDetailScreen(contact: contactData),
+      ),
+    ).then((_) {
+      // Refresh the contacts list when returning from detail screen
+      if (homeScreenState != null) {
+        final homeContentState = homeScreenState._findHomeContentState(context);
+        if (homeContentState != null) {
+          homeContentState.setState(() {
+            homeContentState._syncContactsWithTransactions();
+          });
+        }
+      }
+    });
   }
   
   void _showAddContactDialog(BuildContext context) {
@@ -2472,7 +2692,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Add New Contact'),
+          title: Text(widget.isWithInterest ? 'Add With Interest Contact' : 'Add New Contact'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -2511,51 +2731,28 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                   final name = nameController.text;
                   final phone = phoneController.text;
                   
-                  // Create a new contact map with required fields for ContactDetailScreen
-                  final contactData = {
-                    'name': name,
-                    'phone': phone,
-                    'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
-                    'color': Colors.primaries[name.length % Colors.primaries.length],
-                    'amount': 0.0,
-                    'isGet': true,
-                    'daysAgo': 0,
-                  };
-                  
-                  // Get transaction provider to add this contact if it doesn't exist
-                  final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-                  transactionProvider.addContactIfNotExists(contactData);
-                  
-                  // Find the home screen state to refresh contacts
-                  final homeScreenState = context.findAncestorStateOfType<_HomeScreenState>();
-                  if (homeScreenState != null) {
-                    // Try to find HomeContent state to refresh its contacts
-                    final homeContentState = homeScreenState._findHomeContentState(context);
-                    if (homeContentState != null) {
-                      homeContentState.setState(() {
-                        // Force refresh
-                        homeContentState._syncContactsWithTransactions();
-                      });
-                    }
+                  if (widget.isWithInterest) {
+                    // For with interest contacts, show the relationship type dialog
+                    _showRelationshipTypeDialog(context, name, phone);
+                  } else {
+                    // For without interest contacts, create contact directly
+                    final contactData = {
+                      'name': name,
+                      'phone': phone,
+                      'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
+                      'color': Colors.primaries[name.length % Colors.primaries.length],
+                      'amount': 0.0,
+                      'isGet': true,
+                      'daysAgo': 0,
+                    };
+                    
+                    // Get transaction provider to add this contact if it doesn't exist
+                    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+                    transactionProvider.addContactIfNotExists(contactData);
+                    
+                    // Refresh home screen and navigate to detail
+                    _refreshHomeScreenAndNavigateToDetail(context, contactData);
                   }
-                  
-                  // Navigate directly to contact detail screen
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ContactDetailScreen(contact: contactData),
-                    ),
-                  ).then((_) {
-                    // Refresh the contacts list when returning from detail screen
-                    if (homeScreenState != null) {
-                      final homeContentState = homeScreenState._findHomeContentState(context);
-                      if (homeContentState != null) {
-                        homeContentState.setState(() {
-                          homeContentState._syncContactsWithTransactions();
-                        });
-                      }
-                    }
-                  });
                 }
               },
               style: ElevatedButton.styleFrom(

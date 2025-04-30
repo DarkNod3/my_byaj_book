@@ -13,14 +13,15 @@ import 'screens/settings/nav_settings_screen.dart';
 import 'utils/string_extensions.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
 import 'package:my_byaj_book/screens/tea_diary/tea_diary_screen.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
+import 'services/notification_service.dart';
+import 'models/loan_notification.dart';
 import 'dart:io';
 
-// Initialize notifications plugin globally
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = 
-    FlutterLocalNotificationsPlugin();
+// Global notification service
+final notificationService = NotificationService.instance;
+// Global key for navigator to use in notification callbacks
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,30 +29,8 @@ void main() async {
   // Initialize time zones for scheduling notifications
   tz.initializeTimeZones();
   
-  // Configure notification settings
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-  
-  const DarwinInitializationSettings initializationSettingsIOS =
-      DarwinInitializationSettings();
-  
-  const InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-    iOS: initializationSettingsIOS,
-  );
-  
-  // Initialize notifications with simpler configuration
-  await flutterLocalNotificationsPlugin.initialize(
-    initializationSettings,
-    onDidReceiveNotificationResponse: (NotificationResponse response) {
-      // Handle notification taps here
-      print('Notification clicked: ${response.payload}');
-    },
-  );
-  
-  // Request notification permissions if needed
-  // On Android 13+ users will see a permission dialog first time
-  // On iOS permission is requested during notification setup
+  // Initialize notification service
+  await notificationService.init();
   
   // Set preferred orientations for better performance
   SystemChrome.setPreferredOrientations([
@@ -68,8 +47,38 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // When app is resumed, schedule notifications for any due loans
+      _scheduleNotifications();
+    }
+  }
+
+  void _scheduleNotifications() {
+    final loanProvider = Provider.of<LoanProvider>(navigatorKey.currentContext!, listen: false);
+    notificationService.scheduleLoanPaymentNotifications(loanProvider);
+  }
 
   // This widget is the root of your application.
   @override
@@ -80,12 +89,16 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => NavPreferencesProvider()),
         ChangeNotifierProvider(create: (context) => UserProvider()),
         ChangeNotifierProvider(create: (context) => TransactionProvider()),
-        ChangeNotifierProvider(create: (_) => LoanProvider()),
+        ChangeNotifierProvider(
+          create: (_) => LoanProvider(),
+          lazy: false, // Initialize immediately
+        ),
         ChangeNotifierProvider(create: (_) => BillNoteProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(
+            navigatorKey: navigatorKey, // Set global navigator key
             title: 'My Byaj Book',
             debugShowCheckedModeBanner: false,
             theme: themeProvider.themeData,
@@ -100,4 +113,56 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
+}
+
+// Mark loan as paid from notification
+Future<void> markLoanAsPaid(String loanId) async {
+  final context = navigatorKey.currentContext;
+  if (context != null) {
+    final loanProvider = Provider.of<LoanProvider>(context, listen: false);
+    final loan = loanProvider.activeLoans.firstWhere(
+      (loan) => loan['id'] == loanId,
+      orElse: () => <String, dynamic>{},
+    );
+    
+    if (loan.isNotEmpty) {
+      // Create a copy of the loan with updated status
+      final updatedLoan = Map<String, dynamic>.from(loan);
+      
+      // Mark the current installment as paid
+      if (updatedLoan.containsKey('installments')) {
+        List<Map<String, dynamic>> installments = List<Map<String, dynamic>>.from(updatedLoan['installments']);
+        for (int i = 0; i < installments.length; i++) {
+          if (!installments[i]['isPaid']) {
+            installments[i]['isPaid'] = true;
+            installments[i]['paidDate'] = DateTime.now();
+            break; // Only mark the first unpaid installment
+          }
+        }
+        updatedLoan['installments'] = installments;
+      }
+      
+      // Update the loan
+      await loanProvider.updateLoan(updatedLoan);
+      
+      // Cancel the notification for this loan
+      await notificationService.cancelNotificationForLoan(loanId);
+      
+      // Schedule the next notification
+      await notificationService.scheduleLoanPaymentNotifications(loanProvider);
+      
+      // Show a confirmation snackbar if in the app
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Payment for ${loan['loanName']} marked as paid'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+}
+
+// Update NotificationService._markLoanAsPaid to use this function
+Future<void> _markLoanAsPaid(String loanId) async {
+  await markLoanAsPaid(loanId);
 }

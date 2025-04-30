@@ -10,9 +10,9 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
-  provider: ^6.0.5
-  shared_preferences: ^2.5.3
-  intl: ^0.18.1
+  provider: ^6.0.0
+  shared_preferences: ^2.0.15
+  intl: ^0.17.0
   url_launcher: ^6.3.1
   share_plus: ^11.0.0
   image_picker: ^1.1.2
@@ -21,11 +21,13 @@ dependencies:
   fl_chart: ^0.71.0
   pdf: ^3.11.3
   open_file: ^3.5.10
-  path_provider: ^2.1.5
+  path_provider: ^2.0.11
   timezone: ^0.10.0
   device_info_plus: ^11.4.0
   installed_apps: ^1.6.0
   flutter_local_notifications: ^19.1.0
+  file_selector: ^1.0.2
+  cross_file: ^0.3.3+6
 
 dev_dependencies:
   flutter_test:
