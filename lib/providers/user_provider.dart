@@ -1,0 +1,159 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+
+class User {
+  final String id;
+  final String name;
+  final String mobile;
+
+  User({
+    required this.id,
+    required this.name,
+    required this.mobile,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'mobile': mobile,
+    };
+  }
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'],
+      name: json['name'],
+      mobile: json['mobile'],
+    );
+  }
+}
+
+class UserProvider with ChangeNotifier {
+  User? _user;
+  User? get user => _user;
+
+  // Keys for SharedPreferences
+  static const String _userIdKey = 'user_id';
+  static const String _userNameKey = 'user_name';
+  static const String _userMobileKey = 'user_mobile';
+  static const String _isLoggedInKey = 'is_logged_in';
+
+  // Check if user exists (in a real app, this would check with a server)
+  Future<bool> checkUserExists(String mobile) async {
+    // For demo, just a dummy implementation
+    await Future.delayed(const Duration(milliseconds: 500));
+    return mobile == '9876543210'; // Example existing user
+  }
+
+  // Login with mobile (in a real app, this would validate with a server)
+  Future<void> loginWithMobile(String mobile) async {
+    try {
+      // For demo, just create a user with the mobile and a default name
+      _user = User(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: 'Existing User',
+        mobile: mobile,
+      );
+      
+      // Save user data to SharedPreferences for persistence
+      await _saveUserData();
+      
+      notifyListeners();
+    } catch (e) {
+      // Handle login errors
+      print('Login error: $e');
+      throw Exception('Failed to login: $e');
+    }
+  }
+
+  // Register new user
+  Future<void> registerUser({
+    required String mobile,
+    required String name,
+  }) async {
+    try {
+      // For demo, just create a new user
+      _user = User(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: name,
+        mobile: mobile,
+      );
+      
+      // Save user data to SharedPreferences for persistence
+      await _saveUserData();
+      
+      notifyListeners();
+    } catch (e) {
+      // Handle registration errors
+      print('Registration error: $e');
+      throw Exception('Failed to register: $e');
+    }
+  }
+
+  // Save user data to SharedPreferences
+  Future<void> _saveUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      if (_user != null) {
+        await prefs.setString(_userIdKey, _user!.id);
+        await prefs.setString(_userNameKey, _user!.name);
+        await prefs.setString(_userMobileKey, _user!.mobile);
+        await prefs.setBool(_isLoggedInKey, true);
+      }
+    } catch (e) {
+      print('Error saving user data: $e');
+    }
+  }
+
+  // Load user data from SharedPreferences
+  Future<void> _loadUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      final isLoggedIn = prefs.getBool(_isLoggedInKey) ?? false;
+      
+      if (isLoggedIn) {
+        final id = prefs.getString(_userIdKey);
+        final name = prefs.getString(_userNameKey);
+        final mobile = prefs.getString(_userMobileKey);
+        
+        if (id != null && name != null && mobile != null) {
+          _user = User(
+            id: id,
+            name: name,
+            mobile: mobile,
+          );
+        }
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+    }
+  }
+
+  // Initialize provider and load persisted user data
+  Future<void> initialize() async {
+    await _loadUserData();
+    notifyListeners();
+  }
+
+  // Logout user
+  Future<void> logout() async {
+    try {
+      _user = null;
+      
+      // Clear saved data
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_userIdKey);
+      await prefs.remove(_userNameKey);
+      await prefs.remove(_userMobileKey);
+      await prefs.setBool(_isLoggedInKey, false);
+      
+      notifyListeners();
+    } catch (e) {
+      print('Logout error: $e');
+    }
+  }
+} 
