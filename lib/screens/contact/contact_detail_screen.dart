@@ -203,16 +203,16 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                IconButton(
-                  icon: Icon(_isSearching ? Icons.close : Icons.search),
-                  onPressed: () {
-                    setState(() {
-                      _isSearching = !_isSearching;
-                      if (!_isSearching) {
-                        _searchController.clear();
-                      }
-                    });
-                  },
+                    IconButton(
+                      icon: Icon(_isSearching ? Icons.close : Icons.search),
+                      onPressed: () {
+                        setState(() {
+                          _isSearching = !_isSearching;
+                          if (!_isSearching) {
+                            _searchController.clear();
+                          }
+                        });
+                      },
                 ),
               ],
             ),
@@ -326,9 +326,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     final key = ValueKey('tx-$txIndex-${tx['date']}');
     
     // Get the original index in the unfiltered list for delete/edit operations
-    final allTransactions = _transactionProvider.getTransactionsForContact(_contactId);
-    final originalIndex = allTransactions.indexOf(tx);
-    
+        final allTransactions = _transactionProvider.getTransactionsForContact(_contactId);
+        final originalIndex = allTransactions.indexOf(tx);
+        
     return GestureDetector(
       // Edit transaction on tap
       onTap: () => _editTransaction(tx, originalIndex),
@@ -804,8 +804,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 12),
                   
                   // Image Upload
@@ -922,7 +922,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                             if (amount == null || amount <= 0) {
                               return;
                             }
-                            
+
                             // Ensure that certain relationship/transaction combinations are forced to principal
                             bool actualIsPrincipal = isPrincipalAmount;
                             if ((relationshipType == 'borrower' && type == 'gave') || 
@@ -957,7 +957,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                             
                             // Refresh transactions
                             setState(() {
-                              _filterTransactions();
+                            _filterTransactions();
                             });
                             
                             Navigator.pop(context);
@@ -1121,6 +1121,25 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       // Track running principal for interest calculation
       double runningPrincipal = 0.0;
       
+      // INTEREST CALCULATION EXPLANATION:
+      // --------------------------------
+      // Both borrowers and lenders accrue interest on the outstanding principal
+      // 1. For borrowers: User lends money, borrower pays interest on outstanding amount
+      // 2. For lenders: User borrows money, user pays interest on outstanding amount
+      // 
+      // Key principles:
+      // - Interest accrues daily based on outstanding principal
+      // - Interest payments don't reduce the principal
+      // - Principal payments reduce the outstanding amount and therefore future interest
+      // 
+      // For Borrowers:
+      // - When user PAYS money (isGave = true): increases debt (adds to principal) or adds to accumulated interest
+      // - When user RECEIVES money (isGave = false): decreases debt (reduces principal) or pays off interest
+      //
+      // For Lenders:
+      // - When user PAYS money (isGave = true): decreases debt (reduces principal) or pays off interest
+      // - When user RECEIVES money (isGave = false): increases debt (adds to principal) or adds to accumulated interest
+      
       // Process transactions chronologically to track interest accumulation
       for (var tx in transactions) {
         final note = (tx['note'] ?? '').toLowerCase();
@@ -1144,29 +1163,45 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         // Update principal or interest based on transaction type
         if (note.contains('interest:')) {
           if (isGave) {
-            // User paid interest (adds to debt)
-            accumulatedInterest += amount;
+            // User paid interest
+            if (isBorrower) {
+              // For borrowers: paid interest adds to debt
+              accumulatedInterest += amount;
+            } else {
+              // For lenders: paid interest reduces accumulated interest
+              accumulatedInterest = (accumulatedInterest - amount > 0) ? accumulatedInterest - amount : 0;
+            }
           } else {
             // User received interest payment
             interestPaid += amount;
             
-            // For borrowers, interest payments don't reduce the accumulated interest 
+            // For both borrowers and lenders, interest payments don't reduce the accumulated interest 
             // because it continues to accrue based on the principal
-            if (!isBorrower) {
-              // For lenders, reduce accumulated interest (but don't make it negative)
-              accumulatedInterest = (accumulatedInterest - amount > 0) ? accumulatedInterest - amount : 0;
-            }
+            // Removing special case for lenders to make interest calculation consistent
           }
         } else {
           // It's a principal transaction
           if (isGave) {
-            // Added principal
-            runningPrincipal += amount;
-            principal += amount;
+            if (isBorrower) {
+              // For borrowers: paying principal adds to debt
+              runningPrincipal += amount;
+              principal += amount;
+            } else {
+              // For lenders: paying principal reduces debt (repaying the loan)
+              runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
+              principal = (principal - amount > 0) ? principal - amount : 0;
+            }
           } else {
             // Received principal payment
-            runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
-            principal = (principal - amount > 0) ? principal - amount : 0;
+            if (isBorrower) {
+              // For borrowers: receiving payment decreases principal
+              runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
+              principal = (principal - amount > 0) ? principal - amount : 0;
+            } else {
+              // For lenders: receiving payment increases principal (the lender gave money)
+              runningPrincipal += amount;
+              principal += amount;
+            }
           }
         }
         
@@ -1207,17 +1242,17 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
                 Row(
                   children: [
                     Icon(Icons.calculate, size: 16, color: Colors.amber.shade800),
                     const SizedBox(width: 6),
-                    Text(
+            Text(
                       'Interest Summary',
-                      style: TextStyle(
+              style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: Colors.amber.shade800,
@@ -1228,10 +1263,10 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                 GestureDetector(
                   onTap: _showContactInfo,
                   child: const Icon(Icons.info_outline, size: 14),
-                ),
-              ],
             ),
-            const SizedBox(height: 6),
+          ],
+        ),
+        const SizedBox(height: 6),
             
             // Status and interest rate row
             Container(
@@ -1242,8 +1277,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                 border: Border.all(color: Colors.amber.shade100, width: 1),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
                   Row(
                     children: [
                       Icon(
@@ -1252,9 +1287,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         color: relationshipType == 'borrower' ? Colors.red : Colors.green,
                       ),
                       const SizedBox(width: 4),
-                      Text(
+            Text(
                         StringUtils.capitalizeFirstLetter(relationshipType ?? ''),
-                        style: TextStyle(
+              style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: relationshipType == 'borrower' ? Colors.red : Colors.green,
@@ -1266,16 +1301,16 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     children: [
                       Icon(Icons.percent, size: 14, color: Colors.amber.shade800),
                       const SizedBox(width: 4),
-                      Text(
+            Text(
                         '${(widget.contact['interestRate'] as double).toStringAsFixed(1)}% p.a.',
-                        style: TextStyle(
+              style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Colors.amber.shade800,
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+            ),
+          ],
+        ),
                 ],
               ),
             ),
@@ -1310,27 +1345,27 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
             const Divider(height: 16, color: Colors.amber),
             
             // Total row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
                 const Text(
                   'Total Amount:',
-                  style: TextStyle(
+              style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  currencyFormat.format(totalAmount),
-                  style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              currencyFormat.format(totalAmount),
+              style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.bold,
                     color: Colors.amber.shade900,
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
+        ),
+      ],
         ),
       ),
     );

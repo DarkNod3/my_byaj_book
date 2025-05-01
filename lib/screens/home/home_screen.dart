@@ -1657,35 +1657,101 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     // Calculate interest details if this is an interest-based contact
     double interestPerDay = 0.0;
     double totalInterestDue = 0.0;
+    double principalAmount = displayAmount;
     
     if (_isWithInterest && transactions.isNotEmpty) {
       // Get interest rate from contact
       final double interestRate = contact['interestRate'] as double? ?? 12.0;
+      final String contactType = contact['type'] as String? ?? 'borrower';
       
-      // Calculate daily interest
-      interestPerDay = interestRate / 365 / 100 * displayAmount;
-      
-      // Calculate days since first transaction
+      // Sort transactions chronologically for accurate interest calculation
       transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
-      final DateTime loanStartDate = transactions.first['date'] as DateTime;
-      final DateTime now = DateTime.now();
-      final int daysSinceLoan = now.difference(loanStartDate).inDays;
       
-      // Calculate total interest due
-      totalInterestDue = interestPerDay * daysSinceLoan;
+      // INTEREST CALCULATION LOGIC:
+      // --------------------------
+      // For both borrowers and lenders, we calculate interest in the same way:
+      // 1. Interest accrues daily on the outstanding principal
+      // 2. Interest payments are tracked separately and don't reduce principal
+      // 3. Principal payments reduce future interest by reducing the outstanding amount
+      // 4. Total interest due = accumulated interest - interest payments received
       
-      // Adjust interest if principal partially paid
-      double totalPaid = 0.0;
-      for (var transaction in transactions) {
-        if (transaction['isPaid'] == true) {
-          totalPaid += (transaction['amount'] as double).abs();
+      // Calculate interest using a similar approach to the contact detail screen
+      DateTime? lastInterestDate = transactions.first['date'] as DateTime;
+      double runningPrincipal = 0.0;
+      double accumulatedInterest = 0.0;
+      double interestPaid = 0.0;
+      
+      for (var tx in transactions) {
+        final note = (tx['note'] ?? '').toLowerCase();
+        final amount = tx['amount'] as double;
+        final isGave = tx['type'] == 'gave';
+        final txDate = tx['date'] as DateTime;
+        
+        // Calculate interest up to this transaction
+        if (lastInterestDate != null && runningPrincipal > 0) {
+          final daysSinceLastCalculation = txDate.difference(lastInterestDate).inDays;
+          if (daysSinceLastCalculation > 0) {
+            final interestForPeriod = runningPrincipal * interestRate / 100 / 365 * daysSinceLastCalculation;
+            accumulatedInterest += interestForPeriod;
+          }
         }
+        
+        // Update based on transaction type
+        if (note.contains('interest:')) {
+          if (isGave) {
+            // Interest payment made
+            if (contactType == 'borrower') {
+              // For borrowers: interest payment adds to accumulated interest
+              accumulatedInterest += amount;
+            } else {
+              // For lenders: interest payment reduces accumulated interest
+              accumulatedInterest = (accumulatedInterest - amount > 0) ? accumulatedInterest - amount : 0;
+            }
+          } else {
+            // Interest payment received
+            interestPaid += amount;
+          }
+        } else {
+          // Principal transaction
+          if (isGave) {
+            // Payment sent
+            if (contactType == 'borrower') {
+              // For borrowers: principal payment adds to debt
+              runningPrincipal += amount;
+            } else {
+              // For lenders: principal payment reduces debt
+              runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
+            }
+          } else {
+            // Payment received
+            if (contactType == 'borrower') {
+              // For borrowers, receiving payment decreases principal
+              runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
+            } else {
+              // For lenders, receiving payment increases principal (lender gave money)
+              runningPrincipal += amount;
+            }
+          }
+        }
+        
+        lastInterestDate = txDate;
       }
       
-      if (totalPaid > 0) {
-        final double originalPrincipal = displayAmount + totalPaid;
-        final double paidPrincipalRatio = totalPaid / originalPrincipal;
-        totalInterestDue *= (1 - paidPrincipalRatio);
+      // Calculate interest from last transaction to now
+      if (lastInterestDate != null && runningPrincipal > 0) {
+        final daysUntilNow = DateTime.now().difference(lastInterestDate).inDays;
+        final interestFromLastTx = runningPrincipal * interestRate / 100 / 365 * daysUntilNow;
+        accumulatedInterest += interestFromLastTx;
+      }
+      
+      // Update display values
+      principalAmount = runningPrincipal;
+      totalInterestDue = accumulatedInterest > interestPaid ? accumulatedInterest - interestPaid : 0;
+      interestPerDay = runningPrincipal * interestRate / 100 / 365;
+      
+      // Update the display amount to include interest if appropriate
+      if (contactType == 'lender' || contactType == 'borrower') {
+        displayAmount = principalAmount + totalInterestDue;
       }
     }
     
@@ -1884,7 +1950,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                     children: [
                       _buildInterestBreakdownItem(
                         label: 'Principal',
-                        amount: displayAmount,
+                        amount: principalAmount,
                         iconData: Icons.money,
                         color: AppTheme.primaryColor,
                       ),
