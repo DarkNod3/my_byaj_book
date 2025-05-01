@@ -5,6 +5,8 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final bool showBackButton;
   final List<Widget>? actions;
   final double height;
+  final bool showMenuIcon;
+  final Color backgroundColor;
 
   const AppHeader({
     super.key,
@@ -12,6 +14,8 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.showBackButton = false,
     this.actions,
     this.height = kToolbarHeight + 8,  // Default height including padding
+    this.showMenuIcon = true,
+    this.backgroundColor = Colors.blue,
   });
 
   @override
@@ -23,7 +27,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.blue,
+        color: backgroundColor,
         boxShadow: const [
           BoxShadow(
             color: Color(0x1A000000), // Hardcoded color for performance
@@ -36,16 +40,18 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
         bottom: false, // Optimize SafeArea to only apply to top
         child: Row(
           children: [
-            IconButton(
-              icon: menuIcon,
-              onPressed: () {
-                Scaffold.of(context).openDrawer();
-              },
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              tooltip: 'Menu',
-            ),
-            const SizedBox(width: 8),
+            if (showMenuIcon)
+              IconButton(
+                icon: menuIcon,
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                tooltip: 'Menu',
+              ),
+            if (showMenuIcon) 
+              const SizedBox(width: 8),
             if (showBackButton)
               IconButton(
                 icon: backIcon,

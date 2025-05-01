@@ -7,11 +7,13 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
+import 'package:my_byaj_book/widgets/header/app_header.dart';
 
 class TaxCalculatorScreen extends StatefulWidget {
   static const routeName = '/tax-calculator';
+  final bool showAppBar;
   
-  const TaxCalculatorScreen({super.key});
+  const TaxCalculatorScreen({super.key, this.showAppBar = true});
 
   @override
   State<TaxCalculatorScreen> createState() => _TaxCalculatorScreenState();
@@ -433,11 +435,7 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Income Tax Calculator'),
-        backgroundColor: Colors.red.shade700,
-        foregroundColor: Colors.white,
-      ),
+      appBar: widget.showAppBar ? AppHeader(title: 'Income Tax Calculator') : null,
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(12.0),

@@ -9,7 +9,8 @@ import './client_detail_screen.dart';
 import '../../constants/colors.dart';
 
 class WorkDiaryScreen extends StatefulWidget {
-  const WorkDiaryScreen({Key? key}) : super(key: key);
+  final bool showAppBar;
+  const WorkDiaryScreen({Key? key, this.showAppBar = true}) : super(key: key);
 
   @override
   _WorkDiaryScreenState createState() => _WorkDiaryScreenState();
@@ -231,7 +232,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
         return false; // Prevent default back button behavior
       },
       child: Scaffold(
-        appBar: AppBar(
+        appBar: widget.showAppBar ? AppBar(
           title: Text('Work Diary'),
           backgroundColor: AppColors.primary,
           actions: [
@@ -255,7 +256,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
             icon: Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
           ),
-        ),
+        ) : null,
         body: _isLoading
             ? Center(child: CircularProgressIndicator())
             : Column(

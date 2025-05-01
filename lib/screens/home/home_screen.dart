@@ -44,9 +44,14 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   DateTime? _lastBackPressTime;
+  late TabController _tabController;
+  
+  // Adding these lists that were previously missing
+  final List<Map<String, dynamic>> _withoutInterestContacts = [];
+  final List<Map<String, dynamic>> _withInterestContacts = [];
   
   // Timer for automatic backups
   Timer? _backupTimer;
@@ -54,16 +59,157 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Schedule regular automatic backups
-    _setupAutomaticBackups();
+    
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() {});
+    });
+    
+    // REMOVED: Auto sync on startup
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _syncContactsWithTransactions();
+    // });
   }
-  
+
   @override
   void dispose() {
-    _backupTimer?.cancel();
+    _tabController.dispose();
     super.dispose();
   }
-  
+
+  // Method to manually update contact amounts based on transaction data
+  void _syncContactsWithTransactions() {
+    // Get transaction provider
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    
+    // Get all contacts from the provider
+    final allContacts = transactionProvider.contacts;
+    
+    // Clear existing contact lists to rebuild them properly
+    _withoutInterestContacts.clear();
+    _withInterestContacts.clear();
+    
+    // Process each contact from provider to ensure it's in our local lists
+    for (var providerContact in allContacts) {
+      final phone = providerContact['phone'] ?? '';
+      if (phone.isEmpty) continue;
+      
+      // Determine if this is a "with interest" contact
+      final isWithInterest = providerContact['type'] != null || providerContact['interestRate'] != null;
+      
+      // Make a copy of the contact to work with
+      final contactCopy = Map<String, dynamic>.from(providerContact);
+      
+      // Ensure the contact has a tabType field that marks which tab it belongs to
+      if (!contactCopy.containsKey('tabType')) {
+        contactCopy['tabType'] = isWithInterest ? 'withInterest' : 'withoutInterest';
+        
+        // Update the contact in the provider to persist this change
+        transactionProvider.updateContact(contactCopy);
+      }
+      
+      // Only add contacts to their respective tabs based on tabType
+      final String tabType = contactCopy['tabType'] ?? (isWithInterest ? 'withInterest' : 'withoutInterest');
+      
+      if (tabType == 'withInterest') {
+        // Add to with-interest list only
+        _withInterestContacts.add(contactCopy);
+      } else if (tabType == 'withoutInterest') {
+        // Add to without-interest list only
+        _withoutInterestContacts.add(contactCopy);
+      }
+    }
+    
+    // Update amounts for non-interest contacts
+    for (var contact in _withoutInterestContacts) {
+      final phone = contact['phone'] ?? '';
+      if (phone.isEmpty) continue;
+      
+      final transactions = transactionProvider.getTransactionsForContact(phone);
+      if (transactions.isNotEmpty) {
+        // Update the contact's amount based on transaction balance
+        double balance = transactionProvider.calculateBalance(phone);
+        
+        // Update the daysAgo based on the most recent transaction
+        final mostRecentTransaction = transactions.first; // Assuming newest first
+        if (mostRecentTransaction['date'] is DateTime) {
+          final transactionDate = mostRecentTransaction['date'] as DateTime;
+          final today = DateTime.now();
+          final difference = today.difference(transactionDate).inDays;
+          contact['daysAgo'] = difference;
+        }
+        
+        // Update the contact's amount and isGet property
+        contact['amount'] = balance.abs();
+        contact['isGet'] = balance >= 0;
+      }
+    }
+    
+    // Update amounts for with-interest contacts
+    for (var contact in _withInterestContacts) {
+      final phone = contact['phone'] ?? '';
+      if (phone.isEmpty) continue;
+      
+      final transactions = transactionProvider.getTransactionsForContact(phone);
+      if (transactions.isNotEmpty) {
+        // Update the contact's amount based on transaction balance
+        double balance = transactionProvider.calculateBalance(phone);
+        
+        // Update the daysAgo based on the most recent transaction
+        final mostRecentTransaction = transactions.first; // Assuming newest first
+        if (mostRecentTransaction['date'] is DateTime) {
+          final transactionDate = mostRecentTransaction['date'] as DateTime;
+          final today = DateTime.now();
+          final difference = today.difference(transactionDate).inDays;
+          contact['daysAgo'] = difference;
+        }
+        
+        // Update the contact's amount and isGet property
+        contact['amount'] = balance.abs();
+        contact['isGet'] = balance >= 0;
+      }
+    }
+    
+    // Calculate interest for interest-based contacts
+    _calculateInterestValues();
+    
+    // Force a rebuild
+    setState(() {});
+  }
+
+  // Add this method to calculate interest values
+  void _calculateInterestValues() {
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    DateTime now = DateTime.now();
+    
+    for (var contact in _withInterestContacts) {
+      final phone = contact['phone'] ?? '';
+      if (phone.isEmpty) continue;
+      
+      // Skip if there are no transactions
+      final transactions = transactionProvider.getTransactionsForContact(phone);
+      if (transactions.isEmpty) continue;
+      
+      // Process interest calculations for this contact
+      // (This is a simplified version - actual implementation would be more complex)
+      
+      // Get the principal amount (balance)
+      final double balance = contact['isGet'] 
+          ? contact['amount'] as double 
+          : -(contact['amount'] as double);
+      
+      // Get interest rate from contact
+      final double interestRate = contact['interestRate'] as double? ?? 12.0;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // REMOVED: Auto sync when dependencies change
+    // _syncContactsWithTransactions();
+  }
+
   // Setup automatic backup timer
   void _setupAutomaticBackups() {
     // Create an immediate backup when app starts
@@ -132,14 +278,14 @@ class _HomeScreenState extends State<HomeScreen> {
       'home': const HomeContent(),
       'loans': const LoanScreen(),
       'cards': const CardScreen(),
-      'bill_diary': const BillDiaryScreen(),
-      'emi_calc': const EmiCalculatorScreen(),
-      'land_calc': const LandCalculatorScreen(),
-      'sip_calc': const SipCalculatorScreen(),
-      'tax_calc': const TaxCalculatorScreen(),
-      'milk_diary': const MilkDiaryScreen(),
-      'work_diary': const WorkDiaryScreen(),
-      'tea_diary': const TeaDiaryScreen(),
+      'bill_diary': const BillDiaryScreen(showAppBar: false),
+      'emi_calc': const EmiCalculatorScreen(showAppBar: false),
+      'land_calc': const LandCalculatorScreen(showAppBar: false),
+      'sip_calc': const SipCalculatorScreen(showAppBar: false),
+      'tax_calc': const TaxCalculatorScreen(showAppBar: false),
+      'milk_diary': const MilkDiaryScreen(showAppBar: false),
+      'work_diary': const WorkDiaryScreen(showAppBar: false),
+      'tea_diary': const TeaDiaryScreen(showAppBar: false),
     };
     
     return WillPopScope(
@@ -680,112 +826,64 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     super.dispose();
   }
 
-  // New method to update contact amounts based on transaction data
+  // Add the missing _syncContactsWithTransactions method
   void _syncContactsWithTransactions() {
-    // Get transaction provider
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    if (!mounted) return;
     
-    // Get all contacts from the provider
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     final allContacts = transactionProvider.contacts;
     
-    // Clear existing contact lists to rebuild them properly
+    // Clear existing lists
     _withoutInterestContacts.clear();
     _withInterestContacts.clear();
     
-    // Process each contact from provider to ensure it's in our local lists
-    for (var providerContact in allContacts) {
-      final phone = providerContact['phone'] ?? '';
-      if (phone.isEmpty) continue;
-      
-      // Determine if this is a "with interest" contact
-      final isWithInterest = providerContact['type'] != null || providerContact['interestRate'] != null;
-      
-      // Make a copy of the contact to work with
-      final contactCopy = Map<String, dynamic>.from(providerContact);
-      
-      // Ensure the contact has a tabType field that marks which tab it belongs to
-      if (!contactCopy.containsKey('tabType')) {
-        contactCopy['tabType'] = isWithInterest ? 'withInterest' : 'withoutInterest';
-        
-        // Update the contact in the provider to persist this change
-        transactionProvider.updateContact(contactCopy);
-      }
-      
-      // Only add contacts to their respective tabs based on tabType
-      final String tabType = contactCopy['tabType'] ?? (isWithInterest ? 'withInterest' : 'withoutInterest');
+    // Categorize contacts
+    for (var contact in allContacts) {
+      final isWithInterest = contact['type'] != null || contact['interestRate'] != null;
+      final tabType = contact['tabType'] ?? (isWithInterest ? 'withInterest' : 'withoutInterest');
       
       if (tabType == 'withInterest') {
-        // Add to with-interest list only
-        print('Adding to with-interest list: ${contactCopy['name']}');
-        _withInterestContacts.add(contactCopy);
-      } else if (tabType == 'withoutInterest') {
-        // Add to without-interest list only
-        print('Adding to without-interest list: ${contactCopy['name']}');
-        _withoutInterestContacts.add(contactCopy);
+        print('Adding to with-interest list: ${contact['name']}');
+        _withInterestContacts.add(Map<String, dynamic>.from(contact));
+      } else {
+        _withoutInterestContacts.add(Map<String, dynamic>.from(contact));
       }
     }
     
-    // Update amounts for non-interest contacts
-    for (var contact in _withoutInterestContacts) {
+    // Update contact amounts based on transactions
+    for (var contact in [..._withoutInterestContacts, ..._withInterestContacts]) {
       final phone = contact['phone'] ?? '';
       if (phone.isEmpty) continue;
       
+      final oldAmount = contact['amount'] ?? 0.0;
       final transactions = transactionProvider.getTransactionsForContact(phone);
-      if (transactions.isNotEmpty) {
-        // Update the contact's amount based on transaction balance
-        double balance = transactionProvider.calculateBalance(phone);
-        
-        // Update the daysAgo based on the most recent transaction
-        final mostRecentTransaction = transactions.first; // Assuming newest first
-        if (mostRecentTransaction['date'] is DateTime) {
-          final transactionDate = mostRecentTransaction['date'] as DateTime;
-          final today = DateTime.now();
-          final difference = today.difference(transactionDate).inDays;
-          contact['daysAgo'] = difference;
-        }
-        
-        // Debug what's happening
-        print('SYNC - Contact: ${contact['name']}, Old amount: ${contact['amount']}, Balance: $balance, DaysAgo: ${contact['daysAgo']}');
-        
-        // Update the contact's amount and isGet property
-        contact['amount'] = balance.abs();
-        contact['isGet'] = balance >= 0;
-      }
-    }
-    
-    // Update amounts for with-interest contacts
-    for (var contact in _withInterestContacts) {
-      final phone = contact['phone'] ?? '';
-      if (phone.isEmpty) continue;
       
-      final transactions = transactionProvider.getTransactionsForContact(phone);
       if (transactions.isNotEmpty) {
-        // Update the contact's amount based on transaction balance
+        // Calculate balance
         double balance = transactionProvider.calculateBalance(phone);
         
-        // Update the daysAgo based on the most recent transaction
-        final mostRecentTransaction = transactions.first; // Assuming newest first
+        // Update days ago
+        int daysAgo = 0;
+        final mostRecentTransaction = transactions.first;
         if (mostRecentTransaction['date'] is DateTime) {
           final transactionDate = mostRecentTransaction['date'] as DateTime;
-          final today = DateTime.now();
-          final difference = today.difference(transactionDate).inDays;
-          contact['daysAgo'] = difference;
+          daysAgo = DateTime.now().difference(transactionDate).inDays;
         }
         
-        // Debug what's happening
-        print('SYNC - Contact: ${contact['name']}, Old amount: ${contact['amount']}, Balance: $balance, DaysAgo: ${contact['daysAgo']}');
-        
-        // Update the contact's amount and isGet property
+        // Update amount and direction
         contact['amount'] = balance.abs();
         contact['isGet'] = balance >= 0;
+        contact['daysAgo'] = daysAgo;
+        
+        print('SYNC - Contact: ${contact['name']}, Old amount: $oldAmount, Balance: $balance, DaysAgo: $daysAgo');
       }
     }
     
     // Calculate interest for interest-based contacts
-    _calculateInterestValues();
-    
-    // Force a rebuild
-    setState(() {});
+    if (mounted) {
+      _calculateInterestValues();
+      setState(() {}); // Trigger UI update
+    }
   }
 
   // Calculate interest values for all with-interest contacts

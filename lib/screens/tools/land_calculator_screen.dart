@@ -6,11 +6,13 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
+import 'package:my_byaj_book/widgets/header/app_header.dart';
 
 class LandCalculatorScreen extends StatefulWidget {
   static const routeName = '/land-calculator';
+  final bool showAppBar;
   
-  const LandCalculatorScreen({super.key});
+  const LandCalculatorScreen({super.key, this.showAppBar = true});
 
   @override
   State<LandCalculatorScreen> createState() => _LandCalculatorScreenState();
@@ -396,11 +398,7 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Land Calculator'),
-        backgroundColor: Colors.green.shade700,
-        foregroundColor: Colors.white,
-      ),
+      appBar: widget.showAppBar ? AppHeader(title: 'Land Calculator') : null,
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(12.0),
@@ -804,65 +802,68 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> {
               ],
             ),
           ),
-          // Chart rows
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _conversionChart.length,
-            itemBuilder: (context, index) {
-              final conversion = _conversionChart[index];
-              return Container(
-                decoration: BoxDecoration(
-                  color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                  border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade200),
+          // Chart rows - Fixed to prevent pixel overflow
+          Container(
+            constraints: const BoxConstraints(maxHeight: 300),
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const ClampingScrollPhysics(),
+              itemCount: _conversionChart.length,
+              itemBuilder: (context, index) {
+                final conversion = _conversionChart[index];
+                return Container(
+                  decoration: BoxDecoration(
+                    color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade200),
+                    ),
                   ),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: RichText(
-                        text: TextSpan(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: RichText(
+                          text: TextSpan(
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade800,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: conversion['unit'],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              TextSpan(
+                                text: ' (${conversion['hindi_unit']})',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          _formatNumber(conversion['value']),
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey.shade800,
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w500,
                           ),
-                          children: [
-                            TextSpan(
-                              text: conversion['unit'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            TextSpan(
-                              text: ' (${conversion['hindi_unit']})',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
+                          textAlign: TextAlign.end,
                         ),
                       ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Text(
-                        _formatNumber(conversion['value']),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.green.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.end,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),

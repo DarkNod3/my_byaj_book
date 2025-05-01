@@ -4,8 +4,9 @@ import 'package:my_byaj_book/widgets/header/app_header.dart';
 
 class TeaDiaryScreen extends StatefulWidget {
   static const routeName = '/tea-diary';
+  final bool showAppBar;
 
-  const TeaDiaryScreen({Key? key}) : super(key: key);
+  const TeaDiaryScreen({Key? key, this.showAppBar = true}) : super(key: key);
 
   @override
   State<TeaDiaryScreen> createState() => _TeaDiaryScreenState();
@@ -1287,6 +1288,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     final screenWidth = MediaQuery.of(context).size.width;
     
     return Scaffold(
+      appBar: widget.showAppBar ? AppHeader(title: 'Tea Diary') : null,
       body: Column(
         children: [
           // Summary card with fixed width constraints

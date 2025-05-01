@@ -8,8 +8,9 @@ import 'bill_note_detail_screen.dart';
 
 class BillDiaryScreen extends StatefulWidget {
   static const routeName = '/bill-diary';
+  final bool showAppBar;
 
-  const BillDiaryScreen({Key? key}) : super(key: key);
+  const BillDiaryScreen({Key? key, this.showAppBar = true}) : super(key: key);
 
   @override
   State<BillDiaryScreen> createState() => _BillDiaryScreenState();
@@ -56,7 +57,7 @@ class _BillDiaryScreenState extends State<BillDiaryScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.showAppBar ? AppBar(
         title: const Text('Bill Diary'),
         bottom: TabBar(
           controller: _tabController,
@@ -65,9 +66,20 @@ class _BillDiaryScreenState extends State<BillDiaryScreen> with SingleTickerProv
             Tab(text: 'Reminders'),
           ],
         ),
-      ),
+      ) : null,
       body: Column(
         children: [
+          if (!widget.showAppBar)
+            TabBar(
+              controller: _tabController,
+              labelColor: Theme.of(context).primaryColor,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Theme.of(context).primaryColor,
+              tabs: const [
+                Tab(text: 'All Notes'),
+                Tab(text: 'Reminders'),
+              ],
+            ),
           _buildCategoryFilter(),
           Expanded(
             child: TabBarView(

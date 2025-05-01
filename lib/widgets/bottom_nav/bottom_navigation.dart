@@ -388,28 +388,28 @@ class MoreToolsModal extends StatelessWidget {
         Navigator.push(context, MaterialPageRoute(builder: (context) => const CardScreen()));
         break;
       case 'bill_diary':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const BillDiaryScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const BillDiaryScreen(showAppBar: true)));
         break;
       case 'emi_calc':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const EmiCalculatorScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const EmiCalculatorScreen(showAppBar: true)));
         break;
       case 'land_calc':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const LandCalculatorScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const LandCalculatorScreen(showAppBar: true)));
         break;
       case 'sip_calc':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const SipCalculatorScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const SipCalculatorScreen(showAppBar: true)));
         break;
       case 'tax_calc':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const TaxCalculatorScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const TaxCalculatorScreen(showAppBar: true)));
         break;
       case 'milk_diary':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const MilkDiaryScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const MilkDiaryScreen(showAppBar: true)));
         break;
       case 'work_diary':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const WorkDiaryScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const WorkDiaryScreen(showAppBar: true)));
         break;
       case 'tea_diary':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const TeaDiaryScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const TeaDiaryScreen(showAppBar: true)));
         break;
       default:
         // Show "coming soon" message for unimplemented tools

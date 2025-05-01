@@ -101,7 +101,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             theme: themeProvider.themeData,
             home: const SplashScreen(),
             routes: {
-              BillDiaryScreen.routeName: (ctx) => const BillDiaryScreen(),
+              BillDiaryScreen.routeName: (ctx) => const BillDiaryScreen(showAppBar: true),
               NavSettingsScreen.routeName: (ctx) => const NavSettingsScreen(),
               TeaDiaryScreen.routeName: (ctx) => const TeaDiaryScreen(),
             },

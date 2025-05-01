@@ -55,8 +55,8 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                 _buildMenuItem(
                   context,
                   title: 'Bill Diary',
-                  icon: Icons.note_alt_outlined,
-                  onTap: () => _navigateTo(context, const BillDiaryScreen()),
+                  icon: Icons.receipt_long_rounded,
+                  onTap: () => _navigateTo(context, const BillDiaryScreen(showAppBar: true)),
                 ),
                 
                 const SizedBox(height: 16),
