@@ -203,29 +203,16 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(_isSearching ? Icons.close : Icons.search),
-                      onPressed: () {
-                        setState(() {
-                          _isSearching = !_isSearching;
-                          if (!_isSearching) {
-                            _searchController.clear();
-                          }
-                        });
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.filter_list),
-                      onPressed: () {
-                        // Show filter options
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Filter coming soon')),
-                        );
-                      },
-                    ),
-                  ],
+                IconButton(
+                  icon: Icon(_isSearching ? Icons.close : Icons.search),
+                  onPressed: () {
+                    setState(() {
+                      _isSearching = !_isSearching;
+                      if (!_isSearching) {
+                        _searchController.clear();
+                      }
+                    });
+                  },
                 ),
               ],
             ),
@@ -1217,7 +1204,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: Colors.amber.shade50,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1226,12 +1213,12 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.calculate, size: 18, color: Colors.amber.shade800),
-                    const SizedBox(width: 8),
+                    Icon(Icons.calculate, size: 16, color: Colors.amber.shade800),
+                    const SizedBox(width: 6),
                     Text(
                       'Interest Summary',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: Colors.amber.shade800,
                       ),
@@ -1240,24 +1227,18 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                 ),
                 GestureDetector(
                   onTap: _showContactInfo,
-                  child: Row(
-                    children: const [
-                      Icon(Icons.info_outline, size: 16),
-                      SizedBox(width: 4),
-                      Text('DETAILS', style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
+                  child: const Icon(Icons.info_outline, size: 14),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             
             // Status and interest rate row
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: Colors.amber.shade100, width: 1),
               ),
               child: Row(
@@ -1267,13 +1248,14 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     children: [
                       Icon(
                         relationshipType == 'borrower' ? Icons.person : Icons.account_balance,
-                        size: 16,
+                        size: 14,
                         color: relationshipType == 'borrower' ? Colors.red : Colors.green,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         StringUtils.capitalizeFirstLetter(relationshipType ?? ''),
                         style: TextStyle(
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: relationshipType == 'borrower' ? Colors.red : Colors.green,
                         ),
@@ -1282,11 +1264,12 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                   ),
                   Row(
                     children: [
-                      Icon(Icons.percent, size: 16, color: Colors.amber.shade800),
+                      Icon(Icons.percent, size: 14, color: Colors.amber.shade800),
                       const SizedBox(width: 4),
                       Text(
                         '${(widget.contact['interestRate'] as double).toStringAsFixed(1)}% p.a.',
                         style: TextStyle(
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Colors.amber.shade800,
                         ),
@@ -1297,7 +1280,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               ),
             ),
             
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             
             // Summary details grid
             Row(
@@ -1324,7 +1307,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               ],
             ),
             
-            const Divider(height: 24, color: Colors.amber),
+            const Divider(height: 16, color: Colors.amber),
             
             // Total row
             Row(
@@ -1333,14 +1316,14 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                 const Text(
                   'Total Amount:',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
                   currencyFormat.format(totalAmount),
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.amber.shade900,
                   ),
@@ -1362,30 +1345,30 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(
             icon,
-            size: 22,
+            size: 18,
             color: color,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade700,
           ),
         ),
         const SizedBox(height: 4),
         Text(
+          title,
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
           currencyFormat.format(amount),
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 12,
             fontWeight: FontWeight.bold,
             color: color,
           ),

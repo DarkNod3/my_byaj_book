@@ -8,7 +8,14 @@ import '../../services/notification_service.dart';
 import '../../main.dart' show notificationService;
 
 class AddLoanScreen extends StatefulWidget {
-  const AddLoanScreen({super.key});
+  final bool isEditing;
+  final Map<String, dynamic>? loanData;
+
+  const AddLoanScreen({
+    Key? key, 
+    this.isEditing = false,
+    this.loanData,
+  }) : super(key: key);
 
   @override
   State<AddLoanScreen> createState() => _AddLoanScreenState();
@@ -59,6 +66,45 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    
+    // If editing an existing loan, populate the form with loan data
+    if (widget.isEditing && widget.loanData != null) {
+      final loanData = widget.loanData!;
+      
+      _loanNameController.text = loanData['loanName'] ?? '';
+      _loanAmountController.text = loanData['loanAmount'] ?? '';
+      _interestRateController.text = loanData['interestRate'] ?? '';
+      
+      // Convert between years and months based on the loan term
+      final loanTerm = int.tryParse(loanData['loanTerm'] ?? '0') ?? 0;
+      
+      if (loanTerm % 12 == 0 && loanTerm > 0) {
+        // If the loan term is in complete years
+        _selectedPeriodType = 'Years';
+        _tenureController.text = (loanTerm ~/ 12).toString();
+      } else {
+        // Otherwise use months
+        _selectedPeriodType = 'Months';
+        _tenureController.text = loanTerm.toString();
+      }
+      
+      _loanProviderController.text = loanData['loanProvider'] ?? '';
+      _loanNumberController.text = loanData['loanNumber'] ?? '';
+      _helplineNumberController.text = loanData['helplineNumber'] ?? '';
+      _managerNumberController.text = loanData['managerNumber'] ?? '';
+      
+      _selectedLoanType = loanData['loanType'] ?? 'Home Loan';
+      _selectedInterestType = loanData['interestType'] ?? 'Fixed';
+      _selectedPaymentMethod = loanData['paymentMethod'] ?? 'UPI';
+      
+      _loanStartDate = loanData['startDate'] ?? DateTime(2025, 4, 25);
+      _firstPaymentDate = loanData['firstPaymentDate'] ?? DateTime(2025, 5, 25);
+    }
+  }
+
+  @override
   void dispose() {
     _loanNameController.dispose();
     _loanAmountController.dispose();
@@ -77,9 +123,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
       appBar: AppBar(
         backgroundColor: AppTheme.primaryColor,
         elevation: 0,
-        title: const Text(
-          'Add New Loan',
-          style: TextStyle(
+        title: Text(
+          widget.isEditing ? 'Edit Loan' : 'Add New Loan',
+          style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w500,
           ),
@@ -333,9 +379,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                 ElevatedButton.icon(
                   onPressed: _saveLoan,
                   icon: const Icon(Icons.save),
-                  label: const Text(
-                    'Save Loan',
-                    style: TextStyle(
+                  label: Text(
+                    widget.isEditing ? 'Update Loan' : 'Save Loan',
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -642,8 +688,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   void _saveLoan() {
     if (_formKey.currentState!.validate()) {
       // Create loan data
-      final loanData = {
-        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      final Map<String, dynamic> loanData = {
         'loanName': _loanNameController.text,
         'loanType': _selectedLoanType,
         'category': _selectedLoanType.split(' ').first, // Extract category from loan type
@@ -657,32 +702,60 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
         'startDate': _loanStartDate,
         'firstPaymentDate': _firstPaymentDate,
         'paymentMethod': _selectedPaymentMethod,
-        'createdDate': DateTime.now(),
-        'progress': 0.0,
-        'status': 'Active',
         'loanProvider': _loanProviderController.text,
         'loanNumber': _loanNumberController.text,
         'helplineNumber': _helplineNumberController.text,
         'managerNumber': _managerNumberController.text,
       };
       
+      // If editing, preserve the ID and other fields from the existing loan
+      if (widget.isEditing && widget.loanData != null) {
+        loanData['id'] = widget.loanData!['id'];
+        loanData['status'] = widget.loanData!['status'] ?? 'Active';
+        loanData['progress'] = widget.loanData!['progress'] ?? 0.0;
+        loanData['createdDate'] = widget.loanData!['createdDate'] ?? DateTime.now();
+        loanData['installments'] = widget.loanData!['installments']; // Preserve existing installments
+      } else {
+        // Add new loan specific fields
+        loanData['id'] = DateTime.now().millisecondsSinceEpoch.toString();
+        loanData['createdDate'] = DateTime.now();
+        loanData['progress'] = 0.0;
+        loanData['status'] = 'Active';
+      }
+      
       // Save the loan using provider
       final loanProvider = Provider.of<LoanProvider>(context, listen: false);
-      loanProvider.addLoan(loanData);
       
-      // Schedule notifications for this loan
-      notificationService.scheduleLoanPaymentNotifications(loanProvider);
-      
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Loan added successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      
-      // Navigate back to loan screen
-      Navigator.pop(context);
+      if (widget.isEditing) {
+        loanProvider.updateLoan(loanData);
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Loan updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Go back with result
+        Navigator.pop(context, true);
+      } else {
+        loanProvider.addLoan(loanData);
+        
+        // Schedule notifications for this loan
+        notificationService.scheduleLoanPaymentNotifications(loanProvider);
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Loan added successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Navigate back to loan screen
+        Navigator.pop(context);
+      }
     }
   }
 } 

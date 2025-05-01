@@ -13,9 +13,9 @@ import 'screens/settings/nav_settings_screen.dart';
 import 'utils/string_extensions.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
 import 'package:my_byaj_book/screens/tea_diary/tea_diary_screen.dart';
-import 'package:timezone/data/latest.dart' as tz;
 import 'services/notification_service.dart';
 import 'models/loan_notification.dart';
+import 'screens/loan/loan_details_screen.dart';
 import 'dart:io';
 
 // Global notification service
@@ -25,9 +25,6 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize time zones for scheduling notifications
-  tz.initializeTimeZones();
   
   // Initialize notification service
   await notificationService.init();
@@ -129,6 +126,11 @@ Future<void> markLoanAsPaid(String loanId) async {
       // Create a copy of the loan with updated status
       final updatedLoan = Map<String, dynamic>.from(loan);
       
+      // Track whether we marked something as paid
+      bool markedAsPaid = false;
+      int installmentNumber = 0;
+      double installmentAmount = 0.0;
+      
       // Mark the current installment as paid
       if (updatedLoan.containsKey('installments')) {
         List<Map<String, dynamic>> installments = List<Map<String, dynamic>>.from(updatedLoan['installments']);
@@ -136,10 +138,24 @@ Future<void> markLoanAsPaid(String loanId) async {
           if (!installments[i]['isPaid']) {
             installments[i]['isPaid'] = true;
             installments[i]['paidDate'] = DateTime.now();
+            markedAsPaid = true;
+            installmentNumber = installments[i]['installmentNumber'] as int;
+            installmentAmount = installments[i]['totalAmount'] as double;
             break; // Only mark the first unpaid installment
           }
         }
         updatedLoan['installments'] = installments;
+        
+        // Update progress
+        int totalInstallments = installments.length;
+        int paidInstallments = installments.where((inst) => inst['isPaid'] == true).length;
+        double progress = totalInstallments > 0 ? paidInstallments / totalInstallments : 0.0;
+        updatedLoan['progress'] = progress;
+        
+        // Check if all installments are paid
+        if (paidInstallments == totalInstallments) {
+          updatedLoan['status'] = 'Completed';
+        }
       }
       
       // Update the loan
@@ -152,10 +168,44 @@ Future<void> markLoanAsPaid(String loanId) async {
       await notificationService.scheduleLoanPaymentNotifications(loanProvider);
       
       // Show a confirmation snackbar if in the app
+      if (markedAsPaid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Installment #$installmentNumber for ${loan['loanName']} (₹${installmentAmount.toStringAsFixed(2)}) marked as paid'
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'VIEW',
+              onPressed: () {
+                // Navigate to loan details screen
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => LoanDetailsScreen(
+                      loanData: updatedLoan,
+                      initialTab: 1, // Open the payments tab
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No pending payments found for ${loan['loanName']}'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } else {
+      // Loan not found
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Payment for ${loan['loanName']} marked as paid'),
-          backgroundColor: Colors.green,
+        const SnackBar(
+          content: Text('Loan not found or has been deleted'),
+          backgroundColor: Colors.red,
         ),
       );
     }

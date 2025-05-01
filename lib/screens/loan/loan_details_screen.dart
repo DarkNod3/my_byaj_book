@@ -3,6 +3,7 @@ import '../../providers/loan_provider.dart';
 import 'package:provider/provider.dart';
 import 'dart:math';
 import '../../utils/string_extensions.dart';
+import 'add_loan_screen.dart';
 
 class LoanDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> loanData;
@@ -22,6 +23,7 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
   late TabController _tabController;
   List<Map<String, dynamic>> _installments = [];
   int _paidInstallments = 0;
+  bool _showAllInstallments = false;
 
   @override
   void initState() {
@@ -589,6 +591,7 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
 
   Widget _buildPaymentsTab() {
     final totalPayments = _installments.length;
+    final displayCount = _showAllInstallments ? totalPayments : (totalPayments <= 10 ? totalPayments : 10);
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -599,24 +602,28 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Showing ${_installments.length <= 10 ? _installments.length : 10} of $totalPayments payments',
+                'Showing $displayCount of $totalPayments payments',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[600],
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  // Show all payments logic
-                },
-                child: Text(
-                  'Show All',
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontWeight: FontWeight.bold,
+              if (totalPayments > 10) // Only show the button if there are more than 10 installments
+                TextButton(
+                  onPressed: () {
+                    // Show all payments logic
+                    setState(() {
+                      _showAllInstallments = !_showAllInstallments;
+                    });
+                  },
+                  child: Text(
+                    _showAllInstallments ? 'Show Less' : 'Show All',
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -624,7 +631,7 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
           // Payment cards
           Column(
             children: _installments
-                .take(10)
+                .take(_showAllInstallments ? totalPayments : 10)
                 .map((installment) => _buildPaymentCard(installment))
                 .toList(),
           ),
@@ -947,6 +954,14 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
+                leading: Icon(Icons.edit, color: Colors.blue.shade700),
+                title: const Text('Edit Loan'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editLoan();
+                },
+              ),
+              ListTile(
                 leading: Icon(Icons.pause_circle_outline, color: Colors.orange.shade700),
                 title: const Text('Mark as Inactive'),
                 onTap: () {
@@ -1001,7 +1016,7 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
                   ),
                 );
                 
-                Navigator.pop(context, true); // Return to previous screen
+                Navigator.pop(context, true); // Return to previous screen with refresh flag
               },
               child: const Text('CONFIRM'),
             ),
@@ -1089,6 +1104,42 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
     }
     
     loanProvider.updateLoan(updatedLoanData);
+  }
+
+  void _editLoan() async {
+    // Navigate to the add/edit loan screen with the current loan data
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddLoanScreen(
+          isEditing: true,
+          loanData: widget.loanData,
+        ),
+      ),
+    );
+
+    // If loan was edited successfully, refresh the screen
+    if (result == true) {
+      final loanProvider = Provider.of<LoanProvider>(context, listen: false);
+      final updatedLoan = loanProvider.getLoanById(widget.loanData['id']);
+      
+      if (updatedLoan != null) {
+        setState(() {
+          // Update the installments based on the new loan data
+          _installments = [];
+          _generateInstallments();
+          _updateLoanStatus();
+        });
+        
+        // Show confirmation
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Loan updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
   }
 }
 

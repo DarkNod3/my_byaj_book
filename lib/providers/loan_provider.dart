@@ -160,15 +160,18 @@ class LoanProvider extends ChangeNotifier {
   }
 
   Map<String, dynamic> getLoanSummary({UserProvider? userProvider}) {
-    int totalActiveLoans = _activeLoans.length;
+    // Filter out inactive loans from the count and calculations
+    final activeLoans = _activeLoans.where((loan) => loan['status'] != 'Inactive').toList();
+    
+    int totalActiveLoans = activeLoans.length;
     
     // Calculate total loan amount as double
-    double totalAmount = _activeLoans.fold(0.0, (prev, loan) => 
+    double totalAmount = activeLoans.fold(0.0, (prev, loan) => 
       prev + (double.tryParse(loan['loanAmount'] ?? '0') ?? 0.0));
     
     // Calculate the next due amount as double
     double dueAmount = 0.0;
-    for (var loan in _activeLoans) {
+    for (var loan in activeLoans) {
       double principal = double.tryParse(loan['loanAmount'] ?? '0') ?? 0.0;
       double rate = (double.tryParse(loan['interestRate'] ?? '0') ?? 0.0) / 100 / 12;
       int time = int.tryParse(loan['loanTerm'] ?? '0') ?? 0;
@@ -199,5 +202,30 @@ class LoanProvider extends ChangeNotifier {
       result *= x;
     }
     return result;
+  }
+
+  // Get a loan by its ID
+  Map<String, dynamic>? getLoanById(String id) {
+    // First look in active loans
+    final activeLoan = _activeLoans.firstWhere(
+      (loan) => loan['id'] == id,
+      orElse: () => <String, dynamic>{},
+    );
+    
+    if (activeLoan.isNotEmpty) {
+      return activeLoan;
+    }
+    
+    // Then look in completed loans
+    final completedLoan = _completedLoans.firstWhere(
+      (loan) => loan['id'] == id,
+      orElse: () => <String, dynamic>{},
+    );
+    
+    if (completedLoan.isNotEmpty) {
+      return completedLoan;
+    }
+    
+    return null;
   }
 } 
