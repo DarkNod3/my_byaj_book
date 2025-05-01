@@ -125,10 +125,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       final phone = contact['phone'] ?? '';
       if (phone.isEmpty) continue;
       
-      final transactions = transactionProvider.getTransactionsForContact(phone);
+      final transactions = transactionProvider.getTransactionsForContact(phone, tabType: 'withoutInterest');
       if (transactions.isNotEmpty) {
         // Update the contact's amount based on transaction balance
-        double balance = transactionProvider.calculateBalance(phone);
+        double balance = transactionProvider.calculateBalance(phone, tabType: 'withoutInterest');
         
         // Update the daysAgo based on the most recent transaction
         final mostRecentTransaction = transactions.first; // Assuming newest first
@@ -150,10 +150,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       final phone = contact['phone'] ?? '';
       if (phone.isEmpty) continue;
       
-      final transactions = transactionProvider.getTransactionsForContact(phone);
+      final transactions = transactionProvider.getTransactionsForContact(phone, tabType: 'withInterest');
       if (transactions.isNotEmpty) {
         // Update the contact's amount based on transaction balance
-        double balance = transactionProvider.calculateBalance(phone);
+        double balance = transactionProvider.calculateBalance(phone, tabType: 'withInterest');
         
         // Update the daysAgo based on the most recent transaction
         final mostRecentTransaction = transactions.first; // Assuming newest first
@@ -856,11 +856,12 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       if (phone.isEmpty) continue;
       
       final oldAmount = contact['amount'] ?? 0.0;
-      final transactions = transactionProvider.getTransactionsForContact(phone);
+      final tabType = contact['tabType'] ?? 'withoutInterest';
+      final transactions = transactionProvider.getTransactionsForContact(phone, tabType: tabType);
       
       if (transactions.isNotEmpty) {
         // Calculate balance
-        double balance = transactionProvider.calculateBalance(phone);
+        double balance = transactionProvider.calculateBalance(phone, tabType: tabType);
         
         // Update days ago
         int daysAgo = 0;
@@ -875,7 +876,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         contact['isGet'] = balance >= 0;
         contact['daysAgo'] = daysAgo;
         
-        print('SYNC - Contact: ${contact['name']}, Old amount: $oldAmount, Balance: $balance, DaysAgo: $daysAgo');
+        print('SYNC - Contact: ${contact['name']}, Old amount: $oldAmount, Balance: $balance, DaysAgo: $daysAgo, tabType: $tabType');
       }
     }
     
@@ -1700,15 +1701,16 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     final contactType = contact['type'];
     final phone = contact['phone'] ?? '';
     final name = contact['name'] ?? '';
+    final tabType = contact['tabType'] ?? 'withoutInterest';
     
     // Debug prints
-    print('HomeScreen - Contact: $name, Phone: $phone, isGet: $isGet');
+    print('HomeScreen - Contact: $name, Phone: $phone, isGet: $isGet, tabType: $tabType');
     
     // Get transaction provider
     final transactionProvider = Provider.of<TransactionProvider>(context);
     
     // Debug transaction info
-    final transactions = transactionProvider.getTransactionsForContact(phone);
+    final transactions = transactionProvider.getTransactionsForContact(phone, tabType: tabType);
     print('HomeScreen - Transaction count for $name: ${transactions.length}');
     
     // Get balance from transactions
@@ -1716,7 +1718,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     double balanceFromTransactions = 0.0;
     
     if (phone.isNotEmpty) {
-      balanceFromTransactions = transactionProvider.calculateBalance(phone);
+      balanceFromTransactions = transactionProvider.calculateBalance(phone, tabType: tabType);
       print('HomeScreen - Transaction balance for $name: $balanceFromTransactions');
       
       // The original amount (what was set when creating the contact)
