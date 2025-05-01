@@ -30,6 +30,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:my_byaj_book/screens/settings/settings_screen.dart';
+import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -964,6 +965,13 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     // Listen to changes in transaction provider to update UI when transactions change
     Provider.of<TransactionProvider>(context);
     
+    // Ensure contacts are synchronized with transactions
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _syncContactsWithTransactions();
+      }
+    });
+    
     return Column(
       children: [
         _buildTabBar(),
@@ -1261,59 +1269,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
           
           // Add interest details section when on With Interest tab
           if (_isWithInterest) ...[
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.calculate, size: 14, color: Colors.amber.shade800),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Interest Summary',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.amber.shade800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildInterestInfoItem(
-                        title: 'Principal', 
-                        amount: _totalPrincipal,
-                        icon: Icons.money,
-                        color: AppTheme.primaryColor,
-                      ),
-                      _buildInterestInfoItem(
-                        title: 'Interest Due', 
-                        amount: _totalInterestDue,
-                        icon: Icons.percent,
-                        color: Colors.amber.shade800,
-                      ),
-                      _buildInterestInfoItem(
-                        title: 'Per Day', 
-                        amount: _interestPerDay,
-                        icon: Icons.today,
-                        color: Colors.orange,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            // Interest summary card removed as requested
           ],
           
           const SizedBox(height: 8),
@@ -2970,11 +2926,11 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     transactionProvider.addContactIfNotExists(contactData);
     
-    // Refresh home screen and navigate to detail
-    _refreshHomeScreenAndNavigateToDetail(context, contactData);
+    // Navigate directly to edit contact screen instead of contact details with setup prompt
+    _navigateToEditContact(context, contactData, transactionProvider);
   }
   
-  void _refreshHomeScreenAndNavigateToDetail(BuildContext context, Map<String, dynamic> contactData) {
+  void _navigateToEditContact(BuildContext context, Map<String, dynamic> contactData, TransactionProvider transactionProvider) {
     // Find the home screen state to refresh contacts
     final homeScreenState = context.findAncestorStateOfType<_HomeScreenState>();
     if (homeScreenState != null) {
@@ -2993,17 +2949,35 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       }
     }
     
-    // Navigate directly to contact detail screen
+    // Navigate directly to edit contact screen
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ContactDetailScreen(
+        builder: (context) => EditContactScreen(
           contact: contactData,
-          showSetupPrompt: contactData.containsKey('isNewContact'), // Pass flag to show setup prompt
+          transactionProvider: transactionProvider,
         ),
       ),
-    ).then((_) {
-      // Refresh the contacts list when returning from detail screen
+    ).then((result) {
+      // If contact was successfully updated, navigate to contact detail screen
+      if (result == true) {
+        // Get the updated contact
+        final updatedContact = transactionProvider.getContactById(contactData['phone']);
+        if (updatedContact != null) {
+          // Navigate to contact detail screen with the updated contact
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ContactDetailScreen(
+                contact: updatedContact,
+                showSetupPrompt: false, // No need for setup prompt since we already set up in edit screen
+              ),
+            ),
+          );
+        }
+      }
+      
+      // Refresh the contacts list when returning
       if (homeScreenState != null) {
         final homeContentState = homeScreenState._findHomeContentState(context);
         if (homeContentState != null) {
@@ -3095,6 +3069,36 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
           ],
         );
       },
+    );
+  }
+  
+  void _refreshHomeScreenAndNavigateToDetail(BuildContext context, Map<String, dynamic> contactData) {
+    // Find the home screen state to refresh contacts
+    final homeScreenState = context.findAncestorStateOfType<_HomeScreenState>();
+    if (homeScreenState != null) {
+      // Try to find HomeContent state to refresh its contacts
+      final homeContentState = homeScreenState._findHomeContentState(context);
+      if (homeContentState != null) {
+        homeContentState.setState(() {
+          // Force refresh
+          homeContentState._syncContactsWithTransactions();
+          
+          // If this is a with-interest contact, switch to with-interest tab
+          if (contactData['tabType'] == 'withInterest') {
+            homeContentState._tabController.animateTo(1); // Index 1 is With Interest tab
+          } else {
+            homeContentState._tabController.animateTo(0); // Index 0 is Without Interest tab
+          }
+        });
+      }
+    }
+    
+    // Navigate to contact detail screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ContactDetailScreen(contact: contactData),
+      ),
     );
   }
   

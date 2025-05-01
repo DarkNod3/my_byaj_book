@@ -43,7 +43,7 @@ class ContactDetailScreen extends StatefulWidget {
 class _ContactDetailScreenState extends State<ContactDetailScreen> {
   final TextEditingController _searchController = TextEditingController();
   final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
-  final dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
+  final dateFormat = DateFormat('dd MMM yyyy, HH:mm');
   List<Map<String, dynamic>> _filteredTransactions = [];
   bool _isSearching = false;
   late TransactionProvider _transactionProvider;
@@ -91,6 +91,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     final query = _searchController.text.toLowerCase();
     setState(() {
       final transactions = _transactionProvider.getTransactionsForContact(_contactId);
+      
+      // First filter the transactions
       if (query.isEmpty) {
         _filteredTransactions = List.from(transactions);
       } else {
@@ -99,6 +101,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               tx['amount'].toString().contains(query);
         }).toList();
       }
+      
+      // Then sort them by date, newest first
+      _filteredTransactions.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
     });
   }
 
@@ -141,8 +146,11 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       ),
       body: Column(
         children: [
-          // Interest Summary Card (only for with-interest contacts)
-          if (isWithInterest) _buildInterestSummaryCard(),
+          // Show either Interest Summary Card or Basic Summary Card, but not both
+          if (isWithInterest)
+            _buildInterestSummaryCard()
+          else
+            _buildBasicSummaryCard(),
 
           // Action buttons
           Padding(
@@ -358,8 +366,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                   Text(
                     dateFormat.format(tx['date']),
                     style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey.shade600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade700,
                     ),
                   ),
                   Container(
@@ -608,9 +617,16 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     
     // Check if this is a with-interest contact
     final bool isWithInterest = widget.contact['type'] != null;
+    final String relationshipType = widget.contact['type'] as String? ?? '';
     
     // Default to principal amount
     bool isPrincipalAmount = true;
+    
+    // Determine if we should show the interest option based on relationship and transaction type
+    final bool showInterestOption = isWithInterest && !(
+      (relationshipType == 'borrower' && type == 'gave') || // Borrowers don't receive interest
+      (relationshipType == 'lender' && type == 'got')       // Lenders don't pay interest
+    );
 
     showDialog(
       context: context,
@@ -676,8 +692,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     ),
                   ),
                   
-                  // Principal/Interest Switch (Only for with-interest contacts)
-                  if (isWithInterest) ...[
+                  // Principal/Interest Switch (Only for with-interest contacts when appropriate)
+                  if (showInterestOption) ...[
                     const SizedBox(height: 12),
                     const Text(
                       'Is this amount for:',
@@ -919,6 +935,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                             if (amount == null || amount <= 0) {
                               return;
                             }
+                            
+                            // Ensure that certain relationship/transaction combinations are forced to principal
+                            bool actualIsPrincipal = isPrincipalAmount;
+                            if ((relationshipType == 'borrower' && type == 'gave') || 
+                                (relationshipType == 'lender' && type == 'got')) {
+                              actualIsPrincipal = true;
+                            }
 
                             // Create transaction note
                             String note = noteController.text.isNotEmpty
@@ -927,7 +950,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                                 
                             // Add prefix for interest/principal if applicable
                             if (isWithInterest) {
-                              String prefix = isPrincipalAmount ? 'Principal: ' : 'Interest: ';
+                              String prefix = actualIsPrincipal ? 'Principal: ' : 'Interest: ';
                               note = prefix + note;
                             }
 
@@ -940,7 +963,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                               note,
                               imagePath,
                               extraData: isWithInterest ? {
-                                'isPrincipal': isPrincipalAmount,
+                                'isPrincipal': actualIsPrincipal,
                                 'interestRate': widget.contact['interestRate'] as double,
                               } : null,
                             );
@@ -953,7 +976,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                             Navigator.pop(context);
                             
                             // Show success message
-                            final String amountType = isPrincipalAmount ? 'principal' : 'interest';
+                            final String amountType = actualIsPrincipal ? 'principal' : 'interest';
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
@@ -1092,59 +1115,98 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     // Calculate principal and interest based on transaction history
     double principal = 0.0;
     double interestPaid = 0.0;
-    double interestDue = 0.0;
+    double accumulatedInterest = 0.0;
     DateTime? firstTransactionDate;
+    DateTime? lastInterestCalculationDate;
+    
+    // Sort transactions by date (oldest first)
+    transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+    
+    // Get relationship type to handle borrower vs lender logic differently
+    final relationshipType = widget.contact['type'] as String? ?? '';
+    final isBorrower = relationshipType == 'borrower';
     
     if (transactions.isNotEmpty) {
-      // Process transactions to separate principal and interest
+      // Set first transaction date
+      firstTransactionDate = transactions.first['date'] as DateTime;
+      lastInterestCalculationDate = firstTransactionDate;
+      
+      // Track running principal for interest calculation
+      double runningPrincipal = 0.0;
+      
+      // Process transactions chronologically to track interest accumulation
       for (var tx in transactions) {
         final note = (tx['note'] ?? '').toLowerCase();
         final amount = tx['amount'] as double;
         final isGave = tx['type'] == 'gave';
+        final txDate = tx['date'] as DateTime;
         
-        // Check if it's an interest transaction
+        // Calculate interest accumulated up to this transaction date
+        if (lastInterestCalculationDate != null && runningPrincipal > 0) {
+          final daysSinceLastCalculation = txDate.difference(lastInterestCalculationDate!).inDays;
+          if (daysSinceLastCalculation > 0) {
+            // Get interest rate
+            final interestRate = (widget.contact['interestRate'] as double);
+            
+            // Calculate interest for the period
+            final interestForPeriod = runningPrincipal * interestRate / 100 / 365 * daysSinceLastCalculation;
+            accumulatedInterest += interestForPeriod;
+          }
+        }
+        
+        // Update principal or interest based on transaction type
         if (note.contains('interest:')) {
           if (isGave) {
-            // User paid interest
-            interestPaid += amount;
+            // User paid interest (adds to debt)
+            accumulatedInterest += amount;
           } else {
-            // User received interest
-            interestPaid -= amount;
+            // User received interest payment
+            interestPaid += amount;
+            
+            // For borrowers, interest payments don't reduce the accumulated interest 
+            // because it continues to accrue based on the principal
+            if (!isBorrower) {
+              // For lenders, reduce accumulated interest (but don't make it negative)
+              accumulatedInterest = (accumulatedInterest - amount > 0) ? accumulatedInterest - amount : 0;
+            }
           }
         } else {
           // It's a principal transaction
           if (isGave) {
+            // Added principal
+            runningPrincipal += amount;
             principal += amount;
           } else {
-            principal -= amount;
+            // Received principal payment
+            runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
+            principal = (principal - amount > 0) ? principal - amount : 0;
           }
         }
         
-        // Track first transaction date for interest calculation
-        if (firstTransactionDate == null || (tx['date'] as DateTime).isBefore(firstTransactionDate!)) {
-          firstTransactionDate = tx['date'] as DateTime;
-        }
+        // Update last calculation date
+        lastInterestCalculationDate = txDate;
       }
     }
     
-    // Get interest rate
-    final interestRate = (widget.contact['interestRate'] as double); 
-    final relationshipType = widget.contact['type'] as String?;
+    // Calculate interest from last transaction date until today
+    double interestDue = accumulatedInterest;
+    if (lastInterestCalculationDate != null && principal > 0) {
+      final daysUntilNow = DateTime.now().difference(lastInterestCalculationDate!).inDays;
+      
+      // Get interest rate
+      final interestRate = (widget.contact['interestRate'] as double); 
+      
+      // Calculate interest from last transaction until now
+      final interestFromLastTx = principal * interestRate / 100 / 365 * daysUntilNow;
+      interestDue += interestFromLastTx;
+    }
     
-    // Calculate days elapsed
-    final daysElapsed = firstTransactionDate != null 
-        ? DateTime.now().difference(firstTransactionDate).inDays 
-        : 0;
+    // Adjust for interest already paid - for both borrowers and lenders
+    // Show the net interest (interest due minus payments received)
+    interestDue = (interestDue - interestPaid > 0) ? interestDue - interestPaid : 0;
     
-    // Calculate interest per day based on principal
-    final interestPerDay = principal * interestRate / 100 / 365;
-    
-    // Calculate total interest due
-    final totalInterestDue = interestPerDay * daysElapsed;
-    
-    // Adjust for interest already paid
-    interestDue = totalInterestDue - interestPaid;
-    if (interestDue < 0) interestDue = 0;
+    // Calculate interest per day based on current principal
+    final interestPerDay = principal * (widget.contact['interestRate'] as double) / 100 / 365;
     
     // Calculate total amount (principal + interest)
     final totalAmount = principal + interestDue;
@@ -1223,7 +1285,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       Icon(Icons.percent, size: 16, color: Colors.amber.shade800),
                       const SizedBox(width: 4),
                       Text(
-                        '${interestRate.toStringAsFixed(1)}% p.a.',
+                        '${(widget.contact['interestRate'] as double).toStringAsFixed(1)}% p.a.',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.amber.shade800,
@@ -1329,6 +1391,58 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           ),
         ),
       ],
+    );
+  }
+  
+  // Basic summary card for contacts without interest
+  Widget _buildBasicSummaryCard() {
+    final balance = _calculateBalance();
+    final isPositive = balance >= 0;
+    
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  isPositive ? 'TO RECEIVE' : 'TO PAY',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: isPositive ? Colors.green.shade700 : Colors.red.shade700,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _showContactInfo,
+                  child: Row(
+                    children: const [
+                      Icon(Icons.info_outline, size: 16),
+                      SizedBox(width: 4),
+                      Text('DETAILS', style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              currencyFormat.format(balance.abs()),
+              style: TextStyle(
+                fontSize: 34,
+                fontWeight: FontWeight.bold,
+                color: isPositive ? Colors.green.shade700 : Colors.red.shade700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2308,6 +2422,7 @@ ${_getAppUserName()}
     
     // Check if this is a with-interest contact
     final bool isWithInterest = widget.contact['type'] != null;
+    final String relationshipType = widget.contact['type'] as String? ?? '';
     
     // Determine if it's a principal or interest transaction
     bool isPrincipalAmount = true;
@@ -2318,6 +2433,12 @@ ${_getAppUserName()}
       final note = (tx['note'] ?? '').toLowerCase();
       isPrincipalAmount = !note.contains('interest:');
     }
+
+    // Determine if we should show the interest option based on relationship and transaction type
+    final bool showInterestOption = isWithInterest && !(
+      (relationshipType == 'borrower' && type == 'gave') || // Borrowers don't receive interest
+      (relationshipType == 'lender' && type == 'got')       // Lenders don't pay interest
+    );
 
     showDialog(
       context: context,
@@ -2383,8 +2504,8 @@ ${_getAppUserName()}
                     ),
                   ),
                   
-                  // Principal/Interest Switch (Only for with-interest contacts)
-                  if (isWithInterest) ...[
+                  // Principal/Interest Switch (Only for with-interest contacts when appropriate)
+                  if (showInterestOption) ...[
                     const SizedBox(height: 12),
                     const Text(
                       'Is this amount for:',
@@ -2614,6 +2735,11 @@ ${_getAppUserName()}
                           onPressed: () {
                             setState(() {
                               type = 'gave';
+                              // Recalculate whether to show interest option
+                              if (relationshipType == 'borrower') {
+                                // If switching to gave for a borrower, force principal and hide option
+                                isPrincipalAmount = true;
+                              }
                             });
                           },
                           icon: const Icon(Icons.arrow_upward, size: 14),
@@ -2635,6 +2761,11 @@ ${_getAppUserName()}
                           onPressed: () {
                             setState(() {
                               type = 'got';
+                              // Recalculate whether to show interest option
+                              if (relationshipType == 'lender') {
+                                // If switching to got for a lender, force principal and hide option
+                                isPrincipalAmount = true;
+                              }
                             });
                           },
                           icon: const Icon(Icons.arrow_downward, size: 14),
@@ -2682,6 +2813,13 @@ ${_getAppUserName()}
                             if (amount == null || amount <= 0) {
                               return;
                             }
+                            
+                            // Ensure that certain relationship/transaction combinations are forced to principal
+                            bool actualIsPrincipal = isPrincipalAmount;
+                            if ((relationshipType == 'borrower' && type == 'gave') || 
+                                (relationshipType == 'lender' && type == 'got')) {
+                              actualIsPrincipal = true;
+                            }
 
                             // Create updated transaction note
                             String note = noteController.text.isNotEmpty
@@ -2690,14 +2828,14 @@ ${_getAppUserName()}
                                 
                             // Add prefix for interest/principal if applicable
                             if (isWithInterest) {
-                              String prefix = isPrincipalAmount ? 'Principal: ' : 'Interest: ';
+                              String prefix = actualIsPrincipal ? 'Principal: ' : 'Interest: ';
                               // If note doesn't already have the prefix, add it
                               if (!note.startsWith(prefix) && 
                                   !note.startsWith('Principal:') && 
                                   !note.startsWith('Interest:')) {
                                 note = prefix + note;
-                              } else if ((isPrincipalAmount && note.startsWith('Interest:')) ||
-                                        (!isPrincipalAmount && note.startsWith('Principal:'))) {
+                              } else if ((actualIsPrincipal && note.startsWith('Interest:')) ||
+                                        (!actualIsPrincipal && note.startsWith('Principal:'))) {
                                 // If the prefix doesn't match the selection, update it
                                 note = prefix + note.substring(note.indexOf(':') + 1).trim();
                               }
@@ -2718,7 +2856,7 @@ ${_getAppUserName()}
                             
                             // Add interest/principal info if applicable
                             if (isWithInterest) {
-                              updatedTx['isPrincipal'] = isPrincipalAmount;
+                              updatedTx['isPrincipal'] = actualIsPrincipal;
                               updatedTx['interestRate'] = widget.contact['interestRate'] as double;
                             }
                             

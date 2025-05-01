@@ -137,6 +137,9 @@ class TransactionProvider extends ChangeNotifier {
     
     // Save list of all contactIds that have transactions
     await prefs.setStringList('transaction_contacts', serializedData.keys.toList());
+    
+    // Create a backup immediately after saving transactions
+    await createAutomaticBackup();
   }
   
   // Load transactions from SharedPreferences
@@ -161,6 +164,8 @@ class TransactionProvider extends ChangeNotifier {
           return txMap;
         }).toList();
       }
+      
+      debugPrint('Loaded transactions for ${contactIds.length} contacts');
       
       // Notify listeners
       notifyListeners();
@@ -214,10 +219,28 @@ class TransactionProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final contactsJson = prefs.getStringList('contacts') ?? [];
       
-      _contacts = contactsJson.map((jsonStr) => 
-        Map<String, dynamic>.from(jsonDecode(jsonStr))
-      ).toList();
+      _contacts = contactsJson.map((jsonStr) {
+        final Map<String, dynamic> contact = Map<String, dynamic>.from(jsonDecode(jsonStr));
+        
+        // Convert color value back to Color object
+        if (contact['color'] != null && contact['color'] is int) {
+          contact['color'] = Color(contact['color'] as int);
+        }
+        
+        // Make sure tabType field exists for each contact
+        if (!contact.containsKey('tabType')) {
+          // Determine tabType based on interest rate or type
+          if (contact.containsKey('interestRate') || contact.containsKey('type')) {
+            contact['tabType'] = 'withInterest';
+          } else {
+            contact['tabType'] = 'withoutInterest';
+          }
+        }
+        
+        return contact;
+      }).toList();
       
+      debugPrint('Loaded ${_contacts.length} contacts from SharedPreferences');
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading contacts: $e');
@@ -228,9 +251,35 @@ class TransactionProvider extends ChangeNotifier {
   Future<void> _saveContacts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final contactsJson = _contacts.map((contact) => jsonEncode(contact)).toList();
+      
+      // Convert contacts to JSON-friendly format
+      final List<String> contactsJson = _contacts.map((contact) {
+        // Make a copy of the contact to avoid modifying the original
+        final Map<String, dynamic> contactCopy = Map<String, dynamic>.from(contact);
+        
+        // Convert Colors to hex strings if present
+        if (contactCopy['color'] != null && contactCopy['color'] is Color) {
+          final Color color = contactCopy['color'] as Color;
+          contactCopy['color'] = color.value; // Store color as int value
+        }
+        
+        // Ensure tabType is set
+        if (!contactCopy.containsKey('tabType')) {
+          if (contactCopy.containsKey('interestRate') || contactCopy.containsKey('type')) {
+            contactCopy['tabType'] = 'withInterest';
+          } else {
+            contactCopy['tabType'] = 'withoutInterest';
+          }
+        }
+        
+        return jsonEncode(contactCopy);
+      }).toList();
       
       await prefs.setStringList('contacts', contactsJson);
+      debugPrint('Saved ${_contacts.length} contacts to SharedPreferences');
+      
+      // Create a backup immediately after saving contacts
+      await createAutomaticBackup();
     } catch (e) {
       debugPrint('Error saving contacts: $e');
     }
