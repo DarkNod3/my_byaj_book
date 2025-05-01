@@ -40,7 +40,8 @@ class TransactionProvider extends ChangeNotifier {
     String type, 
     DateTime date, 
     String note, 
-    String? imagePath
+    String? imagePath,
+    {Map<String, dynamic>? extraData}
   ) async {
     // Ensure amount is always positive (absolute value)
     final double positiveAmount = amount.abs();
@@ -54,6 +55,11 @@ class TransactionProvider extends ChangeNotifier {
     
     if (imagePath != null) {
       transaction['imagePath'] = imagePath;
+    }
+    
+    // Add any extra data
+    if (extraData != null) {
+      transaction.addAll(extraData);
     }
     
     await addTransaction(contactId, transaction);

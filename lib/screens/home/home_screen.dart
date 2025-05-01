@@ -601,6 +601,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'amount': amount,
       'isGet': isGet,
       'daysAgo': 0,
+      'tabType': withInterest ? 'withInterest' : 'withoutInterest', // Set tab type based on interest
     };
     
     // Add interest-related fields if applicable
@@ -657,6 +658,12 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   String _searchQuery = '';
   String _interestViewMode = 'all'; // 'all', 'borrower', 'lender'
   
+  // Interest calculation variables
+  double _totalPrincipal = 0.0;
+  double _totalInterestDue = 0.0;
+  double _interestPerDay = 0.0;
+  final double _dailyInterestRate = 65.0; // ₹65 per day as mentioned by user
+  
   // Empty lists instead of sample data
   final List<Map<String, dynamic>> _withoutInterestContacts = [];
   final List<Map<String, dynamic>> _withInterestContacts = [];
@@ -703,14 +710,28 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       // Determine if this is a "with interest" contact
       final isWithInterest = providerContact['type'] != null || providerContact['interestRate'] != null;
       
-      if (isWithInterest) {
+      // Make a copy of the contact to work with
+      final contactCopy = Map<String, dynamic>.from(providerContact);
+      
+      // Ensure the contact has a tabType field that marks which tab it belongs to
+      if (!contactCopy.containsKey('tabType')) {
+        contactCopy['tabType'] = isWithInterest ? 'withInterest' : 'withoutInterest';
+        
+        // Update the contact in the provider to persist this change
+        transactionProvider.updateContact(contactCopy);
+      }
+      
+      // Only add contacts to their respective tabs based on tabType
+      final String tabType = contactCopy['tabType'] ?? (isWithInterest ? 'withInterest' : 'withoutInterest');
+      
+      if (tabType == 'withInterest') {
         // Add to with-interest list only
-        print('Adding to with-interest list: ${providerContact['name']}');
-        _withInterestContacts.add(Map<String, dynamic>.from(providerContact));
-      } else {
+        print('Adding to with-interest list: ${contactCopy['name']}');
+        _withInterestContacts.add(contactCopy);
+      } else if (tabType == 'withoutInterest') {
         // Add to without-interest list only
-        print('Adding to without-interest list: ${providerContact['name']}');
-        _withoutInterestContacts.add(Map<String, dynamic>.from(providerContact));
+        print('Adding to without-interest list: ${contactCopy['name']}');
+        _withoutInterestContacts.add(contactCopy);
       }
     }
     
@@ -770,8 +791,82 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       }
     }
     
+    // Calculate interest for interest-based contacts
+    _calculateInterestValues();
+    
     // Force a rebuild
     setState(() {});
+  }
+
+  // Calculate interest values for all with-interest contacts
+  void _calculateInterestValues() {
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    DateTime now = DateTime.now();
+    
+    // Reset totals before calculation
+    _totalPrincipal = 0.0;
+    _totalInterestDue = 0.0;
+    _interestPerDay = 0.0;
+    
+    for (var contact in _withInterestContacts) {
+      final phone = contact['phone'] ?? '';
+      if (phone.isEmpty) continue;
+      
+      // Skip if there are no transactions
+      final transactions = transactionProvider.getTransactionsForContact(phone);
+      if (transactions.isEmpty) continue;
+      
+      // Get the principal amount (balance)
+      final double balance = contact['isGet'] 
+          ? contact['amount'] as double 
+          : -(contact['amount'] as double);
+          
+      // Add to total principal
+      _totalPrincipal += balance.abs();
+      
+      // Calculate daily interest for this contact
+      double contactInterestPerDay = 0.0;
+      
+      // Get interest rate from contact
+      final double interestRate = contact['interestRate'] as double? ?? 12.0;
+      
+      // Calculate daily rate based on contact's interest rate (convert annual rate to daily)
+      contactInterestPerDay = interestRate / 365 / 100 * balance.abs();
+      
+      // Add to total interest per day
+      _interestPerDay += contactInterestPerDay;
+      
+      // Get the first transaction date (loan start date)
+      transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+      final DateTime loanStartDate = transactions.first['date'] as DateTime;
+      
+      // Calculate days since loan started
+      int daysSinceLoan = now.difference(loanStartDate).inDays;
+      
+      // Calculate total interest due for this contact
+      double contactInterestDue = contactInterestPerDay * daysSinceLoan;
+      
+      // Check if there are partial payments to reduce interest
+      double totalPaid = 0.0;
+      for (var transaction in transactions) {
+        if (transaction['isPaid'] == true) {
+          totalPaid += (transaction['amount'] as double).abs();
+        }
+      }
+      
+      // If principal has been partially paid, adjust interest due
+      if (totalPaid > 0) {
+        // Calculate what percentage of principal has been paid
+        final double originalPrincipal = balance.abs() + totalPaid;
+        final double paidPrincipalRatio = totalPaid / originalPrincipal;
+        
+        // Adjust interest by proportion of principal paid
+        contactInterestDue *= (1 - paidPrincipalRatio);
+      }
+      
+      // Add this contact's interest to total interest due
+      _totalInterestDue += contactInterestDue;
+    }
   }
 
   @override
@@ -1163,6 +1258,64 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               ),
             ],
           ),
+          
+          // Add interest details section when on With Interest tab
+          if (_isWithInterest) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.calculate, size: 14, color: Colors.amber.shade800),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Interest Summary',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildInterestInfoItem(
+                        title: 'Principal', 
+                        amount: _totalPrincipal,
+                        icon: Icons.money,
+                        color: AppTheme.primaryColor,
+                      ),
+                      _buildInterestInfoItem(
+                        title: 'Interest Due', 
+                        amount: _totalInterestDue,
+                        icon: Icons.percent,
+                        color: Colors.amber.shade800,
+                      ),
+                      _buildInterestInfoItem(
+                        title: 'Per Day', 
+                        amount: _interestPerDay,
+                        icon: Icons.today,
+                        color: Colors.orange,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+          
           const SizedBox(height: 8),
           if (_totalToGet > 0 || _totalToGive > 0)
             Container(
@@ -1196,6 +1349,47 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
             ),
         ],
       ),
+    );
+  }
+  
+  Widget _buildInterestInfoItem({
+    required String title, 
+    required double amount,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            size: 12,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '₹${amount.toStringAsFixed(2)}',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1504,6 +1698,41 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       print('HomeScreen - Using original balance: $displayAmount, showYouWillGet: $showYouWillGet');
     }
     
+    // Calculate interest details if this is an interest-based contact
+    double interestPerDay = 0.0;
+    double totalInterestDue = 0.0;
+    
+    if (_isWithInterest && transactions.isNotEmpty) {
+      // Get interest rate from contact
+      final double interestRate = contact['interestRate'] as double? ?? 12.0;
+      
+      // Calculate daily interest
+      interestPerDay = interestRate / 365 / 100 * displayAmount;
+      
+      // Calculate days since first transaction
+      transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+      final DateTime loanStartDate = transactions.first['date'] as DateTime;
+      final DateTime now = DateTime.now();
+      final int daysSinceLoan = now.difference(loanStartDate).inDays;
+      
+      // Calculate total interest due
+      totalInterestDue = interestPerDay * daysSinceLoan;
+      
+      // Adjust interest if principal partially paid
+      double totalPaid = 0.0;
+      for (var transaction in transactions) {
+        if (transaction['isPaid'] == true) {
+          totalPaid += (transaction['amount'] as double).abs();
+        }
+      }
+      
+      if (totalPaid > 0) {
+        final double originalPrincipal = displayAmount + totalPaid;
+        final double paidPrincipalRatio = totalPaid / originalPrincipal;
+        totalInterestDue *= (1 - paidPrincipalRatio);
+      }
+    }
+    
     final amountText = '₹${displayAmount.toStringAsFixed(2)}';
 
     return Card(
@@ -1529,158 +1758,254 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
+          child: Column(
             children: [
-              Stack(
+              Row(
                 children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: contact['color'],
-                    child: Text(
-                      contact['initials'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  if (_isWithInterest && contactType != null)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: contactType == 'borrower' ? AppTheme.secondaryColor : AppTheme.accentColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
-                        ),
-                        child: Icon(
-                          contactType == 'borrower' ? Icons.person_outline : Icons.account_balance,
-                          color: Colors.white,
-                          size: 8,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      contact['name'],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: AppTheme.textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 10,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          daysText,
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
+                  Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: contact['color'],
+                        child: Text(
+                          contact['initials'],
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
                         ),
-                        if (_isWithInterest) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      ),
+                      if (_isWithInterest && contactType != null)
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
                             decoration: BoxDecoration(
-                              color: Colors.amber.shade50,
-                              borderRadius: BorderRadius.circular(8),
+                              color: contactType == 'borrower' ? AppTheme.secondaryColor : AppTheme.accentColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 1.5),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.percent,
-                                  size: 8,
-                                  color: Colors.amber.shade800,
+                            child: Icon(
+                              contactType == 'borrower' ? Icons.person_outline : Icons.account_balance,
+                              color: Colors.white,
+                              size: 8,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          contact['name'],
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: AppTheme.textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: 10,
+                              color: Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              daysText,
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (_isWithInterest) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade50,
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  '${contact['interestRate']}% p.a.',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    color: Colors.amber.shade800,
-                                    fontWeight: FontWeight.w500,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.percent,
+                                      size: 8,
+                                      color: Colors.amber.shade800,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      '${contact['interestRate']}% p.a.',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        color: Colors.amber.shade800,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (contactType != null) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: contactType == 'borrower' 
+                                        ? AppTheme.secondaryColor.withOpacity(0.1)
+                                        : AppTheme.accentColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    StringUtils.capitalizeFirstLetter(contactType),
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      color: contactType == 'borrower' ? AppTheme.secondaryColor : AppTheme.accentColor,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ],
-                            ),
-                          ),
-                          if (contactType != null) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: contactType == 'borrower' 
-                                    ? AppTheme.secondaryColor.withOpacity(0.1)
-                                    : AppTheme.accentColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                StringUtils.capitalizeFirstLetter(contactType),
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: contactType == 'borrower' ? AppTheme.secondaryColor : AppTheme.accentColor,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
+                            ],
                           ],
-                        ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    amountText,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: showYouWillGet ? AppTheme.secondaryColor : AppTheme.accentColor,
-                    ),
                   ),
-                  Container(
-                    margin: const EdgeInsets.only(top: 2),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: showYouWillGet ? AppTheme.secondaryColor.withOpacity(0.1) : AppTheme.accentColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      showYouWillGet ? 'You\'ll Get' : 'You\'ll Give',
-                      style: TextStyle(
-                        color: showYouWillGet ? AppTheme.secondaryColor : AppTheme.accentColor,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w500,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        amountText,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: showYouWillGet ? AppTheme.secondaryColor : AppTheme.accentColor,
+                        ),
                       ),
-                    ),
+                      Container(
+                        margin: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: showYouWillGet ? AppTheme.secondaryColor.withOpacity(0.1) : AppTheme.accentColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          showYouWillGet ? 'You\'ll Get' : 'You\'ll Give',
+                          style: TextStyle(
+                            color: showYouWillGet ? AppTheme.secondaryColor : AppTheme.accentColor,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
+              
+              // Add interest breakdown for with interest contacts
+              if (_isWithInterest && totalInterestDue > 0) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.amber.shade100),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildInterestBreakdownItem(
+                        label: 'Principal',
+                        amount: displayAmount,
+                        iconData: Icons.money,
+                        color: AppTheme.primaryColor,
+                      ),
+                      Container(
+                        height: 20,
+                        width: 1,
+                        color: Colors.amber.shade200,
+                      ),
+                      _buildInterestBreakdownItem(
+                        label: 'Interest Due',
+                        amount: totalInterestDue,
+                        iconData: Icons.monetization_on,
+                        color: Colors.orange,
+                      ),
+                      Container(
+                        height: 20,
+                        width: 1,
+                        color: Colors.amber.shade200,
+                      ),
+                      _buildInterestBreakdownItem(
+                        label: 'Per Day',
+                        amount: interestPerDay,
+                        iconData: Icons.today,
+                        color: Colors.amber.shade800,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
+      ),
+    );
+  }
+  
+  Widget _buildInterestBreakdownItem({
+    required String label,
+    required double amount,
+    required IconData iconData,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            iconData,
+            size: 12,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 8,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  '₹${amount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2496,6 +2821,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
             'amount': 0.0,
             'isGet': true,
             'daysAgo': 0,
+            'tabType': 'withoutInterest', // Explicitly mark this contact for the without interest tab
           };
           
           // Get transaction provider to add this contact if it doesn't exist
@@ -2636,6 +2962,8 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       'daysAgo': 0,
       'type': relationshipType,
       'interestRate': 12.0, // Default interest rate
+      'tabType': 'withInterest', // Explicitly mark this contact for the with interest tab
+      'isNewContact': true, // Flag to indicate this is a newly created contact
     };
     
     // Get transaction provider to add this contact
@@ -2669,7 +2997,10 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ContactDetailScreen(contact: contactData),
+        builder: (context) => ContactDetailScreen(
+          contact: contactData,
+          showSetupPrompt: contactData.containsKey('isNewContact'), // Pass flag to show setup prompt
+        ),
       ),
     ).then((_) {
       // Refresh the contacts list when returning from detail screen
@@ -2744,6 +3075,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                       'amount': 0.0,
                       'isGet': true,
                       'daysAgo': 0,
+                      'tabType': 'withoutInterest', // Explicitly mark this contact for the without interest tab
                     };
                     
                     // Get transaction provider to add this contact if it doesn't exist
