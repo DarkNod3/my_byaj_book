@@ -31,6 +31,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:my_byaj_book/screens/settings/settings_screen.dart';
 import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
+import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
+import 'package:my_byaj_book/screens/tools/land_calculator_screen.dart';
+import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
+import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
+import 'package:my_byaj_book/screens/work_diary/work_diary_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -128,27 +133,15 @@ class _HomeScreenState extends State<HomeScreen> {
       'loans': const LoanScreen(),
       'cards': const CardScreen(),
       'bill_diary': const BillDiaryScreen(),
+      'emi_calc': const EmiCalculatorScreen(),
+      'land_calc': const LandCalculatorScreen(),
+      'sip_calc': const SipCalculatorScreen(),
+      'tax_calc': const TaxCalculatorScreen(),
       'milk_diary': const MilkDiaryScreen(),
-      'work_diary': DiaryTestScreen(diaryType: 'Work Diary'),
-      'farm_diary': DiaryTestScreen(diaryType: 'Farm Diary'),
-      'shop_diary': DiaryTestScreen(diaryType: 'Shop Diary'),
+      'work_diary': const WorkDiaryScreen(),
       'tea_diary': const TeaDiaryScreen(),
-      'expense_tracker': DiaryTestScreen(diaryType: 'Expenses'),
-      'goal_planner': DiaryTestScreen(diaryType: 'Goals'),
-      'budget_planner': DiaryTestScreen(diaryType: 'Budget'),
-      'tools': const MoreToolsScreen(),
     };
     
-    // Get selected screens from navigation preferences
-    final List<Widget> selectedScreens = navProvider.selectedNavItems
-        .map((item) => screenMap[item.id] ?? const HomeContent())
-        .toList();
-    
-    // Ensure we have at least one screen
-    if (selectedScreens.isEmpty) {
-      selectedScreens.add(const HomeContent());
-    }
-
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
@@ -186,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             Expanded(
-              child: _getActiveScreen(selectedScreens),
+              child: _getActiveScreen(screenMap, navProvider),
             ),
           ],
         ),
@@ -209,32 +202,74 @@ class _HomeScreenState extends State<HomeScreen> {
         bottomNavigationBar: BottomNavBar(
           currentIndex: _currentIndex,
           onTap: (index) {
-            print('Bottom nav onTap called with index: $index. Available screens: ${selectedScreens.length}');
-            
-            // Make sure we don't exceed the available screens
-            if (index == 2) {
-              // Center button for tools
-              setState(() {
-                _currentIndex = index;
-              });
-            } else if (index == 3 || index == 4) {
-              // We need to handle positions 3 and 4 specially
-              final adjustedIndex = index - 1; // Adjust for the center button
-              if (adjustedIndex - 1 < selectedScreens.length) { // -1 because we're 0-indexed
-                setState(() {
-                  _currentIndex = index;
-                });
-              }
-            } else if (index < selectedScreens.length) {
-              // Normal case for positions 0 and 1
-              setState(() {
-                _currentIndex = index;
-              });
-            }
+            setState(() {
+              _currentIndex = index;
+            });
           },
         ),
       ),
     );
+  }
+
+  String _getScreenTitle(NavPreferencesProvider navProvider) {
+    // First position is always Home
+    if (_currentIndex == 0) {
+      return 'My Byaj Book';
+    }
+    
+    // Index 2 is the More button (moved from index 3)
+    if (_currentIndex == 2) {
+      return 'Tools';
+    }
+    
+    // Get the selected tools
+    final selectedTools = navProvider.selectedTools;
+    
+    // For position 1, we use the first tool
+    if (_currentIndex == 1 && selectedTools.isNotEmpty) {
+      return selectedTools[0].title;
+    }
+    
+    // For position 3, we use the second tool (moved from position 2)
+    if (_currentIndex == 3 && selectedTools.length > 1) {
+      return selectedTools[1].title;
+    }
+    
+    // For position 4, we use the third tool
+    if (_currentIndex == 4 && selectedTools.length > 2) {
+      return selectedTools[2].title;
+    }
+    
+    return 'My Byaj Book';
+  }
+
+  Widget _getActiveScreen(Map<String, Widget> screenMap, NavPreferencesProvider navProvider) {
+    // Home is always the first screen
+    if (_currentIndex == 0) {
+      return screenMap['home'] ?? const HomeContent();
+    }
+    
+    // More screen now at index 2 (moved from index 3)
+    if (_currentIndex == 2) {
+      return const MoreToolsScreen();
+    }
+    
+    // Get the available tools
+    final selectedTools = navProvider.selectedTools;
+    
+    // Map the index to the correct tool in the selected tools
+    String toolId = 'home';
+    
+    if (_currentIndex == 1 && selectedTools.isNotEmpty) {
+      toolId = selectedTools[0].id;
+    } else if (_currentIndex == 3 && selectedTools.length > 1) {
+      toolId = selectedTools[1].id;
+    } else if (_currentIndex == 4 && selectedTools.length > 2) {
+      toolId = selectedTools[2].id;
+    }
+    
+    // Return the correct screen for the tool
+    return screenMap[toolId] ?? const HomeContent();
   }
 
   void _showAddContactOptions(BuildContext context) {
@@ -248,52 +283,6 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) => SelectContactScreen(isWithInterest: isWithInterest),
       ),
     );
-  }
-
-  String _getScreenTitle(NavPreferencesProvider navProvider) {
-    // If we're on the tools button (index 2), return "Tools"
-    if (_currentIndex == 2) {
-      return 'Tools';
-    }
-    
-    // Get the list of selected nav items
-    final navItems = navProvider.selectedNavItems;
-    
-    // Make sure we don't exceed the list length
-    final adjustedIndex = _currentIndex > 2 ? _currentIndex - 1 : _currentIndex;
-    
-    // Return the title if it exists
-    if (adjustedIndex < navItems.length) {
-      return navItems[adjustedIndex].title;
-    }
-    
-    return 'My Byaj Book';
-  }
-
-  Widget _getActiveScreen(List<Widget> screens) {
-    print('Getting active screen for index: $_currentIndex, available screens: ${screens.length}');
-    
-    // For the center button (index 2), show the tools screen
-    if (_currentIndex == 2) {
-      return const MoreToolsScreen();
-    }
-    
-    // For other indices, we need to adjust because of the center button
-    int adjustedIndex;
-    if (_currentIndex > 2) {
-      adjustedIndex = _currentIndex - 2; // Adjust for the center button (index 2)
-    } else {
-      adjustedIndex = _currentIndex;
-    }
-    
-    // Make sure we don't exceed the list length
-    if (adjustedIndex < screens.length) {
-      return screens[adjustedIndex];
-    } else {
-      // Handle the case where adjustedIndex is out of bounds
-      print('Warning: Adjusted index $adjustedIndex is out of bounds for screens list of length ${screens.length}. Using first screen instead.');
-      return screens.isNotEmpty ? screens.first : const HomeContent();
-    }
   }
 
   void _createContact(BuildContext context, String name, String phone, bool withInterest) {

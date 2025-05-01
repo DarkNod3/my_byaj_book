@@ -4,199 +4,195 @@ import 'package:my_byaj_book/constants/app_theme.dart';
 import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/land_calculator_screen.dart';
+import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
+import 'package:my_byaj_book/screens/bill_diary/bill_diary_screen.dart';
+import 'package:my_byaj_book/screens/tea_diary/tea_diary_screen.dart';
+import 'package:my_byaj_book/screens/work_diary/work_diary_screen.dart';
+import 'package:my_byaj_book/screens/tools/milk_diary_screen.dart';
+import 'package:my_byaj_book/screens/loan/loan_screen.dart';
+import 'package:my_byaj_book/screens/card/card_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:my_byaj_book/providers/nav_preferences_provider.dart';
 
 class MoreToolsScreen extends StatelessWidget {
   const MoreToolsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Financial Tools',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+    return Consumer<NavPreferencesProvider>(
+      builder: (context, navProvider, _) {
+        final unselectedTools = navProvider.unselectedTools;
+        
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'All Tools',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Access all available financial tools and diaries',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Bottom Nav Tools Section
+                Row(
+                  children: [
+                    const Text(
+                      'BOTTOM NAVIGATION',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pushNamed(context, NavSettingsScreen.routeName);
+                      },
+                      child: Text(
+                        'Customize',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                
+                // Home + Selected Tools
+                _buildSelectedToolsGrid(context, navProvider),
+                
+                const SizedBox(height: 24),
+                
+                // More Tools Section
+                Row(
+                  children: [
+                    const Text(
+                      'MORE TOOLS',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Add to bottom nav',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Unselected Tools Grid
+                _buildUnselectedToolsGrid(context, unselectedTools, navProvider),
+                
+                const SizedBox(height: 24),
+                
+                // Financial Tips Card
+                _buildFinancialTips(),
+              ],
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Use these tools to make better financial decisions',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 24),
-            _buildToolsGrid(context),
-            const SizedBox(height: 24),
-            _buildFeaturedTool(context),
-            const SizedBox(height: 24),
-            _buildFinancialTips(),
-          ],
-        ),
+          ),
+        );
+      }
+    );
+  }
+  
+  Widget _buildSelectedToolsGrid(BuildContext context, NavPreferencesProvider navProvider) {
+    // Add home to the start of the list
+    final homeItem = navProvider.homeItem;
+    final selectedTools = navProvider.selectedTools;
+    
+    // Create a combined list with home and selected tools
+    final combinedTools = [homeItem, ...selectedTools];
+    
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.9,
       ),
+      itemCount: combinedTools.length,
+      itemBuilder: (context, index) {
+        final tool = combinedTools[index];
+        final bool isHomeItem = index == 0;
+        
+        return _buildToolItem(
+          context,
+          title: tool.title,
+          icon: tool.icon,
+          color: isHomeItem 
+              ? Colors.blue.shade700
+              : _getToolColor(tool.id),
+          onTap: () {
+            _navigateToTool(context, tool.id);
+          },
+          badge: isHomeItem ? 'Fixed' : null,
+        );
+      },
     );
   }
 
-  Widget _buildToolsGrid(BuildContext context) {
-    return GridView.count(
+  Widget _buildUnselectedToolsGrid(
+    BuildContext context,
+    List<NavItem> unselectedTools,
+    NavPreferencesProvider navProvider
+  ) {
+    return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 3,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      children: [
-        _buildToolItem(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.85,
+      ),
+      itemCount: unselectedTools.length,
+      itemBuilder: (context, index) {
+        final tool = unselectedTools[index];
+        final bool canAdd = navProvider.selectedTools.length < 3;
+        
+        return _buildToolItem(
           context,
-          title: 'EMI Calculator',
-          icon: Icons.calculate,
-          color: Colors.blue,
+          title: tool.title,
+          icon: tool.icon,
+          color: _getToolColor(tool.id),
           onTap: () {
-            // Navigate to EMI calculator
+            _navigateToTool(context, tool.id);
+          },
+          addToNav: canAdd ? () {
+            navProvider.addTool(tool.id);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('EMI Calculator coming soon!'),
-                duration: Duration(seconds: 2),
+              SnackBar(
+                content: Text('${tool.title} added to bottom navigation'),
+                duration: const Duration(seconds: 2),
               ),
             );
-          },
-        ),
-        _buildToolItem(
-          context,
-          title: 'SIP Calculator',
-          icon: Icons.pie_chart,
-          color: Colors.purple,
-          onTap: () {
-            // Navigate to SIP calculator
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const SipCalculatorScreen(),
-              ),
-            );
-          },
-        ),
-        _buildToolItem(
-          context,
-          title: 'FD Calculator',
-          icon: Icons.account_balance,
-          color: Colors.green,
-          onTap: () {
-            // Navigate to FD calculator
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('FD Calculator coming soon!'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-        ),
-        _buildToolItem(
-          context,
-          title: 'Compare Loans',
-          icon: Icons.compare_arrows,
-          color: Colors.orange,
-          onTap: () {
-            // Navigate to loan comparison
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Loan Comparison coming soon!'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-        ),
-        _buildToolItem(
-          context,
-          title: 'Tax Calculator',
-          icon: Icons.receipt_long,
-          color: Colors.red,
-          onTap: () {
-            // Navigate to tax calculator
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const TaxCalculatorScreen(),
-              ),
-            );
-          },
-        ),
-        _buildToolItem(
-          context,
-          title: 'Loan Eligibility',
-          icon: Icons.check_circle,
-          color: Colors.cyan,
-          onTap: () {
-            // Navigate to loan eligibility
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Loan Eligibility Calculator coming soon!'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-        ),
-        _buildToolItem(
-          context,
-          title: 'Interest Rates',
-          icon: Icons.percent,
-          color: Colors.teal,
-          onTap: () {
-            // Navigate to interest rates
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Interest Rates coming soon!'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-        ),
-        _buildToolItem(
-          context,
-          title: 'Customize Navigation',
-          icon: Icons.dashboard_customize_outlined,
-          color: AppTheme.primaryColor,
-          onTap: () {
-            // Navigate to customize navigation
-            Navigator.pushNamed(context, NavSettingsScreen.routeName);
-          },
-        ),
-        _buildToolItem(
-          context,
-          title: 'Land Calculator',
-          icon: Icons.landscape,
-          color: Colors.teal,
-          onTap: () {
-            // Navigate to Land Calculator
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const LandCalculatorScreen(),
-              ),
-            );
-          },
-        ),
-        _buildToolItem(
-          context,
-          title: 'More',
-          icon: Icons.more_horiz,
-          color: Colors.grey,
-          onTap: () {
-            // Show more tools
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('More tools coming soon!'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-        ),
-      ],
+          } : null,
+        );
+      },
     );
   }
 
@@ -206,6 +202,8 @@ class MoreToolsScreen extends StatelessWidget {
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    VoidCallback? addToNav,
+    String? badge,
   }) {
     return InkWell(
       onTap: onTap,
@@ -246,85 +244,40 @@ class MoreToolsScreen extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFeaturedTool(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.blue.shade700,
-              Colors.blue.shade900,
-            ],
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(
-                  Icons.insights,
-                  color: Colors.white,
-                  size: 24,
+            
+            // Badge for fixed items
+            if (badge != null) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                SizedBox(width: 8),
-                Text(
-                  'Featured Tool',
+                child: Text(
+                  badge,
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                    color: Colors.blue.shade800,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Loan Prepayment Calculator',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Find out how much you can save by prepaying your loan. Calculate the impact on your loan tenure and interest payments.',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                // Navigate to loan prepayment calculator
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.blue.shade700,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+            ],
+            
+            // Add to nav button
+            if (addToNav != null) ...[
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: addToNav,
+                child: Text(
+                  'Add to nav',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.blue.shade700,
+                  ),
                 ),
               ),
-              child: const Text('Try Calculator'),
-            ),
+            ],
           ],
         ),
       ),
@@ -332,115 +285,124 @@ class MoreToolsScreen extends StatelessWidget {
   }
 
   Widget _buildFinancialTips() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Financial Tips',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.lightbulb,
+                color: Colors.amber.shade700,
               ),
-            ),
-            Text(
-              'See All',
-              style: TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.w500,
+              const SizedBox(width: 8),
+              Text(
+                'Financial Tip',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber.shade900,
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Create a budget and track your expenses regularly to maintain financial discipline. This will help you identify unnecessary expenses and save more.',
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.5,
             ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _buildTipCard(
-          title: 'How to improve your credit score?',
-          description: 'Learn the key factors that impact your credit score and strategies to improve it over time.',
-          icon: Icons.trending_up,
-          color: Colors.green,
-        ),
-        _buildTipCard(
-          title: 'Smart ways to repay your loans faster',
-          description: 'Discover effective strategies to pay off your loans quicker and save on interest payments.',
-          icon: Icons.speed,
-          color: Colors.orange,
-        ),
-        _buildTipCard(
-          title: 'Understanding loan interest rates',
-          description: 'Learn about different types of interest rates and how they affect your loan repayments.',
-          icon: Icons.attach_money,
-          color: Colors.purple,
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
-
-  Widget _buildTipCard({
-    required String title,
-    required String description,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Read More',
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  
+  Color _getToolColor(String toolId) {
+    switch (toolId) {
+      case 'loans':
+        return Colors.blue.shade700;
+      case 'cards':
+        return Colors.purple.shade700;
+      case 'bill_diary':
+        return Colors.orange.shade700;
+      case 'emi_calc':
+        return Colors.green.shade700;
+      case 'land_calc':
+        return Colors.teal.shade700;
+      case 'sip_calc':
+        return Colors.indigo.shade700;
+      case 'tax_calc':
+        return Colors.red.shade700;
+      case 'milk_diary':
+        return Colors.amber.shade700;
+      case 'work_diary':
+        return Colors.brown.shade700;
+      case 'tea_diary':
+        return Colors.deepPurple.shade700;
+      default:
+        return Colors.grey.shade700;
+    }
+  }
+  
+  void _navigateToTool(BuildContext context, String toolId) {
+    switch (toolId) {
+      case 'home':
+        // We're already at home, so just close this screen
+        Navigator.pop(context);
+        break;
+      case 'loans':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const LoanScreen()));
+        break;
+      case 'cards':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const CardScreen()));
+        break;
+      case 'bill_diary':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const BillDiaryScreen()));
+        break;
+      case 'emi_calc':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const EmiCalculatorScreen()));
+        break;
+      case 'land_calc':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const LandCalculatorScreen()));
+        break;
+      case 'sip_calc':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const SipCalculatorScreen()));
+        break;
+      case 'tax_calc':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const TaxCalculatorScreen()));
+        break;
+      case 'milk_diary':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const MilkDiaryScreen()));
+        break;
+      case 'work_diary':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const WorkDiaryScreen()));
+        break;
+      case 'tea_diary':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const TeaDiaryScreen()));
+        break;
+      default:
+        // Show "coming soon" message for any other tools
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$toolId coming soon!'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        break;
+    }
   }
 }

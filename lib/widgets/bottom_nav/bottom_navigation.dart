@@ -34,8 +34,10 @@ class BottomNavBar extends StatelessWidget {
         if (!navPrefs.isLoaded) {
           Future.microtask(() => navPrefs.loadPreferences());
         }
-        
-        final navItems = navPrefs.selectedNavItems;
+
+        // Get home item and selected tools
+        final homeItem = navPrefs.homeItem;
+        final selectedTools = navPrefs.selectedTools;
         
         return Container(
           height: 70,
@@ -53,20 +55,47 @@ class BottomNavBar extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              // Build the first two nav items (index 0 and 1)
-              if (navItems.isNotEmpty)
-                _buildNavItem(context, 0, navItems[0].icon, navItems[0].title),
-              if (navItems.length > 1)
-                _buildNavItem(context, 1, navItems[1].icon, navItems[1].title),
+              // Home icon (fixed, index 0)
+              _buildNavItem(
+                context, 
+                0, 
+                homeItem.icon, 
+                homeItem.title
+              ),
               
-              // Center tools button (index 2)
-              _buildToolsButton(context),
+              // First user-selected tool (index 1)
+              if (selectedTools.isNotEmpty)
+                _buildNavItem(
+                  context, 
+                  1, 
+                  selectedTools[0].icon, 
+                  selectedTools[0].title
+                ),
+                
+              // More button (moved from center to position 2)
+              _buildMoreButton(context),
               
-              // Build the last two nav items (index 3 and 4)
-              if (navItems.length > 2)
-                _buildNavItem(context, 3, navItems[2].icon, navItems[2].title),
-              if (navItems.length > 3)
-                _buildNavItem(context, 4, navItems[3].icon, navItems[3].title),
+              // Second user-selected tool (index moved from 2 to 3)
+              if (selectedTools.length > 1)
+                _buildNavItem(
+                  context, 
+                  3, 
+                  selectedTools[1].icon, 
+                  selectedTools[1].title
+                ),
+                
+              // Third user-selected tool (index moved from 4 to 4)
+              if (selectedTools.length > 2)
+                _buildNavItem(
+                  context, 
+                  4, 
+                  selectedTools[2].icon, 
+                  selectedTools[2].title
+                ),
+                
+              // Empty space if we have fewer than 3 selected tools
+              if (selectedTools.length <= 2)
+                Container(width: 60),
             ],
           ),
         );
@@ -78,10 +107,7 @@ class BottomNavBar extends StatelessWidget {
     final isSelected = currentIndex == index;
     
     return InkWell(
-      onTap: () {
-        print('Nav item tapped: $index with label: $label');
-        onTap(index);
-      },
+      onTap: () => onTap(index),
       child: Container(
         width: 60,
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -112,20 +138,25 @@ class BottomNavBar extends StatelessWidget {
     );
   }
 
-  Widget _buildToolsButton(BuildContext context) {
+  Widget _buildMoreButton(BuildContext context) {
+    final isSelected = currentIndex == 2;
+    
     return GestureDetector(
-      onTap: () => _showToolsPopup(context),
+      onTap: () {
+        onTap(2);
+        _showMoreTools(context);
+      },
       child: Container(
         width: 60,
         height: 60,
-        margin: const EdgeInsets.only(bottom: 20),
+        margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.blue.shade500,
-              Colors.blue.shade700,
+              isSelected ? Colors.blue.shade700 : Colors.blue.shade500,
+              isSelected ? Colors.blue.shade900 : Colors.blue.shade700,
             ],
           ),
           shape: BoxShape.circle,
@@ -147,137 +178,172 @@ class BottomNavBar extends StatelessWidget {
     );
   }
 
-  void _showToolsPopup(BuildContext context) {
+  void _showMoreTools(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => ToolsPopup(),
+      builder: (context) => const MoreToolsModal(),
     );
   }
 }
 
-class ToolsPopup extends StatelessWidget {
-  ToolsPopup({Key? key}) : super(key: key);
-
-  final List<Map<String, dynamic>> _tools = [
-    {'icon': Icons.calculate_rounded, 'title': 'EMI Calc', 'color': Colors.purple},
-    {'icon': Icons.landscape_rounded, 'title': 'Land Calc', 'color': Colors.teal},
-    {'icon': Icons.account_balance_wallet_rounded, 'title': 'SIP Calc', 'color': Colors.indigo},
-    {'icon': Icons.assignment_rounded, 'title': 'Tax Calc', 'color': Colors.red},
-    {'icon': Icons.note_alt_rounded, 'title': 'Bill Diary', 'color': Colors.blue.shade700},
-    {'icon': Icons.local_drink_rounded, 'title': 'Milk Diary', 'color': Colors.amber.shade700},
-    {'icon': Icons.work_rounded, 'title': 'Work Diary', 'color': Colors.blue},
-    {'icon': Icons.emoji_food_beverage_rounded, 'title': 'Tea Diary', 'color': Colors.deepPurple},
-    {'icon': Icons.settings, 'title': 'Settings', 'color': Colors.grey.shade700},
-  ];
+class MoreToolsModal extends StatelessWidget {
+  const MoreToolsModal({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.only(top: 24, bottom: 24),
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 50,
-            height: 5,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Tools & Diaries',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              'Access financial tools and business diary templates',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
+    return Consumer<NavPreferencesProvider>(
+      builder: (context, navPrefs, _) {
+        final unselectedTools = navPrefs.unselectedTools;
+        
+        return Container(
+          padding: const EdgeInsets.only(top: 24, bottom: 24),
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                spreadRadius: 0,
+                blurRadius: 10,
+                offset: const Offset(0, -2),
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: 30),
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 0.9,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 24,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-              itemCount: _tools.length,
-              itemBuilder: (context, index) {
-                final tool = _tools[index];
-                return _buildToolItem(
-                  context,
-                  icon: tool['icon'],
-                  title: tool['title'],
-                  color: tool['color'],
-                );
-              },
-            ),
+              const SizedBox(height: 20),
+              
+              // Title with Manage button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Tools & Diaries',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pushNamed(NavSettingsScreen.routeName);
+                      },
+                      icon: Icon(
+                        Icons.edit_outlined,
+                        size: 18,
+                        color: Colors.blue.shade700,
+                      ),
+                      label: Text(
+                        'Manage Nav',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // All Tools Section (excluding tools already in bottom nav)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    const Text(
+                      'ALL TOOLS',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Tap to open',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // All Tools Grid
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: GridView.builder(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      childAspectRatio: 0.9,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 20,
+                    ),
+                    itemCount: unselectedTools.length,
+                    itemBuilder: (context, index) {
+                      final tool = unselectedTools[index];
+                      return _buildToolItemReadOnly(context, tool);
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildToolItem(BuildContext context, {
-    required IconData icon,
-    required String title,
-    required Color color,
-  }) {
+  // Read-only version without Add to nav button
+  Widget _buildToolItemReadOnly(BuildContext context, NavItem tool) {
     return GestureDetector(
       onTap: () {
         Navigator.pop(context);
-        _handleToolNavigation(context, title);
+        _navigateToTool(context, tool.id);
       },
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 60,
-            height: 60,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: _getToolColor(tool.id).withOpacity(0.1),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
-              icon,
-              color: color,
-              size: 30,
+              tool.icon,
+              color: _getToolColor(tool.id),
+              size: 28,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            title,
+            tool.title,
             textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -285,81 +351,71 @@ class ToolsPopup extends StatelessWidget {
       ),
     );
   }
-  
-  void _handleToolNavigation(BuildContext context, String tool) {
-    // Close the dialog and nav drawer
-    Navigator.pop(context);
 
-    switch (tool) {
-      case 'Tea Diary':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const TeaDiaryScreen(),
-          ),
-        );
+  Color _getToolColor(String toolId) {
+    switch (toolId) {
+      case 'loans':
+        return Colors.blue.shade700;
+      case 'cards':
+        return Colors.purple.shade700;
+      case 'bill_diary':
+        return Colors.orange.shade700;
+      case 'emi_calc':
+        return Colors.green.shade700;
+      case 'land_calc':
+        return Colors.teal.shade700;
+      case 'sip_calc':
+        return Colors.indigo.shade700;
+      case 'tax_calc':
+        return Colors.red.shade700;
+      case 'milk_diary':
+        return Colors.amber.shade700;
+      case 'work_diary':
+        return Colors.brown.shade700;
+      case 'tea_diary':
+        return Colors.deepPurple.shade700;
+      default:
+        return Colors.grey.shade700;
+    }
+  }
+  
+  void _navigateToTool(BuildContext context, String toolId) {
+    switch (toolId) {
+      case 'loans':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const LoanScreen()));
         break;
-      case 'EMI Calc':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const EmiCalculatorScreen(),
-          ),
-        );
+      case 'cards':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const CardScreen()));
         break;
-      case 'SIP Calc':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const SipCalculatorScreen(),
-          ),
-        );
+      case 'bill_diary':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const BillDiaryScreen()));
         break;
-      case 'Milk Diary':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const MilkDiaryScreen()),
-        );
+      case 'emi_calc':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const EmiCalculatorScreen()));
         break;
-      case 'Work Diary':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const WorkDiaryScreen()),
-        );
+      case 'land_calc':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const LandCalculatorScreen()));
         break;
-      case 'Bill Diary':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const BillDiaryScreen()),
-        );
+      case 'sip_calc':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const SipCalculatorScreen()));
         break;
-      case 'Settings':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const NavSettingsScreen()),
-        );
+      case 'tax_calc':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const TaxCalculatorScreen()));
         break;
-      case 'Land Calc':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const LandCalculatorScreen(),
-          ),
-        );
+      case 'milk_diary':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const MilkDiaryScreen()));
         break;
-      case 'Tax Calc':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const TaxCalculatorScreen(),
-          ),
-        );
+      case 'work_diary':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const WorkDiaryScreen()));
+        break;
+      case 'tea_diary':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const TeaDiaryScreen()));
         break;
       default:
-        // Show "coming soon" message for these tools
+        // Show "coming soon" message for unimplemented tools
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$tool coming soon!'),
+            content: Text('$toolId coming soon!'),
             duration: const Duration(seconds: 2),
           ),
         );
