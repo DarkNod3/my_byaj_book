@@ -266,7 +266,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final navItems = navProvider.selectedNavItems;
     
     // Make sure we don't exceed the list length
-    final adjustedIndex = _currentIndex > 2 ? _currentIndex - 1 : _currentIndex;
+    int adjustedIndex;
+    if (_currentIndex > 2) {
+      adjustedIndex = _currentIndex - 1; // Adjust for the center button
+    } else {
+      adjustedIndex = _currentIndex;
+    }
     
     // Return the title if it exists
     if (adjustedIndex < navItems.length) {
@@ -287,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // For other indices, we need to adjust because of the center button
     int adjustedIndex;
     if (_currentIndex > 2) {
-      adjustedIndex = _currentIndex - 2; // Adjust for the center button (index 2)
+      adjustedIndex = _currentIndex - 1; // Adjust for the center button (index 2)
     } else {
       adjustedIndex = _currentIndex;
     }
@@ -2831,8 +2836,9 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         } 
         // Otherwise, if we're in the With Interest tab, show the relationship selection
         else if (widget.isWithInterest) {
-          // Show borrower/lender selection dialog for with interest contacts
-          _showRelationshipTypeDialog(context, name, phone);
+          // Skip relationship selection dialog and create a borrower contact by default
+          // The user can change the relationship type in the contact profile
+          _createContactWithType(context, name, phone, 'borrower');
         } 
         // If we're in Without Interest tab, create a non-interest contact
         else {
@@ -2895,12 +2901,60 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                         Navigator.pop(context);
                         _createContactWithType(context, name, phone, 'borrower');
                       },
-                      child: _buildRelationshipCard(
-                        title: 'Lene\nWale',
-                        emoji: '👋',
-                        color: Colors.red.shade100,
-                        borderColor: Colors.red,
-                        description: 'They borrow money from you',
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red, width: 1.0),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.arrow_downward_rounded,
+                                  color: Colors.red,
+                                  size: 24,
+                                ),
+                                SizedBox(width: 6),
+                                Icon(
+                                  Icons.handshake_outlined,
+                                  color: Colors.red,
+                                  size: 24,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Borrower',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
+                            ),
+                            Text(
+                              'Lene Wale',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red.shade800,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'They borrow money from you',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -2911,12 +2965,60 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                         Navigator.pop(context);
                         _createContactWithType(context, name, phone, 'lender');
                       },
-                      child: _buildRelationshipCard(
-                        title: 'Dene\nWale',
-                        emoji: '💵',
-                        color: Colors.green.shade100,
-                        borderColor: Colors.green,
-                        description: 'They lend money to you',
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.green, width: 1.0),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.arrow_upward_rounded,
+                                  color: Colors.green,
+                                  size: 24,
+                                ),
+                                SizedBox(width: 6),
+                                Icon(
+                                  Icons.account_balance_outlined,
+                                  color: Colors.green,
+                                  size: 24,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Lender',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                            Text(
+                              'Dene Wale',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade800,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'They lend money to you',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -2973,7 +3075,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       ),
     );
   }
-  
+
   void _createContactWithType(BuildContext context, String name, String phone, String relationshipType) {
     // Create contact data with interest type
     final contactData = {

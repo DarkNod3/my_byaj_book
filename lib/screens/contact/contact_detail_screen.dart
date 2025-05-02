@@ -29,11 +29,13 @@ import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
 class ContactDetailScreen extends StatefulWidget {
   final Map<String, dynamic> contact;
   final bool showSetupPrompt;
+  final bool showTransactionDialogOnLoad;
 
   const ContactDetailScreen({
     Key? key, 
     required this.contact, 
     this.showSetupPrompt = false,
+    this.showTransactionDialogOnLoad = false,
   }) : super(key: key);
 
   @override
@@ -62,6 +64,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     if (widget.showSetupPrompt) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showSetupPrompt();
+      });
+    }
+    
+    // Show transaction dialog if requested
+    if (widget.showTransactionDialogOnLoad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAddTransactionDialog();
       });
     }
   }
@@ -2144,6 +2153,12 @@ ${_getAppUserName()}
   void _loadTransactions() {
     _filteredTransactions = _transactionProvider.getTransactionsForContact(_contactId);
     _filterTransactions();
+  }
+
+  // Method to show the add transaction dialog
+  void _showAddTransactionDialog() {
+    // Default to "gave" type for the first transaction
+    _addTransaction('gave');
   }
 
   void _showContactTypeSelectionDialog(BuildContext context, String name, String phone) {

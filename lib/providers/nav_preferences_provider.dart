@@ -28,6 +28,8 @@ class NavPreferencesProvider with ChangeNotifier {
     NavItem(id: 'milk_diary', title: 'Milk Diary', icon: Icons.local_drink_rounded),
     NavItem(id: 'work_diary', title: 'Work Diary', icon: Icons.work_rounded),
     NavItem(id: 'tea_diary', title: 'Tea Diary', icon: Icons.emoji_food_beverage_rounded),
+    NavItem(id: 'farm_diary', title: 'Farm Diary', icon: Icons.agriculture_rounded),
+    NavItem(id: 'shop_diary', title: 'Shop Diary', icon: Icons.store_rounded),
   ];
 
   // Default nav items
@@ -132,9 +134,9 @@ class NavPreferencesProvider with ChangeNotifier {
         _selectedNavItemIds.remove(id);
       }
     } else {
-      // Maximum 4 items in the nav bar (including fixed items)
+      // Maximum 5 items in the nav bar (including fixed items and tools button)
       final fixedItemsCount = _availableNavItems.where((item) => item.isFixed).length;
-      if (_selectedNavItemIds.length < 4) {
+      if (_selectedNavItemIds.length < 5) {
         _selectedNavItemIds.add(id);
       }
     }
@@ -154,12 +156,13 @@ class NavPreferencesProvider with ChangeNotifier {
       ...fixedItemIds,
       'loans', 
       'cards', 
-      'bill_diary'
+      'bill_diary',
+      'emi_calc'
     ];
     
-    // Ensure we don't exceed 4 items total
-    if (_selectedNavItemIds.length > 4) {
-      _selectedNavItemIds = _selectedNavItemIds.sublist(0, 4);
+    // Ensure we don't exceed 5 items total (including tools button)
+    if (_selectedNavItemIds.length > 5) {
+      _selectedNavItemIds = _selectedNavItemIds.sublist(0, 5);
     }
     
     await savePreferences();

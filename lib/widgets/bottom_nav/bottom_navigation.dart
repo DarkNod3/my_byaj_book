@@ -53,18 +53,21 @@ class BottomNavBar extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              // Build the first two nav items (index 0 and 1)
-              if (navItems.isNotEmpty)
-                _buildNavItem(context, 0, navItems[0].icon, navItems[0].title),
+              // Home button (index 0)
+              _buildNavItem(context, 0, navItems[0].icon, navItems[0].title),
+              
+              // First customizable button (index 1)
               if (navItems.length > 1)
                 _buildNavItem(context, 1, navItems[1].icon, navItems[1].title),
               
               // Center tools button (index 2)
               _buildToolsButton(context),
               
-              // Build the last two nav items (index 3 and 4)
+              // Second customizable button (index 3)
               if (navItems.length > 2)
                 _buildNavItem(context, 3, navItems[2].icon, navItems[2].title),
+              
+              // Third customizable button (index 4) - replaces Manage button
               if (navItems.length > 3)
                 _buildNavItem(context, 4, navItems[3].icon, navItems[3].title),
             ],
@@ -160,20 +163,45 @@ class BottomNavBar extends StatelessWidget {
 class ToolsPopup extends StatelessWidget {
   ToolsPopup({Key? key}) : super(key: key);
 
-  final List<Map<String, dynamic>> _tools = [
-    {'icon': Icons.calculate_rounded, 'title': 'EMI Calc', 'color': Colors.purple},
-    {'icon': Icons.landscape_rounded, 'title': 'Land Calc', 'color': Colors.teal},
-    {'icon': Icons.account_balance_wallet_rounded, 'title': 'SIP Calc', 'color': Colors.indigo},
-    {'icon': Icons.assignment_rounded, 'title': 'Tax Calc', 'color': Colors.red},
-    {'icon': Icons.note_alt_rounded, 'title': 'Bill Diary', 'color': Colors.blue.shade700},
-    {'icon': Icons.local_drink_rounded, 'title': 'Milk Diary', 'color': Colors.amber.shade700},
-    {'icon': Icons.work_rounded, 'title': 'Work Diary', 'color': Colors.blue},
-    {'icon': Icons.emoji_food_beverage_rounded, 'title': 'Tea Diary', 'color': Colors.deepPurple},
-    {'icon': Icons.settings, 'title': 'Settings', 'color': Colors.grey.shade700},
-  ];
+  // Group tools by category
+  final Map<String, List<Map<String, dynamic>>> _toolCategories = {
+    'Calculators': [
+      {'icon': Icons.calculate_rounded, 'title': 'EMI Calc', 'color': Colors.purple, 'id': 'emi_calc'},
+      {'icon': Icons.landscape_rounded, 'title': 'Land Calc', 'color': Colors.teal, 'id': 'land_calc'},
+      {'icon': Icons.account_balance_wallet_rounded, 'title': 'SIP Calc', 'color': Colors.indigo, 'id': 'sip_calc'},
+      {'icon': Icons.assignment_rounded, 'title': 'Tax Calc', 'color': Colors.red, 'id': 'tax_calc'},
+    ],
+    'Diaries': [
+      {'icon': Icons.note_alt_rounded, 'title': 'Bill Diary', 'color': Colors.blue.shade700, 'id': 'bill_diary'},
+      {'icon': Icons.local_drink_rounded, 'title': 'Milk Diary', 'color': Colors.amber.shade700, 'id': 'milk_diary'},
+      {'icon': Icons.work_rounded, 'title': 'Work Diary', 'color': Colors.blue, 'id': 'work_diary'},
+      {'icon': Icons.emoji_food_beverage_rounded, 'title': 'Tea Diary', 'color': Colors.deepPurple, 'id': 'tea_diary'},
+    ],
+    'Other': [
+      {'icon': Icons.account_balance_rounded, 'title': 'Loans', 'color': Colors.blue, 'id': 'loans'},
+      {'icon': Icons.credit_card_rounded, 'title': 'Cards', 'color': Colors.indigo, 'id': 'cards'},
+    ],
+  };
 
   @override
   Widget build(BuildContext context) {
+    // Get the currently selected nav items to filter them out from the tools popup
+    final navPrefs = Provider.of<NavPreferencesProvider>(context, listen: false);
+    // Create a list of IDs that are already in the bottom nav
+    final selectedNavItemIds = navPrefs.selectedNavItems.map((item) => item.id).toList();
+    
+    // Flatten all tools into a single list and filter out those in navigation
+    List<Map<String, dynamic>> availableTools = [];
+    for (var category in _toolCategories.keys) {
+      final tools = _toolCategories[category]!;
+      availableTools.addAll(
+        tools.where((tool) => !selectedNavItemIds.contains(tool['id']))
+      );
+    }
+    
+    // Sort tools alphabetically by title
+    availableTools.sort((a, b) => a['title'].toString().compareTo(b['title'].toString()));
+    
     return Container(
       padding: const EdgeInsets.only(top: 24, bottom: 24),
       height: MediaQuery.of(context).size.height * 0.7,
@@ -202,7 +230,7 @@ class ToolsPopup extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           const Text(
-            'Tools & Diaries',
+            'More Tools',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -212,7 +240,7 @@ class ToolsPopup extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
-              'Access financial tools and business diary templates',
+              'Access additional tools not in your bottom navigation',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -220,26 +248,78 @@ class ToolsPopup extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 24),
           Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 0.9,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 24,
-              ),
-              itemCount: _tools.length,
-              itemBuilder: (context, index) {
-                final tool = _tools[index];
-                return _buildToolItem(
-                  context,
-                  icon: tool['icon'],
-                  title: tool['title'],
-                  color: tool['color'],
+            child: availableTools.isEmpty 
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        size: 64,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'All tools are in your navigation bar',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'You can customize your navigation in Settings',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 0.9,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 16,
+                  ),
+                  itemCount: availableTools.length,
+                  itemBuilder: (context, index) {
+                    final tool = availableTools[index];
+                    return _buildToolItem(
+                      context,
+                      icon: tool['icon'],
+                      title: tool['title'],
+                      color: tool['color'],
+                      id: tool['id'],
+                    );
+                  },
+                ),
+          ),
+          
+          // Add button to manage navigation
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context, 
+                  MaterialPageRoute(builder: (context) => const NavSettingsScreen())
                 );
               },
+              icon: const Icon(Icons.tune),
+              label: const Text('Customize Navigation'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade700,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+              ),
             ),
           ),
         ],
@@ -247,122 +327,95 @@ class ToolsPopup extends StatelessWidget {
     );
   }
 
-  Widget _buildToolItem(BuildContext context, {
+  Widget _buildToolItem(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required Color color,
+    required String id,
   }) {
-    return GestureDetector(
+    return InkWell(
       onTap: () {
         Navigator.pop(context);
-        _handleToolNavigation(context, title);
+        _navigateToTool(context, id);
       },
-      child: Column(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
               color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
+              spreadRadius: 0,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 30,
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: color,
+                size: 28,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+            const SizedBox(height: 10),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
   
-  void _handleToolNavigation(BuildContext context, String tool) {
-    // Close the dialog and nav drawer
-    Navigator.pop(context);
-
-    switch (tool) {
-      case 'Tea Diary':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const TeaDiaryScreen(),
-          ),
-        );
+  void _navigateToTool(BuildContext context, String id) {
+    switch (id) {
+      case 'emi_calc':
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const EmiCalculatorScreen()));
         break;
-      case 'EMI Calc':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const EmiCalculatorScreen(),
-          ),
-        );
+      case 'land_calc':
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const LandCalculatorScreen()));
         break;
-      case 'SIP Calc':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const SipCalculatorScreen(),
-          ),
-        );
+      case 'sip_calc':
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SipCalculatorScreen()));
         break;
-      case 'Milk Diary':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const MilkDiaryScreen()),
-        );
+      case 'tax_calc':
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const TaxCalculatorScreen()));
         break;
-      case 'Work Diary':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const WorkDiaryScreen()),
-        );
+      case 'bill_diary':
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const BillDiaryScreen()));
         break;
-      case 'Bill Diary':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const BillDiaryScreen()),
-        );
+      case 'milk_diary':
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const MilkDiaryScreen()));
         break;
-      case 'Settings':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const NavSettingsScreen()),
-        );
+      case 'work_diary':
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const WorkDiaryScreen()));
         break;
-      case 'Land Calc':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const LandCalculatorScreen(),
-          ),
-        );
+      case 'tea_diary':
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const TeaDiaryScreen()));
         break;
-      case 'Tax Calc':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const TaxCalculatorScreen(),
-          ),
-        );
+      case 'loans':
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const LoanScreen()));
         break;
-      default:
-        // Show "coming soon" message for these tools
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$tool coming soon!'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+      case 'cards':
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const CardScreen()));
         break;
     }
   }

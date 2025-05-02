@@ -113,7 +113,7 @@ class _NavSettingsScreenState extends State<NavSettingsScreen> {
                     .length;
                 
                 // Calculate how many more items can be selected
-                final maxSelectableItems = 4 - fixedItemsCount;
+                final maxSelectableItems = 5 - fixedItemsCount;
                 final selectedCount = provider.selectedNavItems.length - fixedItemsCount;
                 
                 return Column(
@@ -129,7 +129,7 @@ class _NavSettingsScreenState extends State<NavSettingsScreen> {
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Customize your bottom navigation bar by selecting up to 3 additional items',
+                                  'Customize your bottom navigation bar by selecting up to 4 additional items',
                                   style: TextStyle(color: Colors.blue),
                                 ),
                               ),

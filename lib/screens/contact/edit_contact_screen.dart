@@ -6,6 +6,7 @@ import 'package:my_byaj_book/providers/theme_provider.dart';
 import 'package:my_byaj_book/widgets/dialogs/confirm_dialog.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:my_byaj_book/screens/contact/contact_detail_screen.dart';
 
 class EditContactScreen extends StatefulWidget {
   final Map<String, dynamic> contact;
@@ -239,7 +240,25 @@ class _EditContactScreenState extends State<EditContactScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Contact updated successfully')),
       );
-      Navigator.pop(context, true); // Return true to indicate successful update
+      
+      // Return true to the previous screen to indicate successful update
+      Navigator.pop(context, true);
+      
+      // If this is a new contact, automatically navigate to the transaction entry dialog
+      if (widget.contact['isNewContact'] == true) {
+        // Short delay to allow the previous screen to process the result
+        Future.delayed(Duration(milliseconds: 300), () {
+          // Find the ContactDetailScreen and show the transaction entry dialog
+          final contactDetailScreen = Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ContactDetailScreen(
+                contact: updatedContact,
+                showTransactionDialogOnLoad: true,
+              ),
+            ),
+          );
+        });
+      }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to update contact')),

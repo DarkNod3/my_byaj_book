@@ -7,6 +7,7 @@ import '../utils/constants.dart';
 import 'khata_detail_screen.dart';
 import 'khata_type_selection_screen.dart';
 import 'package:my_byaj_book/widgets/balance_summary.dart';
+import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -223,58 +224,96 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 contact.name.toLowerCase().contains(_searchQuery);
           }).toList();
 
-    if (filteredKhatas.isEmpty) {
-      return Center(
-        child: Text(
-          khatas.isEmpty 
-              ? 'No records found. Add a new khata.'
-              : 'No matching records found.',
-          style: TextStyle(color: Colors.grey[600]),
+    return Column(
+      children: [
+        // Add Contact Button
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.person_add),
+            label: const Text('Add Contact'),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 45),
+            ),
+            onPressed: _navigateToAddContact,
+          ),
         ),
-      );
-    }
-
-    return ListView.builder(
-      itemCount: filteredKhatas.length,
-      itemBuilder: (context, index) {
-        final khata = filteredKhatas[index];
-        final contact = _contactsMap[khata.contactId];
         
-        return FutureBuilder<double>(
-          future: _calculateKhataBalance(khata.id!),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const ListTile(
-                title: Text('Loading...'),
-                trailing: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              );
-            }
-            
-            final balance = snapshot.data!;
-            
-            return KhataListItem(
-              name: contact?.name ?? 'Unknown',
-              balance: balance,
-              onTap: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => KhataDetailScreen(khataId: khata.id!),
+        Expanded(
+          child: filteredKhatas.isEmpty
+              ? Center(
+                  child: Text(
+                    khatas.isEmpty 
+                        ? 'No records found. Add a new khata.'
+                        : 'No matching records found.',
+                    style: TextStyle(color: Colors.grey[600]),
                   ),
-                );
-                
-                if (result == true) {
-                  _loadData();
-                }
-              },
-            );
-          },
-        );
-      },
+                )
+              : ListView.builder(
+                  itemCount: filteredKhatas.length,
+                  itemBuilder: (context, index) {
+                    final khata = filteredKhatas[index];
+                    final contact = _contactsMap[khata.contactId];
+                    
+                    return FutureBuilder<double>(
+                      future: _calculateKhataBalance(khata.id!),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const ListTile(
+                            title: Text('Loading...'),
+                            trailing: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        }
+                        
+                        final balance = snapshot.data!;
+                        
+                        return KhataListItem(
+                          name: contact?.name ?? 'Unknown',
+                          balance: balance,
+                          onTap: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => KhataDetailScreen(khataId: khata.id!),
+                              ),
+                            );
+                            
+                            if (result == true) {
+                              _loadData();
+                            }
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+        ),
+      ],
     );
+  }
+  
+  void _navigateToAddContact() async {
+    // Create an empty contact map to pass to the EditContactScreen
+    final emptyContact = {
+      'name': '',
+      'phone': '',
+      'category': 'Personal',
+    };
+    
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditContactScreen(contact: emptyContact),
+      ),
+    );
+    
+    // Reload data if contact was successfully added
+    if (result == true) {
+      _loadData();
+    }
   }
 } 
