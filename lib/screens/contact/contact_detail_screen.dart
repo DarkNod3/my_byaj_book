@@ -47,15 +47,16 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   List<Map<String, dynamic>> _filteredTransactions = [];
   bool _isSearching = false;
   late TransactionProvider _transactionProvider;
-  String get _contactId => widget.contact['phone'] ?? '';
+  String _contactId = '';
+  String _contactType = '';
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_filterTransactions);
-    // Debug print the contact ID
-    print('ContactDetailScreen - Contact ID: ${_contactId}');
-    print('ContactDetailScreen - Contact Name: ${widget.contact['name']}');
+    // Initialize contact ID and type
+    _contactId = widget.contact['phone'] ?? '';
+    _contactType = widget.contact['type'] ?? '';
     
     // Show setup prompt for new contacts after a short delay
     if (widget.showSetupPrompt) {
@@ -69,14 +70,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _transactionProvider = Provider.of<TransactionProvider>(context);
-    
-    // Debug print transaction info
-    final transactions = _transactionProvider.getTransactionsForContact(_contactId);
-    print('ContactDetailScreen - Transaction count: ${transactions.length}');
-    
-    // Print the balance calculation
-    final balance = _transactionProvider.calculateBalance(_contactId);
-    print('ContactDetailScreen - Transaction balance: $balance');
     
     _filterTransactions();
   }

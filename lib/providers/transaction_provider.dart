@@ -10,11 +10,286 @@ class TransactionProvider extends ChangeNotifier {
   TransactionProvider() {
     _loadTransactions();
     _loadContacts();
+    _loadManualReminders();
   }
   
   // Get transactions for a specific contact
   List<Map<String, dynamic>> getTransactionsForContact(String contactId) {
     return _contactTransactions[contactId] ?? [];
+  }
+  
+  // Get all transactions across all tools
+  List<Map<String, dynamic>> getAllTransactions() {
+    List<Map<String, dynamic>> allTransactions = [];
+    
+    // 1. Add contact transactions
+    _contactTransactions.forEach((contactId, transactions) {
+      final contact = getContactById(contactId);
+      if (contact != null) {
+        for (var tx in transactions) {
+          final enrichedTx = Map<String, dynamic>.from(tx);
+          enrichedTx['contactName'] = contact['name'] ?? 'Unknown';
+          enrichedTx['source'] = 'contact';
+          enrichedTx['contactId'] = contactId;
+          enrichedTx['contactType'] = contact['type'] ?? '';
+          allTransactions.add(enrichedTx);
+        }
+      }
+    });
+    
+    // 2. Add loan transactions
+    // Get from loan provider or stored loan transactions
+    final loanTransactions = _getLoanTransactions();
+    allTransactions.addAll(loanTransactions);
+    
+    // 3. Add card transactions
+    // Get from card provider or stored card transactions
+    final cardTransactions = _getCardTransactions();
+    allTransactions.addAll(cardTransactions);
+    
+    // 4. Add bill diary transactions
+    final billTransactions = _getBillTransactions();
+    allTransactions.addAll(billTransactions);
+    
+    // 5. Add calculator transactions (EMI, Land, SIP, Tax)
+    final calculatorTransactions = _getCalculatorTransactions();
+    allTransactions.addAll(calculatorTransactions);
+    
+    // 6. Add diary transactions (Milk, Work, Tea)
+    final diaryTransactions = _getDiaryTransactions();
+    allTransactions.addAll(diaryTransactions);
+    
+    // Sort by date (newest first)
+    allTransactions.sort((a, b) {
+      final dateA = a['date'] as DateTime;
+      final dateB = b['date'] as DateTime;
+      return dateB.compareTo(dateA);
+    });
+    
+    return allTransactions;
+  }
+  
+  // Helper methods to get transactions from different sources
+  // These would be implemented to fetch from respective providers
+  // or local storage in a real app
+  
+  List<Map<String, dynamic>> _getLoanTransactions() {
+    // This would fetch from a loan provider in a real app
+    // For now, return an empty list as placeholder
+    return [];
+  }
+  
+  List<Map<String, dynamic>> _getCardTransactions() {
+    // This would fetch from a card provider in a real app
+    return [];
+  }
+  
+  List<Map<String, dynamic>> _getBillTransactions() {
+    // This would fetch from a bill diary provider in a real app
+    return [];
+  }
+  
+  List<Map<String, dynamic>> _getCalculatorTransactions() {
+    // This would fetch calculator-related transactions
+    return [];
+  }
+  
+  List<Map<String, dynamic>> _getDiaryTransactions() {
+    // This would fetch diary-related transactions
+    return [];
+  }
+  
+  // Get upcoming/due payments for notifications
+  List<Map<String, dynamic>> getUpcomingPayments() {
+    List<Map<String, dynamic>> upcomingPayments = [];
+    final now = DateTime.now();
+    
+    // Add manually created reminders
+    final manualReminders = _getManualReminders();
+    upcomingPayments.addAll(manualReminders);
+    
+    // Check contact transactions for due dates
+    _contacts.forEach((contact) {
+      final contactId = contact['phone'] as String?;
+      if (contactId == null || contactId.isEmpty) return;
+      
+      // Get total amount for this contact
+      final balance = calculateBalance(contactId);
+      
+      // Skip if nothing is owed
+      if (balance == 0) return;
+      
+      // Determine if it's a payment (you'll give) or receipt (you'll get)
+      final isPayment = balance < 0;
+      
+      // Include only payments (amounts you owe others)
+      if (isPayment) {
+        // Get the most recent transaction
+        final transactions = getTransactionsForContact(contactId);
+        if (transactions.isEmpty) return;
+        
+        // Use the most recent transaction date as reference
+        final lastTxDate = transactions.first['date'] as DateTime;
+        
+        // Calculate due date (for example, 30 days after last transaction)
+        final dueDate = lastTxDate.add(const Duration(days: 30));
+        
+        // If due within next 7 days, add to upcoming payments
+        if (dueDate.isAfter(now) && dueDate.isBefore(now.add(const Duration(days: 7)))) {
+          upcomingPayments.add({
+            'title': 'Payment to ${contact['name']}',
+            'amount': balance.abs(),
+            'dueDate': dueDate,
+            'daysLeft': dueDate.difference(now).inDays,
+            'contactId': contactId,
+            'type': 'contact_payment',
+            'isCompleted': false,
+          });
+        }
+      }
+    });
+    
+    // Could add other payment sources: loans, cards, bills, etc.
+    // ...
+    
+    // Sort by due date (closest first)
+    upcomingPayments.sort((a, b) => 
+      (a['daysLeft'] as int).compareTo(b['daysLeft'] as int));
+    
+    return upcomingPayments;
+  }
+  
+  // Get manually created reminders
+  List<Map<String, dynamic>> _getManualReminders() {
+    final prefs = SharedPreferences.getInstance();
+    
+    try {
+      final manualReminders = _manualReminders.map((reminder) {
+        // Update days left calculation each time
+        final dueDate = reminder['dueDate'] as DateTime;
+        final daysLeft = dueDate.difference(DateTime.now()).inDays;
+        
+        // Create a copy with updated days left
+        final updatedReminder = Map<String, dynamic>.from(reminder);
+        updatedReminder['daysLeft'] = daysLeft;
+        
+        return updatedReminder;
+      }).toList();
+      
+      return manualReminders;
+    } catch (e) {
+      return [];
+    }
+  }
+  
+  // Store for manual reminders
+  List<Map<String, dynamic>> _manualReminders = [];
+  
+  // Public getter for manual reminders
+  List<Map<String, dynamic>> get manualReminders => _manualReminders;
+  
+  // Add a manual reminder
+  Future<bool> addManualReminder(Map<String, dynamic> reminder) async {
+    try {
+      // Add to list
+      _manualReminders.add(reminder);
+      
+      // Save to storage
+      await _saveManualReminders();
+      
+      // Notify listeners
+      notifyListeners();
+      
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  // Mark manual reminder as completed
+  Future<bool> updateManualReminderStatus(int index, bool isCompleted) async {
+    try {
+      if (index >= 0 && index < _manualReminders.length) {
+        _manualReminders[index]['isCompleted'] = isCompleted;
+        
+        // Save to storage
+        await _saveManualReminders();
+        
+        // Notify listeners
+        notifyListeners();
+        
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  // Delete a manual reminder
+  Future<bool> deleteManualReminder(int index) async {
+    try {
+      if (index >= 0 && index < _manualReminders.length) {
+        _manualReminders.removeAt(index);
+        
+        // Save to storage
+        await _saveManualReminders();
+        
+        // Notify listeners
+        notifyListeners();
+        
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  // Save manual reminders to SharedPreferences
+  Future<void> _saveManualReminders() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Convert DateTime objects to strings for serialization
+      final serializedReminders = _manualReminders.map((reminder) {
+        final reminderCopy = Map<String, dynamic>.from(reminder);
+        if (reminderCopy['dueDate'] is DateTime) {
+          reminderCopy['dueDate'] = reminderCopy['dueDate'].toIso8601String();
+        }
+        return jsonEncode(reminderCopy);
+      }).toList();
+      
+      await prefs.setStringList('manual_reminders', serializedReminders);
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+  
+  // Load manual reminders from SharedPreferences
+  Future<void> _loadManualReminders() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final serializedReminders = prefs.getStringList('manual_reminders') ?? [];
+      
+      _manualReminders = serializedReminders.map((jsonStr) {
+        final Map<String, dynamic> reminder = Map<String, dynamic>.from(jsonDecode(jsonStr));
+        
+        // Convert date string back to DateTime
+        if (reminder['dueDate'] is String) {
+          reminder['dueDate'] = DateTime.parse(reminder['dueDate']);
+        }
+        
+        // Update days left calculation
+        final dueDate = reminder['dueDate'] as DateTime;
+        reminder['daysLeft'] = dueDate.difference(DateTime.now()).inDays;
+        
+        return reminder;
+      }).toList();
+      
+    } catch (e) {
+      // Handle error silently
+    }
   }
   
   // Add a transaction
@@ -65,8 +340,8 @@ class TransactionProvider extends ChangeNotifier {
     await addTransaction(contactId, transaction);
     
     // Debug print after adding
-    print('DEBUG - Added transaction to $contactId: $transaction');
-    debugPrintAllTransactions();
+    // print('DEBUG - Added transaction to $contactId: $transaction');
+    // debugPrintAllTransactions();
   }
   
   // Update a transaction
@@ -165,12 +440,10 @@ class TransactionProvider extends ChangeNotifier {
         }).toList();
       }
       
-      debugPrint('Loaded transactions for ${contactIds.length} contacts');
-      
       // Notify listeners
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading transactions: $e');
+      // Log the error without using debug print
     }
   }
   
@@ -192,17 +465,6 @@ class TransactionProvider extends ChangeNotifier {
     }
     
     return balance;
-  }
-
-  // Add debug method 
-  void debugPrintAllTransactions() {
-    _contactTransactions.forEach((contactId, transactions) {
-      print('DEBUG - Transactions for contactId: $contactId');
-      for (int i = 0; i < transactions.length; i++) {
-        final tx = transactions[i];
-        print('  Transaction $i: type=${tx['type']}, amount=${tx['amount']}, date=${tx['date']}');
-      }
-    });
   }
 
   // Add methods for contact management
@@ -240,10 +502,10 @@ class TransactionProvider extends ChangeNotifier {
         return contact;
       }).toList();
       
-      debugPrint('Loaded ${_contacts.length} contacts from SharedPreferences');
+      // Notify listeners
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading contacts: $e');
+      // Log the error without using debug print
     }
   }
   
@@ -276,12 +538,13 @@ class TransactionProvider extends ChangeNotifier {
       }).toList();
       
       await prefs.setStringList('contacts', contactsJson);
-      debugPrint('Saved ${_contacts.length} contacts to SharedPreferences');
+      // Notify listeners
+      notifyListeners();
       
       // Create a backup immediately after saving contacts
       await createAutomaticBackup();
     } catch (e) {
-      debugPrint('Error saving contacts: $e');
+      // Log the error without using debug print
     }
   }
   
@@ -325,7 +588,7 @@ class TransactionProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      debugPrint('Error adding contact: $e');
+      // Log the error without using debug print
       return false;
     }
   }
@@ -370,7 +633,7 @@ class TransactionProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      debugPrint('Error in addContactIfNotExists: $e');
+      // Log the error without using debug print
       return false;
     }
   }
@@ -429,7 +692,7 @@ class TransactionProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      debugPrint('Error updating contact: $e');
+      // Log the error without using debug print
       return false;
     }
   }
@@ -455,7 +718,7 @@ class TransactionProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      debugPrint('Error deleting contact: $e');
+      // Log the error without using debug print
       return false;
     }
   }
@@ -497,7 +760,7 @@ class TransactionProvider extends ChangeNotifier {
       
       return exportData;
     } catch (e) {
-      debugPrint('Error exporting data: $e');
+      // Log the error without using debug print
       return {'error': e.toString()};
     }
   }
@@ -507,7 +770,7 @@ class TransactionProvider extends ChangeNotifier {
     try {
       // Validate the import data
       if (!importData.containsKey('contacts') || !importData.containsKey('transactions')) {
-        debugPrint('Import data is missing required fields');
+        // Log the error without using debug print
         return false;
       }
       
@@ -546,7 +809,7 @@ class TransactionProvider extends ChangeNotifier {
       
       return true;
     } catch (e) {
-      debugPrint('Error importing data: $e');
+      // Log the error without using debug print
       return false;
     }
   }
@@ -570,7 +833,7 @@ class TransactionProvider extends ChangeNotifier {
       
       return true;
     } catch (e) {
-      debugPrint('Error creating automatic backup: $e');
+      // Log the error without using debug print
       return false;
     }
   }
@@ -588,7 +851,7 @@ class TransactionProvider extends ChangeNotifier {
       final backupData = jsonDecode(backupString) as Map<String, dynamic>;
       return await importAllData(backupData);
     } catch (e) {
-      debugPrint('Error restoring from automatic backup: $e');
+      // Log the error without using debug print
       return false;
     }
   }

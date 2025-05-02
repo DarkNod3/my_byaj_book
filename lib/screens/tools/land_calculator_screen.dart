@@ -31,7 +31,7 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
   // Text controllers for dimension calculation
   final _lengthController = TextEditingController(text: '50');
   final _widthController = TextEditingController(text: '20');
-  
+
   // Input and output unit selections
   String _areaInputUnit = 'Square Feet';
   String _areaOutputUnit = 'Square Meter';
@@ -65,7 +65,7 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
     'Kilometer',
     'Mile',
   ];
-  
+
   // Hindi translations for units
   final Map<String, String> _hindiUnitNames = {
     'Square Feet': 'वर्ग फुट',
@@ -424,11 +424,11 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
             child: pw.Column(
               children: [
                 pw.Text(
-                  'Land Measurement Conversion Report',
-                  style: pw.TextStyle(
-                    fontSize: 24,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
+              'Land Measurement Conversion Report',
+              style: pw.TextStyle(
+                fontSize: 24,
+                fontWeight: pw.FontWeight.bold,
+              ),
                 ),
                 pw.SizedBox(height: 5),
                 pw.Text(
@@ -622,11 +622,11 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'Note: Units like Bigha, Biswa, Marla, and Kanal may vary in different regions of India. This calculator uses standard North Indian measurements. Please verify the exact conversion rates applicable to your specific region.',
-                    style: const pw.TextStyle(
-                      fontSize: 10,
-                      fontStyle: pw.FontStyle.italic,
-                    ),
+                'Note: Units like Bigha, Biswa, Marla, and Kanal may vary in different regions of India. This calculator uses standard North Indian measurements. Please verify the exact conversion rates applicable to your specific region.',
+                style: const pw.TextStyle(
+                  fontSize: 10,
+                  fontStyle: pw.FontStyle.italic,
+                ),
                   ),
                   pw.SizedBox(height: 5),
                   pw.Text(
@@ -761,33 +761,33 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
   
   Widget _buildAreaCalculator() {
     return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Form(
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Form(
           key: _areaFormKey,
-          onChanged: () {
+            onChanged: () {
             _calculateAreaConversion();
-            _generateConversionChart();
+              _generateConversionChart();
             _generateComparisons();
-          },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               _buildResultCard(_areaOutputValue, _areaOutputUnit),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
               _buildAreaCalculatorCard(),
               const SizedBox(height: 16),
               _buildPriceCalculator(),
-              const SizedBox(height: 16),
-              _buildPdfButton(),
+                const SizedBox(height: 16),
+                _buildPdfButton(),
               const SizedBox(height: 16),
               _buildAreaComparison(),
-              const SizedBox(height: 16),
-              _buildConversionChart(),
-              const SizedBox(height: 16),
-              _buildRegionalNote(),
-            ],
-          ),
+                const SizedBox(height: 16),
+                _buildConversionChart(),
+                const SizedBox(height: 16),
+                _buildRegionalNote(),
+              ],
+            ),
         ),
       ),
     );
@@ -826,7 +826,7 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
       ),
     );
   }
-  
+
   Widget _buildResultCard(double value, String unit) {
     return Card(
       elevation: 4,
@@ -853,9 +853,9 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
                 const Text(
                   'Calculated Area',
                   style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                  ),
+                fontSize: 16,
+                color: Colors.white,
+              ),
                 ),
                 const SizedBox(width: 6),
                 Tooltip(
@@ -915,15 +915,15 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
                       const Text(
                         'Estimated Price:',
                         style: TextStyle(
-                          fontSize: 14,
+                      fontSize: 14,
                           fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
+                    ),
+                  ),
+                  Text(
                         '₹${_formatNumber(_totalPrice)}',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.bold,
                           color: Colors.green.shade800,
                         ),
                       ),
@@ -948,7 +948,7 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
       ),
     );
   }
-  
+
   Widget _buildAreaCalculatorCard() {
     return Card(
       elevation: 4,
@@ -962,13 +962,13 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Text(
+          children: [
+            const Text(
                   'Area Conversion',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
                 ),
                 const SizedBox(width: 8),
                 Tooltip(
@@ -1043,11 +1043,11 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
                 const Row(
                   children: [
                     Text(
-                      'From Unit:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+                  'From Unit:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                     ),
                     SizedBox(width: 4),
                     Text(
@@ -1122,11 +1122,11 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
                 const Row(
                   children: [
                     Text(
-                      'To Unit:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+                  'To Unit:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                     ),
                     SizedBox(width: 4),
                     Text(
@@ -1195,7 +1195,7 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
       ),
     );
   }
-  
+
   Widget _buildDimensionCalculatorCard() {
     return Card(
       elevation: 4,
@@ -1770,7 +1770,7 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
             
             // Total price result
             Container(
-              width: double.infinity,
+      width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
@@ -2013,10 +2013,10 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
                       _tabController.index == 0
                         ? '1 $_areaInputUnit equals'
                         : '1 $_resultUnit equals',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
                     ),
                     const SizedBox(width: 8),
                     Tooltip(
@@ -2194,7 +2194,7 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
                 );
               },
               child: const Text('Show All Units'),
-            ),
+          ),
         ],
       ),
     );

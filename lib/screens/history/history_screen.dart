@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:my_byaj_book/constants/app_theme.dart';
 import 'package:my_byaj_book/widgets/header/app_header.dart';
+import 'package:my_byaj_book/providers/transaction_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -11,91 +14,16 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   String _selectedFilter = 'All';
-
-  // Sample data - in a real app, this would come from a provider or service
-  final List<Map<String, dynamic>> _transactions = [
-    {
-      'id': '1',
-      'title': 'Home Loan EMI Payment',
-      'amount': '₹12,500',
-      'date': '15 April 2025',
-      'type': 'Payment',
-      'isCredit': false,
-      'category': 'Loan',
-    },
-    {
-      'id': '2',
-      'title': 'Car Loan EMI',
-      'amount': '₹8,200',
-      'date': '10 April 2025',
-      'type': 'Payment',
-      'isCredit': false,
-      'category': 'Loan',
-    },
-    {
-      'id': '3',
-      'title': 'Loan Repayment Received',
-      'amount': '₹5,000',
-      'date': '05 April 2025',
-      'type': 'Receipt',
-      'isCredit': true,
-      'category': 'Loan',
-    },
-    {
-      'id': '4',
-      'title': 'Credit Card Bill Payment',
-      'amount': '₹15,700',
-      'date': '02 April 2025',
-      'type': 'Payment',
-      'isCredit': false,
-      'category': 'Card',
-    },
-    {
-      'id': '5',
-      'title': 'Interest Earned',
-      'amount': '₹2,500',
-      'date': '01 April 2025',
-      'type': 'Receipt',
-      'isCredit': true,
-      'category': 'Interest',
-    },
-    {
-      'id': '6',
-      'title': 'Personal Loan EMI',
-      'amount': '₹5,200',
-      'date': '28 March 2025',
-      'type': 'Payment',
-      'isCredit': false,
-      'category': 'Loan',
-    },
-    {
-      'id': '7',
-      'title': 'Credit Card Purchase',
-      'amount': '₹3,800',
-      'date': '25 March 2025',
-      'type': 'Purchase',
-      'isCredit': false,
-      'category': 'Card',
-    },
-  ];
-
-  List<Map<String, dynamic>> get filteredTransactions {
-    if (_selectedFilter == 'All') {
-      return _transactions;
-    } else if (_selectedFilter == 'Payments') {
-      return _transactions.where((t) => t['type'] == 'Payment').toList();
-    } else if (_selectedFilter == 'Receipts') {
-      return _transactions.where((t) => t['type'] == 'Receipt').toList();
-    } else if (_selectedFilter == 'Cards') {
-      return _transactions.where((t) => t['category'] == 'Card').toList();
-    } else {
-      return _transactions.where((t) => t['category'] == 'Loan').toList();
-    }
-  }
-
+  
   @override
   Widget build(BuildContext context) {
+    // Get transaction data from provider
+    final transactionProvider = Provider.of<TransactionProvider>(context);
+    final allTransactions = transactionProvider.getAllTransactions();
+    final filteredTransactions = _filterTransactions(allTransactions);
+    
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       body: Column(
         children: [
           AppHeader(
@@ -113,31 +41,222 @@ class _HistoryScreenState extends State<HistoryScreen> {
           _buildFilterChips(),
           Expanded(
             child: filteredTransactions.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No transactions to show',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: filteredTransactions.length,
-                    itemBuilder: (context, index) {
-                      final transaction = filteredTransactions[index];
-                      return _buildTransactionItem(transaction);
-                    },
-                  ),
+                ? _buildEmptyState()
+                : _buildTransactionList(filteredTransactions),
           ),
         ],
+      ),
+    );
+  }
+  
+  // Filter transactions based on selected filter
+  List<Map<String, dynamic>> _filterTransactions(List<Map<String, dynamic>> transactions) {
+    if (_selectedFilter == 'All') {
+      return transactions;
+    } else if (_selectedFilter == 'Payments') {
+      return transactions.where((t) => t['type'] == 'gave').toList();
+    } else if (_selectedFilter == 'Receipts') {
+      return transactions.where((t) => t['type'] == 'got').toList();
+    } else if (_selectedFilter == 'Loans') {
+      return transactions.where((t) => 
+        t['contactType'] == 'borrower' || 
+        t['contactType'] == 'lender' || 
+        t['source'] == 'loan').toList();
+    } else if (_selectedFilter == 'Cards') {
+      return transactions.where((t) => t['source'] == 'card').toList();
+    } else if (_selectedFilter == 'Bills') {
+      return transactions.where((t) => t['source'] == 'bill').toList();
+    } else if (_selectedFilter == 'Calculators') {
+      return transactions.where((t) => 
+        t['source'] == 'emi_calc' || 
+        t['source'] == 'land_calc' || 
+        t['source'] == 'sip_calc' || 
+        t['source'] == 'tax_calc').toList();
+    } else if (_selectedFilter == 'Diaries') {
+      return transactions.where((t) => 
+        t['source'] == 'milk_diary' || 
+        t['source'] == 'work_diary' || 
+        t['source'] == 'tea_diary').toList();
+    }
+    return transactions;
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.history,
+                size: 72,
+                color: AppTheme.primaryColor.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'No Transactions Yet',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Add some transactions to see your history',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: AppTheme.secondaryTextColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildTransactionList(List<Map<String, dynamic>> transactions) {
+    return ListView.builder(
+      itemCount: transactions.length,
+      padding: const EdgeInsets.only(bottom: 16),
+      itemBuilder: (context, index) {
+        final transaction = transactions[index];
+        return _buildTransactionItem(transaction);
+      },
+    );
+  }
+  
+  Widget _buildTransactionItem(Map<String, dynamic> transaction) {
+    // Format transaction date
+    final date = transaction['date'] as DateTime;
+    final formattedDate = DateFormat('dd MMM yyyy').format(date);
+    
+    // Determine if this is a debit or credit transaction
+    final isDebit = transaction['type'] == 'gave';
+    
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      elevation: 2,
+      shadowColor: AppTheme.primaryColor.withOpacity(0.3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.1)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          _showTransactionDetails(context, transaction);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDebit 
+                      ? Colors.red.withOpacity(0.1) 
+                      : Colors.green.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isDebit ? Icons.arrow_upward : Icons.arrow_downward,
+                  color: isDebit ? Colors.red : Colors.green,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            transaction['contactName'] ?? 'Unknown',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: AppTheme.textColor,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '₹${(transaction['amount'] as double).toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDebit ? Colors.red : Colors.green,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          formattedDate,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isDebit ? 'You\'ll Get' : 'You\'ll Give',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isDebit ? Colors.red : Colors.green,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        if (transaction['note'] != null && transaction['note'].toString().isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              transaction['note'].toString(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.shade600,
+                                fontStyle: FontStyle.italic,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildFilterChips() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -196,227 +315,153 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildTransactionItem(Map<String, dynamic> transaction) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      elevation: 2,
-      shadowColor: Colors.black.withOpacity(0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: Colors.grey.shade200),
+  void _showFilterDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Filter By'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildFilterOption('All Transactions', 'All'),
+            const SizedBox(height: 8),
+            _buildFilterOption('Payments Only', 'Payments'),
+            const SizedBox(height: 8),
+            _buildFilterOption('Receipts Only', 'Receipts'),
+            const SizedBox(height: 8),
+            _buildFilterOption('Loans Only', 'Loans'),
+            const SizedBox(height: 8),
+            _buildFilterOption('Cards Only', 'Cards'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () {
-          _showTransactionDetails(context, transaction);
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: transaction['isCredit'] 
-                      ? Colors.green.withOpacity(0.1) 
-                      : Colors.red.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  _getIconForTransaction(transaction),
-                  color: transaction['isCredit'] ? Colors.green : Colors.red,
-                  size: 16,
+    );
+  }
+  
+  Widget _buildFilterOption(String title, String value) {
+    final isSelected = _selectedFilter == value;
+    
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedFilter = value;
+        });
+        Navigator.pop(context);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? AppTheme.primaryColor : null,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      transaction['title'],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
+            ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle,
+                color: AppTheme.primaryColor,
+                size: 20,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTransactionDetails(BuildContext context, Map<String, dynamic> transaction) {
+    // Format date properly
+    final date = transaction['date'] as DateTime;
+    final formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(date);
+    final isDebit = transaction['type'] == 'gave';
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isDebit 
+                          ? Colors.red.withOpacity(0.1) 
+                          : Colors.green.withOpacity(0.1),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(height: 2),
-                    Row(
+                    child: Icon(
+                      isDebit ? Icons.arrow_upward : Icons.arrow_downward,
+                      color: isDebit ? Colors.red : Colors.green,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          transaction['date'],
+                          isDebit ? 'You\'ll Get' : 'You\'ll Give',
                           style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey.shade600,
+                            color: isDebit ? Colors.red : Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            transaction['type'],
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: Colors.grey.shade700,
-                            ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '₹${(transaction['amount'] as double).toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Text(
-                transaction['amount'],
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: transaction['isCredit'] ? Colors.green : Colors.red,
-                  fontSize: 14,
-                ),
-              ),
+              const Divider(height: 24),
+              _buildDetailRow('Contact', transaction['contactName'] ?? 'Unknown'),
+              _buildDetailRow('Date', formattedDate),
+              if (transaction['note'] != null && transaction['note'].toString().isNotEmpty)
+                _buildDetailRow('Note', transaction['note'].toString()),
+              if (transaction['isPaid'] != null)
+                _buildDetailRow('Status', transaction['isPaid'] ? 'Paid' : 'Pending'),
+              if (transaction['contactType'] != null && transaction['contactType'].toString().isNotEmpty)
+                _buildDetailRow('Contact Type', transaction['contactType'].toString().capitalize()),
             ],
           ),
         ),
       ),
     );
   }
-
-  IconData _getIconForTransaction(Map<String, dynamic> transaction) {
-    if (transaction['category'] == 'Card') {
-      return Icons.credit_card;
-    } else if (transaction['category'] == 'Loan') {
-      return transaction['isCredit'] 
-          ? Icons.arrow_downward 
-          : Icons.arrow_upward;
-    } else if (transaction['category'] == 'Interest') {
-      return Icons.attach_money;
-    } else {
-      return Icons.swap_horiz;
-    }
-  }
-
-  void _showFilterDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Filter Transactions'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('All Transactions'),
-              leading: Radio<String>(
-                value: 'All',
-                groupValue: _selectedFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedFilter = value!;
-                  });
-                  Navigator.pop(context);
-                },
-                activeColor: AppTheme.primaryColor,
-              ),
-            ),
-            ListTile(
-              title: const Text('Payments Only'),
-              leading: Radio<String>(
-                value: 'Payments',
-                groupValue: _selectedFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedFilter = value!;
-                  });
-                  Navigator.pop(context);
-                },
-                activeColor: AppTheme.primaryColor,
-              ),
-            ),
-            ListTile(
-              title: const Text('Receipts Only'),
-              leading: Radio<String>(
-                value: 'Receipts',
-                groupValue: _selectedFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedFilter = value!;
-                  });
-                  Navigator.pop(context);
-                },
-                activeColor: AppTheme.primaryColor,
-              ),
-            ),
-            ListTile(
-              title: const Text('Loans Only'),
-              leading: Radio<String>(
-                value: 'Loans',
-                groupValue: _selectedFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedFilter = value!;
-                  });
-                  Navigator.pop(context);
-                },
-                activeColor: AppTheme.primaryColor,
-              ),
-            ),
-            ListTile(
-              title: const Text('Cards Only'),
-              leading: Radio<String>(
-                value: 'Cards',
-                groupValue: _selectedFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedFilter = value!;
-                  });
-                  Navigator.pop(context);
-                },
-                activeColor: AppTheme.primaryColor,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showTransactionDetails(BuildContext context, Map<String, dynamic> transaction) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Transaction Details'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildDetailRow('Transaction ID', '#${transaction['id']}'),
-            _buildDetailRow('Title', transaction['title']),
-            _buildDetailRow('Amount', transaction['amount']),
-            _buildDetailRow('Date', transaction['date']),
-            _buildDetailRow('Type', transaction['type']),
-            _buildDetailRow('Category', transaction['category']),
-            _buildDetailRow('Status', 'Completed'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
+  
   Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -424,12 +469,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
+            width: 80,
             child: Text(
               '$label:',
-              style: const TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -444,5 +489,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
     );
+  }
+}
+
+extension StringExtension on String {
+  String capitalize() {
+    return "${this[0].toUpperCase()}${this.substring(1)}";
   }
 } 

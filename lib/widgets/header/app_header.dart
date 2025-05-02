@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_byaj_book/constants/app_theme.dart';
 
 class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -16,19 +17,15 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Prevent multiple rebuilds by pre-constructing parts of the UI
-    final menuIcon = const Icon(Icons.menu, color: Colors.white, size: 22);
-    final backIcon = const Icon(Icons.arrow_back, color: Colors.white, size: 22);
-    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.blue,
-        boxShadow: const [
+        color: AppTheme.primaryColor,
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1A000000), // Hardcoded color for performance
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 10,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -36,27 +33,29 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
         bottom: false, // Optimize SafeArea to only apply to top
         child: Row(
           children: [
-            IconButton(
-              icon: menuIcon,
-              onPressed: () {
-                Scaffold.of(context).openDrawer();
-              },
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              tooltip: 'Menu',
-            ),
-            const SizedBox(width: 8),
-            if (showBackButton)
-              IconButton(
-                icon: backIcon,
-                onPressed: () {
-                  Navigator.pop(context);
+            // Menu or back button
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(24),
+                onTap: () {
+                  if (showBackButton) {
+                    Navigator.pop(context);
+                  } else {
+                    Scaffold.of(context).openDrawer();
+                  }
                 },
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                tooltip: 'Back',
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Icon(
+                    showBackButton ? Icons.arrow_back : Icons.menu,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
               ),
-            if (showBackButton) const SizedBox(width: 8),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 title,
@@ -65,14 +64,35 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
-                overflow: TextOverflow.ellipsis, // Prevent layout issues
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            ...(actions ?? const []),
+            // Build action buttons with proper tap areas
+            if (actions != null) ..._buildActionButtons(actions!),
           ],
         ),
       ),
     );
+  }
+  
+  // Helper method to wrap action buttons with proper tap areas
+  List<Widget> _buildActionButtons(List<Widget> actions) {
+    return actions.map((widget) {
+      if (widget is IconButton) {
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: widget.onPressed,
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: widget.icon,
+            ),
+          ),
+        );
+      }
+      return widget;
+    }).toList();
   }
   
   @override

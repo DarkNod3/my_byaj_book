@@ -49,8 +49,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Schedule regular automatic backups
-    _setupAutomaticBackups();
+    // Auto backup temporarily disabled
+    // _setupAutomaticBackups();
   }
   
   @override
@@ -61,6 +61,8 @@ class _HomeScreenState extends State<HomeScreen> {
   
   // Setup automatic backup timer
   void _setupAutomaticBackups() {
+    // Feature temporarily disabled
+    /*
     // Create an immediate backup when app starts
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _createBackup();
@@ -70,10 +72,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _backupTimer = Timer.periodic(const Duration(minutes: 30), (_) {
       _createBackup();
     });
+    */
   }
   
   // Create a backup of all app data
   Future<void> _createBackup() async {
+    // Feature temporarily disabled
+    /*
     try {
       final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
       final success = await transactionProvider.createAutomaticBackup();
@@ -86,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       debugPrint('Error during automatic backup: $e');
     }
+    */
   }
 
   // Handle back button press to exit the app
@@ -160,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
               showBackButton: false,
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.history, color: Colors.white),
+                  icon: const Icon(Icons.history, color: Colors.white, size: 24),
                   tooltip: 'Transaction History',
                   onPressed: () {
                     Navigator.push(
@@ -172,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.notifications, color: Colors.white),
+                  icon: const Icon(Icons.notifications, color: Colors.white, size: 24),
                   tooltip: 'Reminders',
                   onPressed: () {
                     Navigator.push(
@@ -727,11 +733,9 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       
       if (tabType == 'withInterest') {
         // Add to with-interest list only
-        print('Adding to with-interest list: ${contactCopy['name']}');
         _withInterestContacts.add(contactCopy);
       } else if (tabType == 'withoutInterest') {
         // Add to without-interest list only
-        print('Adding to without-interest list: ${contactCopy['name']}');
         _withoutInterestContacts.add(contactCopy);
       }
     }
@@ -754,9 +758,6 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
           final difference = today.difference(transactionDate).inDays;
           contact['daysAgo'] = difference;
         }
-        
-        // Debug what's happening
-        print('SYNC - Contact: ${contact['name']}, Old amount: ${contact['amount']}, Balance: $balance, DaysAgo: ${contact['daysAgo']}');
         
         // Update the contact's amount and isGet property
         contact['amount'] = balance.abs();
@@ -782,9 +783,6 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
           final difference = today.difference(transactionDate).inDays;
           contact['daysAgo'] = difference;
         }
-        
-        // Debug what's happening
-        print('SYNC - Contact: ${contact['name']}, Old amount: ${contact['amount']}, Balance: $balance, DaysAgo: ${contact['daysAgo']}');
         
         // Update the contact's amount and isGet property
         contact['amount'] = balance.abs();
@@ -1116,6 +1114,13 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withOpacity(0.15),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -1126,6 +1131,13 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryColor.withOpacity(0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: TabBar(
               controller: _tabController,
@@ -1614,15 +1626,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     final phone = contact['phone'] ?? '';
     final name = contact['name'] ?? '';
     
-    // Debug prints
-    print('HomeScreen - Contact: $name, Phone: $phone, isGet: $isGet');
-    
     // Get transaction provider
     final transactionProvider = Provider.of<TransactionProvider>(context);
-    
-    // Debug transaction info
-    final transactions = transactionProvider.getTransactionsForContact(phone);
-    print('HomeScreen - Transaction count for $name: ${transactions.length}');
     
     // Get balance from transactions
     double originalBalance = 0.0;
@@ -1630,28 +1635,24 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     
     if (phone.isNotEmpty) {
       balanceFromTransactions = transactionProvider.calculateBalance(phone);
-      print('HomeScreen - Transaction balance for $name: $balanceFromTransactions');
       
       // The original amount (what was set when creating the contact)
       originalBalance = contact['amount'] as double;
-      print('HomeScreen - Original balance for $name: $originalBalance');
     }
     
     // Decide whether to use transaction-based balance or original balance
     double displayAmount;
     bool showYouWillGet = false;
     
-    if (phone.isNotEmpty && transactions.isNotEmpty) {
+    if (phone.isNotEmpty && transactionProvider.getTransactionsForContact(phone).isNotEmpty) {
       // Use transaction-based balance
       displayAmount = balanceFromTransactions.abs();
       // Determine if it's "You'll Get" or "You'll Give" based on sign
       showYouWillGet = balanceFromTransactions > 0;
-      print('HomeScreen - Using transaction balance: $displayAmount, showYouWillGet: $showYouWillGet');
     } else {
       // Use original balance if no transactions
       displayAmount = originalBalance;
       showYouWillGet = isGet;
-      print('HomeScreen - Using original balance: $displayAmount, showYouWillGet: $showYouWillGet');
     }
     
     // Calculate interest details if this is an interest-based contact
@@ -1659,12 +1660,13 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     double totalInterestDue = 0.0;
     double principalAmount = displayAmount;
     
-    if (_isWithInterest && transactions.isNotEmpty) {
+    if (_isWithInterest && transactionProvider.getTransactionsForContact(phone).isNotEmpty) {
       // Get interest rate from contact
       final double interestRate = contact['interestRate'] as double? ?? 12.0;
       final String contactType = contact['type'] as String? ?? 'borrower';
       
       // Sort transactions chronologically for accurate interest calculation
+      final transactions = transactionProvider.getTransactionsForContact(phone);
       transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
       
       // INTEREST CALCULATION LOGIC:
@@ -1760,10 +1762,10 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       elevation: 2,
-      shadowColor: Colors.black.withOpacity(0.1),
+      shadowColor: AppTheme.primaryColor.withOpacity(0.3),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.1)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),

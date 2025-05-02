@@ -268,14 +268,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           
           // Auto backup info
-          if (_lastBackupDate != null)
-            _buildSettingItem(
-              title: 'Auto Backup',
-              subtitle: 'Last backup: $_lastBackupDate',
-              icon: Icons.history,
-              onTap: _restoreFromAutoBackup,
-              trailing: const Icon(Icons.restore, size: 16),
+          _buildSettingItem(
+            title: 'Auto Backup & Sync',
+            subtitle: 'Coming soon!',
+            icon: Icons.sync,
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('This feature will be available soon!'))
+              );
+            },
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'SOON',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber.shade800,
+                ),
+              ),
             ),
+          ),
             
           const Divider(),
           
