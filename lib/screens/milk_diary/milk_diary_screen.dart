@@ -10,7 +10,12 @@ import 'milk_seller_screen.dart';
 import 'milk_payments_screen.dart';
 
 class MilkDiaryScreen extends StatefulWidget {
-  const MilkDiaryScreen({Key? key}) : super(key: key);
+  final bool showAppBar;
+  
+  const MilkDiaryScreen({
+    Key? key,
+    this.showAppBar = true
+  }) : super(key: key);
 
   @override
   State<MilkDiaryScreen> createState() => _MilkDiaryScreenState();
@@ -35,7 +40,7 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.showAppBar ? AppBar(
         title: const Text('Milk Diary'),
         actions: [
           IconButton(
@@ -67,7 +72,7 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
             Tab(text: 'Reports'),
           ],
         ),
-      ),
+      ) : null,
       body: TabBarView(
         controller: _tabController,
         children: [
@@ -253,7 +258,7 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.primary,
+                color: AppTheme.primaryColor,
               ),
             ),
           ],
@@ -338,7 +343,7 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                   'Total: ₹${totalAmount.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primary,
+                    color: AppTheme.primaryColor,
                   ),
                 ),
               ],
@@ -539,7 +544,7 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
-            color: isHighlighted ? AppTheme.primary : null,
+            color: isHighlighted ? AppTheme.primaryColor : null,
           ),
         ),
       ],
@@ -621,7 +626,7 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                         '₹${amount.toStringAsFixed(2)}',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.primary,
+                          color: AppTheme.primaryColor,
                         ),
                       ),
                     ],

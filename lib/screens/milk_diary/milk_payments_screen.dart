@@ -273,7 +273,7 @@ class _MilkPaymentsScreenState extends State<MilkPaymentsScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.primary,
+                          color: AppTheme.primaryColor,
                         ),
                       ),
                     ],
@@ -404,7 +404,7 @@ class _MilkPaymentsScreenState extends State<MilkPaymentsScreen> {
                 },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.all(16),
-                  backgroundColor: AppTheme.primary,
+                  backgroundColor: AppTheme.primaryColor,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -440,7 +440,7 @@ class _MilkPaymentsScreenState extends State<MilkPaymentsScreen> {
           value,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: isHighlighted ? AppTheme.primary : null,
+            color: isHighlighted ? AppTheme.primaryColor : null,
           ),
         ),
       ],
@@ -472,7 +472,7 @@ class _MilkPaymentsScreenState extends State<MilkPaymentsScreen> {
                   '₹${dayAmount.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primary,
+                    color: AppTheme.primaryColor,
                   ),
                 ),
               ],
@@ -491,7 +491,7 @@ class _MilkPaymentsScreenState extends State<MilkPaymentsScreen> {
                   '₹${dayAmount.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primary,
+                    color: AppTheme.primaryColor,
                   ),
                 ),
               ],

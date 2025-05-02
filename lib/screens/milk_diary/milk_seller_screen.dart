@@ -94,11 +94,11 @@ class _MilkSellerScreenState extends State<MilkSellerScreen> {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (seller.phoneNumber != null && seller.phoneNumber!.isNotEmpty)
+                      if (seller.mobile != null && seller.mobile!.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            seller.phoneNumber!,
+                            seller.mobile!,
                             style: TextStyle(
                               color: Colors.grey.shade600,
                               fontSize: 14,
@@ -141,7 +141,7 @@ class _MilkSellerScreenState extends State<MilkSellerScreen> {
                   'Default Rate: ₹${seller.defaultRate.toStringAsFixed(2)}/L',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primary,
+                    color: AppTheme.primaryColor,
                   ),
                 ),
                 Row(
@@ -235,20 +235,17 @@ class _MilkSellerScreenState extends State<MilkSellerScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        String searchText = _searchQuery;
+        final controller = TextEditingController(text: _searchQuery);
         
         return AlertDialog(
           title: const Text('Search Sellers'),
           content: TextField(
             autofocus: true,
+            controller: controller,
             decoration: const InputDecoration(
               hintText: 'Enter name, phone or address',
               prefixIcon: Icon(Icons.search),
             ),
-            onChanged: (value) {
-              searchText = value;
-            },
-            initialValue: _searchQuery,
           ),
           actions: [
             TextButton(
@@ -258,7 +255,7 @@ class _MilkSellerScreenState extends State<MilkSellerScreen> {
             TextButton(
               onPressed: () {
                 setState(() {
-                  _searchQuery = searchText;
+                  _searchQuery = controller.text;
                 });
                 Navigator.pop(context);
               },

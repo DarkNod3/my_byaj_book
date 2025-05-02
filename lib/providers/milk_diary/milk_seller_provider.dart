@@ -92,7 +92,7 @@ class MilkSellerProvider with ChangeNotifier {
     final lowercaseQuery = query.toLowerCase();
     return _sellers.where((seller) {
       return seller.name.toLowerCase().contains(lowercaseQuery) ||
-          (seller.phoneNumber?.toLowerCase().contains(lowercaseQuery) ?? false) ||
+          (seller.mobile?.toLowerCase().contains(lowercaseQuery) ?? false) ||
           (seller.address?.toLowerCase().contains(lowercaseQuery) ?? false);
     }).toList();
   }

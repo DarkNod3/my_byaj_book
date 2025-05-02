@@ -8,6 +8,8 @@ import 'providers/loan_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/bill_note_provider.dart';
 import 'providers/nav_preferences_provider.dart';
+import 'providers/milk_diary/daily_entry_provider.dart';
+import 'providers/milk_diary/milk_seller_provider.dart';
 import 'screens/bill_diary/bill_diary_screen.dart';
 import 'screens/settings/nav_settings_screen.dart';
 import 'utils/string_extensions.dart';
@@ -91,6 +93,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           lazy: false, // Initialize immediately
         ),
         ChangeNotifierProvider(create: (_) => BillNoteProvider()),
+        ChangeNotifierProvider(create: (_) => DailyEntryProvider()),
+        ChangeNotifierProvider(create: (_) => MilkSellerProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

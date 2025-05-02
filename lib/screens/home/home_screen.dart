@@ -6,7 +6,8 @@ import 'package:my_byaj_book/screens/card/card_screen.dart';
 import 'package:my_byaj_book/screens/loan/loan_screen.dart';
 import 'package:my_byaj_book/screens/tools/more_tools_screen.dart';
 import 'package:my_byaj_book/screens/bill_diary/bill_diary_screen.dart';
-import 'package:my_byaj_book/screens/tools/milk_diary_screen.dart';
+import 'package:my_byaj_book/screens/milk_diary/milk_diary_screen.dart';
+import 'package:my_byaj_book/screens/work_diary/work_diary_screen.dart';
 import 'package:my_byaj_book/screens/tools/diary_test_screen.dart';
 import 'package:my_byaj_book/screens/reminder/reminder_screen.dart';
 import 'package:my_byaj_book/screens/history/history_screen.dart';
@@ -137,13 +138,10 @@ class _HomeScreenState extends State<HomeScreen> {
       'home': const HomeContent(),
       'loans': const LoanScreen(),
       'cards': const CardScreen(),
-      'bill_diary': const BillDiaryScreen(),
-      'milk_diary': const MilkDiaryScreen(),
-      'work_diary': DiaryTestScreen(diaryType: 'Work Diary'),
+      'bill_diary': const BillDiaryScreen(showAppBar: false),
+      'milk_diary': const MilkDiaryScreen(showAppBar: false),
+      'work_diary': const WorkDiaryScreen(showAppBar: false),
       'tea_diary': const TeaDiaryScreen(),
-      'expense_tracker': DiaryTestScreen(diaryType: 'Expenses'),
-      'goal_planner': DiaryTestScreen(diaryType: 'Goals'),
-      'budget_planner': DiaryTestScreen(diaryType: 'Budget'),
       'tools': const MoreToolsScreen(),
       'emi_calc': const EmiCalculatorScreen(showAppBar: false),
       'land_calc': const LandCalculatorScreen(showAppBar: false),
