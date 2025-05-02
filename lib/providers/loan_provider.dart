@@ -105,6 +105,18 @@ class LoanProvider extends ChangeNotifier {
         loanCopy['firstPaymentDate'] = loanCopy['firstPaymentDate']?.toIso8601String();
         loanCopy['createdDate'] = loanCopy['createdDate']?.toIso8601String();
         loanCopy['completionDate'] = loanCopy['completionDate']?.toIso8601String();
+        
+        // Handle installments if present
+        if (loanCopy.containsKey('installments') && loanCopy['installments'] is List) {
+          loanCopy['installments'] = (loanCopy['installments'] as List).map((installment) {
+            final installmentCopy = Map<String, dynamic>.from(installment);
+            // Convert DateTime objects in installments
+            installmentCopy['dueDate'] = installmentCopy['dueDate']?.toIso8601String();
+            installmentCopy['paidDate'] = installmentCopy['paidDate']?.toIso8601String();
+            return installmentCopy;
+          }).toList();
+        }
+        
         return loanCopy;
       }).toList();
       
@@ -114,6 +126,18 @@ class LoanProvider extends ChangeNotifier {
         loanCopy['firstPaymentDate'] = loanCopy['firstPaymentDate']?.toIso8601String();
         loanCopy['createdDate'] = loanCopy['createdDate']?.toIso8601String();
         loanCopy['completionDate'] = loanCopy['completionDate']?.toIso8601String();
+        
+        // Handle installments if present
+        if (loanCopy.containsKey('installments') && loanCopy['installments'] is List) {
+          loanCopy['installments'] = (loanCopy['installments'] as List).map((installment) {
+            final installmentCopy = Map<String, dynamic>.from(installment);
+            // Convert DateTime objects in installments
+            installmentCopy['dueDate'] = installmentCopy['dueDate']?.toIso8601String();
+            installmentCopy['paidDate'] = installmentCopy['paidDate']?.toIso8601String();
+            return installmentCopy;
+          }).toList();
+        }
+        
         return loanCopy;
       }).toList();
       
@@ -139,6 +163,18 @@ class LoanProvider extends ChangeNotifier {
           loanMap['firstPaymentDate'] = loanMap['firstPaymentDate'] != null ? DateTime.parse(loanMap['firstPaymentDate']) : null;
           loanMap['createdDate'] = loanMap['createdDate'] != null ? DateTime.parse(loanMap['createdDate']) : null;
           loanMap['completionDate'] = loanMap['completionDate'] != null ? DateTime.parse(loanMap['completionDate']) : null;
+          
+          // Process installments if present
+          if (loanMap.containsKey('installments') && loanMap['installments'] is List) {
+            loanMap['installments'] = (loanMap['installments'] as List).map((installment) {
+              final installmentMap = Map<String, dynamic>.from(installment);
+              // Convert string dates back to DateTime objects
+              installmentMap['dueDate'] = installmentMap['dueDate'] != null ? DateTime.parse(installmentMap['dueDate']) : null;
+              installmentMap['paidDate'] = installmentMap['paidDate'] != null ? DateTime.parse(installmentMap['paidDate']) : null;
+              return installmentMap;
+            }).toList();
+          }
+          
           return loanMap;
         }).toList();
       }
@@ -151,6 +187,18 @@ class LoanProvider extends ChangeNotifier {
           loanMap['firstPaymentDate'] = loanMap['firstPaymentDate'] != null ? DateTime.parse(loanMap['firstPaymentDate']) : null;
           loanMap['createdDate'] = loanMap['createdDate'] != null ? DateTime.parse(loanMap['createdDate']) : null;
           loanMap['completionDate'] = loanMap['completionDate'] != null ? DateTime.parse(loanMap['completionDate']) : null;
+          
+          // Process installments if present
+          if (loanMap.containsKey('installments') && loanMap['installments'] is List) {
+            loanMap['installments'] = (loanMap['installments'] as List).map((installment) {
+              final installmentMap = Map<String, dynamic>.from(installment);
+              // Convert string dates back to DateTime objects
+              installmentMap['dueDate'] = installmentMap['dueDate'] != null ? DateTime.parse(installmentMap['dueDate']) : null;
+              installmentMap['paidDate'] = installmentMap['paidDate'] != null ? DateTime.parse(installmentMap['paidDate']) : null;
+              return installmentMap;
+            }).toList();
+          }
+          
           return loanMap;
         }).toList();
       }

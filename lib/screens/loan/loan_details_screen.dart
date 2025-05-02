@@ -29,13 +29,30 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this, initialIndex: widget.initialTab);
-    _generateInstallments();
+    _loadInstallments();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _loadInstallments() {
+    // Check if loan already has installments
+    if (widget.loanData.containsKey('installments') && 
+        widget.loanData['installments'] != null && 
+        (widget.loanData['installments'] as List).isNotEmpty) {
+      
+      // Use existing installments
+      _installments = List<Map<String, dynamic>>.from(widget.loanData['installments']);
+      
+      // Count paid installments
+      _paidInstallments = _installments.where((inst) => inst['isPaid'] == true).length;
+    } else {
+      // Generate new installments
+      _generateInstallments();
+    }
   }
 
   void _generateInstallments() {
@@ -76,23 +93,64 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
         paymentDate.day,
       );
     }
+    
+    // Save the generated installments
+    final loanProvider = Provider.of<LoanProvider>(context, listen: false);
+    final updatedLoanData = Map<String, dynamic>.from(widget.loanData);
+    updatedLoanData['installments'] = _installments;
+    loanProvider.updateLoan(updatedLoanData);
   }
 
   void _markAsPaid(int index) {
+    final DateTime now = DateTime.now();
+    
     setState(() {
       _installments[index]['isPaid'] = true;
-      _installments[index]['paidDate'] = DateTime.now();
+      _installments[index]['paidDate'] = now;
       _paidInstallments++;
+      
+      // Calculate progress percentage
+      double progress = _paidInstallments / _installments.length;
       
       // Update the loan data
       final loanProvider = Provider.of<LoanProvider>(context, listen: false);
       final updatedLoanData = Map<String, dynamic>.from(widget.loanData);
+      
+      // Update installments data
       updatedLoanData['installments'] = _installments;
-      loanProvider.updateLoan(updatedLoanData);
+      
+      // Update progress
+      updatedLoanData['progress'] = progress;
+      
+      // Check if all installments are paid and update status if needed
+      if (progress >= 1.0) {
+        updatedLoanData['status'] = 'Completed';
+      }
+      
+      loanProvider.updateLoan(updatedLoanData).then((_) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment for Installment ${_installments[index]['installmentNumber']} marked as paid'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        
+        // Show date picker to select payment date
+        _selectPaymentDate(index);
+      }).catchError((e) {
+        debugPrint('Error updating loan: $e');
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error marking payment as paid: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      });
     });
-    
-    // Show date picker to select payment date
-    _selectPaymentDate(index);
   }
 
   void _undoPayment(int index) {
@@ -101,21 +159,45 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
       _installments[index]['paidDate'] = null;
       _paidInstallments--;
       
+      // Calculate progress percentage
+      double progress = _paidInstallments / _installments.length;
+      
       // Update the loan data
       final loanProvider = Provider.of<LoanProvider>(context, listen: false);
       final updatedLoanData = Map<String, dynamic>.from(widget.loanData);
+      
+      // Update installments data
       updatedLoanData['installments'] = _installments;
-      loanProvider.updateLoan(updatedLoanData);
+      
+      // Update progress
+      updatedLoanData['progress'] = progress;
+      
+      // Update status back to Active if it was Completed
+      if (updatedLoanData['status'] == 'Completed') {
+        updatedLoanData['status'] = 'Active';
+      }
+      
+      loanProvider.updateLoan(updatedLoanData).then((_) {
+        // Show a confirmation snackbar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment for Installment ${_installments[index]['installmentNumber']} was reset'),
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }).catchError((e) {
+        debugPrint('Error updating loan: $e');
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error resetting payment: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      });
     });
-    
-    // Show a confirmation snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Payment for Installment ${_installments[index]['installmentNumber']} was reset'),
-        backgroundColor: Colors.blue,
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   void _selectPaymentDate(int index) async {
@@ -146,7 +228,27 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
         final loanProvider = Provider.of<LoanProvider>(context, listen: false);
         final updatedLoanData = Map<String, dynamic>.from(widget.loanData);
         updatedLoanData['installments'] = _installments;
-        loanProvider.updateLoan(updatedLoanData);
+        
+        loanProvider.updateLoan(updatedLoanData).then((_) {
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Payment date updated successfully'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }).catchError((e) {
+          debugPrint('Error updating payment date: $e');
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error updating payment date: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        });
       });
     }
   }

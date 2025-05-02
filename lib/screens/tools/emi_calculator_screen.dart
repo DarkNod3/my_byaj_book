@@ -29,6 +29,16 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
   final _interestRateController = TextEditingController(text: '10.5');
   final _loanTenureController = TextEditingController(text: '24');
 
+  // Live Interest Rate Finder controllers
+  final _reverseLoanAmountController = TextEditingController();
+  final _reverseEmiAmountController = TextEditingController();
+  final _reverseTenureController = TextEditingController();
+  int _reverseTenureType = 1; // 0: Years, 1: Months
+  double _calculatedInterestRate = 0.0;
+  bool _isCalculatingRate = false;
+  bool _canCalculateRate = false;
+  String _reverseCalculationError = '';
+
   int _selectedTenureType = 1; // 0: Years, 1: Months
   double _emiAmount = 0;
   double _totalInterest = 0;
@@ -58,6 +68,11 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
     super.initState();
     // Calculate EMI automatically on init
     _calculateEMI();
+    
+    // Set up listeners for reverse calculation
+    _reverseLoanAmountController.addListener(_checkReverseInputs);
+    _reverseEmiAmountController.addListener(_checkReverseInputs);
+    _reverseTenureController.addListener(_checkReverseInputs);
   }
 
   @override
@@ -65,7 +80,144 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
     _loanAmountController.dispose();
     _interestRateController.dispose();
     _loanTenureController.dispose();
+    _reverseLoanAmountController.dispose();
+    _reverseEmiAmountController.dispose();
+    _reverseTenureController.dispose();
     super.dispose();
+  }
+
+  // Check if all inputs for reverse calculation are valid
+  void _checkReverseInputs() {
+    bool canCalculate = false;
+    
+    try {
+      double loanAmount = double.tryParse(_reverseLoanAmountController.text) ?? 0;
+      double emiAmount = double.tryParse(_reverseEmiAmountController.text) ?? 0;
+      int tenure = int.tryParse(_reverseTenureController.text) ?? 0;
+      
+      if (loanAmount > 0 && emiAmount > 0 && tenure > 0) {
+        // Convert tenure to months if needed
+        if (_reverseTenureType == 0) {
+          tenure *= 12;
+        }
+        
+        // Check if the EMI is sensible (at least enough to cover the principal)
+        double minEmi = loanAmount / tenure;
+        
+        if (emiAmount >= minEmi) {
+          canCalculate = true;
+          _reverseCalculationError = '';
+        } else {
+          _reverseCalculationError = 'EMI too low for this loan amount and tenure';
+        }
+      } else {
+        _reverseCalculationError = '';
+      }
+    } catch (e) {
+      _reverseCalculationError = '';
+    }
+    
+    if (canCalculate != _canCalculateRate) {
+      setState(() {
+        _canCalculateRate = canCalculate;
+      });
+      
+      if (canCalculate) {
+        _calculateInterestRate();
+      }
+    }
+  }
+
+  // Calculate interest rate using numerical approximation
+  void _calculateInterestRate() {
+    if (!_canCalculateRate) {
+      return;
+    }
+    
+    setState(() {
+      _isCalculatingRate = true;
+    });
+    
+    try {
+      double p = double.parse(_reverseLoanAmountController.text); // Principal
+      double emi = double.parse(_reverseEmiAmountController.text); // EMI amount
+      int n = int.parse(_reverseTenureController.text); // Tenure
+      
+      // Convert years to months if needed
+      if (_reverseTenureType == 0) {
+        n = n * 12;
+      }
+      
+      // Function to calculate EMI given rate
+      // We'll use Newton-Raphson method to find the rate
+      double f(double r) {
+        if (r <= 0) return p / n - emi; // For 0 or negative rate, EMI is just principal/tenure
+        return p * r * pow(1 + r, n) / (pow(1 + r, n) - 1) - emi;
+      }
+      
+      // Derivative of f with respect to r
+      double fPrime(double r) {
+        if (r <= 0.0001) return 0; // Avoid division by zero
+        double numerator1 = p * pow(1 + r, n);
+        double numerator2 = p * n * r * pow(1 + r, n - 1);
+        double denominator = pow(1 + r, n) - 1;
+        return (numerator1 + numerator2) / denominator - 
+               p * r * pow(1 + r, n) * n * pow(1 + r, n - 1) / pow(denominator, 2);
+      }
+      
+      // Implement Newton-Raphson method
+      double r = 0.10 / 12; // Initial guess: 10% annually, converted to monthly
+      int maxIterations = 100;
+      double tolerance = 1e-10;
+      
+      for (int i = 0; i < maxIterations; i++) {
+        double fValue = f(r);
+        if (fValue.abs() < tolerance) {
+          break;
+        }
+        
+        double fPrimeValue = fPrime(r);
+        if (fPrimeValue.abs() < tolerance) {
+          // If derivative is close to zero, use a different approach
+          r = r * 1.1; // Try a slightly higher rate
+          continue;
+        }
+        
+        double nextR = r - fValue / fPrimeValue;
+        
+        // Check if the method is converging
+        if ((nextR - r).abs() < tolerance) {
+          r = nextR;
+          break;
+        }
+        
+        // Ensure r stays positive
+        r = nextR > 0 ? nextR : r / 2;
+      }
+      
+      // Convert monthly rate to annual percentage
+      double annualRate = r * 12 * 100;
+      
+      // Check if result is reasonable (cap at 100%)
+      if (annualRate > 100 || annualRate.isNaN) {
+        setState(() {
+          _reverseCalculationError = 'Unable to calculate valid interest rate';
+          _isCalculatingRate = false;
+        });
+        return;
+      }
+      
+      setState(() {
+        _calculatedInterestRate = annualRate;
+        _isCalculatingRate = false;
+      });
+      
+    } catch (e) {
+      setState(() {
+        _reverseCalculationError = 'Calculation error';
+        _isCalculatingRate = false;
+      });
+    }
   }
 
   void _calculateEMI() {
@@ -287,8 +439,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                   ],
                 ),
                 
-                // Table Rows (first 12 months or less)
-                ..._paymentSchedule.take(12).map((payment) {
+                // Table Rows (all entries)
+                ..._paymentSchedule.map((payment) {
                   return pw.TableRow(
                     children: [
                       _buildPdfTableCell('${payment['month']}'),
@@ -300,17 +452,6 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                   );
                 }).toList(),
               ],
-            ),
-            
-            pw.SizedBox(height: 20),
-            
-            // Note about complete schedule
-            pw.Text(
-              'Note: This is a summary of your first 12 monthly payments. The complete payment schedule is available upon request.',
-              style: const pw.TextStyle(
-                fontSize: 10,
-                fontStyle: pw.FontStyle.italic,
-              ),
             ),
             
             pw.SizedBox(height: 20),
@@ -429,28 +570,80 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
       ) : null,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Form(
-            key: _formKey,
-            onChanged: _calculateEMI, // Recalculate on any form change
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildResultCard(),
-                const SizedBox(height: 16),
-                _buildCalculatorCard(),
-                const SizedBox(height: 16),
-                _buildPdfButton(),
-                const SizedBox(height: 16),
-                _buildPaymentSchedule(),
-                const SizedBox(height: 16),
-                _buildBreakdownCard(),
-              ],
+      body: Column(
+        children: [
+          // Interest Rate Finder Button
+          Material(
+            color: Colors.blue.shade50,
+            child: InkWell(
+              onTap: () => _showInterestRateFinder(),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Colors.blue.shade200, width: 1)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.lightbulb_outline, color: Colors.amber.shade700, size: 18),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Live Interest Rate Finder',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade700,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'NEW',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+          
+          // Main content
+          Expanded(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Form(
+                  key: _formKey,
+                  onChanged: _calculateEMI, // Recalculate on any form change
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildResultCard(),
+                      const SizedBox(height: 16),
+                      _buildCalculatorCard(),
+                      const SizedBox(height: 16),
+                      _buildPdfButton(),
+                      const SizedBox(height: 16),
+                      _buildPaymentSchedule(),
+                      const SizedBox(height: 16),
+                      _buildBreakdownCard(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -715,16 +908,6 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: _generatePDF,
-                  icon: const Icon(Icons.download, size: 18),
-                  label: const Text('Download PDF'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  ),
-                ),
               ],
             ),
           ),
@@ -756,7 +939,7 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
             child: ListView.builder(
               shrinkWrap: true,
               physics: const ClampingScrollPhysics(),
-              itemCount: _paymentSchedule.length.clamp(0, 10), // Show only first 10 entries
+              itemCount: _paymentSchedule.length, // Show all entries
               itemBuilder: (context, index) {
                 final payment = _paymentSchedule[index];
                 return Container(
@@ -1004,6 +1187,320 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
           style: const TextStyle(fontSize: 12),
         ),
       ],
+    );
+  }
+
+  // Show the interest rate finder in a bottom sheet
+  void _showInterestRateFinder() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.lightbulb, color: Colors.amber.shade600),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Live Interest Rate Finder',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_isCalculatingRate)
+                    Container(
+                      height: 16,
+                      width: 16,
+                      margin: const EdgeInsets.only(right: 16),
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            
+            // Description
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'This tool helps you find the interest rate when you know the loan amount, EMI, and tenure.',
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            
+            // Form fields
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Loan Amount
+                    TextField(
+                      controller: _reverseLoanAmountController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: const InputDecoration(
+                        labelText: 'Loan Amount (₹)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.currency_rupee),
+                        contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // EMI Amount
+                    TextField(
+                      controller: _reverseEmiAmountController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: const InputDecoration(
+                        labelText: 'Monthly EMI (₹)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.payment),
+                        contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Loan Tenure
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _reverseTenureController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            decoration: const InputDecoration(
+                              labelText: 'Loan Tenure',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.calendar_today),
+                              contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            height: 56,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade400),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                value: _reverseTenureType,
+                                isExpanded: true,
+                                items: const [
+                                  DropdownMenuItem(value: 0, child: Text('Years')),
+                                  DropdownMenuItem(value: 1, child: Text('Months')),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() {
+                                      _reverseTenureType = value;
+                                      _checkReverseInputs();
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Result display
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.blue.shade200,
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Calculated Interest Rate',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.blue,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (_reverseCalculationError.isNotEmpty)
+                            Text(
+                              _reverseCalculationError,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.red.shade700,
+                              ),
+                            )
+                          else if (_isCalculatingRate)
+                            Column(
+                              children: [
+                                const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Calculating...',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
+                            )
+                          else if (_canCalculateRate)
+                            Column(
+                              children: [
+                                Text(
+                                  '${_calculatedInterestRate.toStringAsFixed(2)}%',
+                                  style: TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'per annum',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.blue.shade600,
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            const Text(
+                              'Enter all values to calculate interest rate',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Tips
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.amber.shade800, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Tips',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '• EMI must be at least enough to cover the principal over the tenure',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade800,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '• Calculation is more accurate with higher loan amounts',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Bottom action button
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('CLOSE'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 } 
