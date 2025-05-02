@@ -12,7 +12,12 @@ import 'package:fl_chart/fl_chart.dart';
 class EmiCalculatorScreen extends StatefulWidget {
   static const routeName = '/emi-calculator';
   
-  const EmiCalculatorScreen({super.key});
+  final bool showAppBar;
+  
+  const EmiCalculatorScreen({
+    super.key, 
+    this.showAppBar = true
+  });
 
   @override
   State<EmiCalculatorScreen> createState() => _EmiCalculatorScreenState();
@@ -419,11 +424,11 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.showAppBar ? AppBar(
         title: const Text('EMI Calculator'),
         backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
-      ),
+      ) : null,
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(12.0),

@@ -11,7 +11,12 @@ import 'package:intl/intl.dart';
 class LandCalculatorScreen extends StatefulWidget {
   static const routeName = '/land-calculator';
   
-  const LandCalculatorScreen({super.key});
+  final bool showAppBar;
+  
+  const LandCalculatorScreen({
+    super.key, 
+    this.showAppBar = true
+  });
 
   @override
   State<LandCalculatorScreen> createState() => _LandCalculatorScreenState();
@@ -725,7 +730,7 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.showAppBar ? AppBar(
         title: const Text('Land Calculator'),
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
@@ -745,7 +750,7 @@ class _LandCalculatorScreenState extends State<LandCalculatorScreen> with Single
             ),
           ],
         ),
-      ),
+      ) : null,
       body: TabBarView(
         controller: _tabController,
         children: [

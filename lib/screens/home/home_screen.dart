@@ -31,6 +31,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:my_byaj_book/screens/settings/settings_screen.dart';
 import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
+import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
+import 'package:my_byaj_book/screens/tools/land_calculator_screen.dart';
+import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
+import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -136,13 +140,15 @@ class _HomeScreenState extends State<HomeScreen> {
       'bill_diary': const BillDiaryScreen(),
       'milk_diary': const MilkDiaryScreen(),
       'work_diary': DiaryTestScreen(diaryType: 'Work Diary'),
-      'farm_diary': DiaryTestScreen(diaryType: 'Farm Diary'),
-      'shop_diary': DiaryTestScreen(diaryType: 'Shop Diary'),
       'tea_diary': const TeaDiaryScreen(),
       'expense_tracker': DiaryTestScreen(diaryType: 'Expenses'),
       'goal_planner': DiaryTestScreen(diaryType: 'Goals'),
       'budget_planner': DiaryTestScreen(diaryType: 'Budget'),
       'tools': const MoreToolsScreen(),
+      'emi_calc': const EmiCalculatorScreen(showAppBar: false),
+      'land_calc': const LandCalculatorScreen(showAppBar: false),
+      'sip_calc': const SipCalculatorScreen(showAppBar: false),
+      'tax_calc': const TaxCalculatorScreen(showAppBar: false),
     };
     
     // Get selected screens from navigation preferences

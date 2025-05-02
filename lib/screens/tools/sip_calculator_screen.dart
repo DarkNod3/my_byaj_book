@@ -12,7 +12,12 @@ import 'package:fl_chart/fl_chart.dart';
 class SipCalculatorScreen extends StatefulWidget {
   static const routeName = '/sip-calculator';
   
-  const SipCalculatorScreen({super.key});
+  final bool showAppBar;
+  
+  const SipCalculatorScreen({
+    super.key, 
+    this.showAppBar = true
+  });
 
   @override
   State<SipCalculatorScreen> createState() => _SipCalculatorScreenState();
@@ -390,11 +395,11 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.showAppBar ? AppBar(
         title: const Text('SIP Calculator'),
         backgroundColor: Colors.indigo.shade700,
         foregroundColor: Colors.white,
-      ),
+      ) : null,
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(12.0),

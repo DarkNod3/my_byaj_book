@@ -388,16 +388,16 @@ class ToolsPopup extends StatelessWidget {
   void _navigateToTool(BuildContext context, String id) {
     switch (id) {
       case 'emi_calc':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const EmiCalculatorScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const EmiCalculatorScreen(showAppBar: true)));
         break;
       case 'land_calc':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const LandCalculatorScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const LandCalculatorScreen(showAppBar: true)));
         break;
       case 'sip_calc':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SipCalculatorScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SipCalculatorScreen(showAppBar: true)));
         break;
       case 'tax_calc':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const TaxCalculatorScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const TaxCalculatorScreen(showAppBar: true)));
         break;
       case 'bill_diary':
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const BillDiaryScreen()));

@@ -11,7 +11,12 @@ import 'package:intl/intl.dart';
 class TaxCalculatorScreen extends StatefulWidget {
   static const routeName = '/tax-calculator';
   
-  const TaxCalculatorScreen({super.key});
+  final bool showAppBar;
+  
+  const TaxCalculatorScreen({
+    super.key, 
+    this.showAppBar = true
+  });
 
   @override
   State<TaxCalculatorScreen> createState() => _TaxCalculatorScreenState();
@@ -433,11 +438,11 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.showAppBar ? AppBar(
         title: const Text('Income Tax Calculator'),
         backgroundColor: Colors.red.shade700,
         foregroundColor: Colors.white,
-      ),
+      ) : null,
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(12.0),
