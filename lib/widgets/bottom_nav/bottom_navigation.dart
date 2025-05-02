@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:my_byaj_book/screens/tools/diary_test_screen.dart';
-import 'package:my_byaj_book/screens/tools/milk_diary_screen.dart';
+import 'package:my_byaj_book/screens/milk_diary/milk_diary_screen.dart';
 import 'package:my_byaj_book/screens/bill_diary/bill_diary_screen.dart';
 import 'package:my_byaj_book/screens/home/home_screen.dart';
 import 'package:my_byaj_book/screens/loan/loan_screen.dart';
@@ -403,7 +403,7 @@ class ToolsPopup extends StatelessWidget {
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const BillDiaryScreen()));
         break;
       case 'milk_diary':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const MilkDiaryScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const MilkDiaryScreen(showAppBar: true)));
         break;
       case 'work_diary':
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const WorkDiaryScreen()));

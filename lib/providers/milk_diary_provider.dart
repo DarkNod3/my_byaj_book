@@ -27,82 +27,13 @@ class MilkDiaryProvider with ChangeNotifier {
         final List<dynamic> decoded = jsonDecode(sellersJson);
         _sellers = decoded.map((item) => MilkSeller.fromJson(item)).toList();
       } else {
-        // Add sample data for testing
-        _addSampleData();
+        // No sample data
+        _sellers = [];
       }
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading milk diary data: $e');
     }
-  }
-  
-  void _addSampleData() {
-    final now = DateTime.now();
-    _sellers = [
-      MilkSeller(
-        id: 1,
-        name: 'Jaggu',
-        phone: '9876543210',
-        address: 'Village Road',
-        fatBasedPricing: false,
-        unit: 'Liter',
-        rate: 55.0,
-        entries: [
-          MilkEntry(
-            id: 1,
-            sellerId: 1,
-            date: now,
-            time: 'Morning',
-            quantity: 2.5,
-            rate: 55.0,
-            amount: 137.5,
-          ),
-          MilkEntry(
-            id: 2,
-            sellerId: 1,
-            date: now,
-            time: 'Evening',
-            quantity: 2.0,
-            rate: 55.0,
-            amount: 110.0,
-          ),
-        ],
-        outstanding: 2500.0,
-      ),
-      MilkSeller(
-        id: 2,
-        name: 'Pappu',
-        phone: '9876543211',
-        address: 'Town Road',
-        fatBasedPricing: true,
-        unit: 'Liter',
-        rate: 60.0,
-        baseFat: 3.5,
-        entries: [
-          MilkEntry(
-            id: 3,
-            sellerId: 2,
-            date: now,
-            time: 'Morning',
-            quantity: 3.0,
-            rate: 60.0,
-            fat: 4.0,
-            amount: 180.0,
-          ),
-          MilkEntry(
-            id: 4,
-            sellerId: 2,
-            date: now,
-            time: 'Evening',
-            quantity: 2.5,
-            rate: 60.0,
-            fat: 3.8,
-            amount: 150.0,
-          ),
-        ],
-        outstanding: 1800.0,
-      ),
-    ];
   }
   
   Future<void> _saveData() async {

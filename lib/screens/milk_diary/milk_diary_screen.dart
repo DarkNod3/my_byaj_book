@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 import '../../models/milk_diary/daily_entry.dart';
+import '../../models/milk_diary/milk_seller.dart';
 import '../../providers/milk_diary/daily_entry_provider.dart';
 import '../../providers/milk_diary/milk_seller_provider.dart';
 import '../../constants/app_theme.dart';
 import 'add_entry_screen.dart';
 import 'milk_seller_screen.dart';
 import 'milk_payments_screen.dart';
+import 'package:uuid/uuid.dart';
 
 class MilkDiaryScreen extends StatefulWidget {
   final bool showAppBar;
@@ -28,7 +31,13 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
+    
+    // Configure system UI
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ));
   }
   
   @override
@@ -39,12 +48,41 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: widget.showAppBar ? AppBar(
-        title: const Text('Milk Diary'),
-        actions: [
+    // Get status bar height
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+    
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        // Remove default body padding/safe area
+        body: Column(
+          children: [
+            // Custom app bar that includes status bar area
+            Container(
+              color: AppTheme.primaryColor,
+              child: Column(
+                children: [
+                  // Status bar space (sized exactly to match system status bar)
+                  SizedBox(height: statusBarHeight),
+                  
+                  // App bar content
+                  if (widget.showAppBar) 
+                    Container(
+                      height: 48,
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Row(
+                        children: [
+                          const Text(
+                            'Milk Diary',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
           IconButton(
-            icon: const Icon(Icons.people),
+                            icon: const Icon(Icons.people, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
@@ -52,9 +90,12 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
               );
             },
             tooltip: 'Manage Sellers',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
           ),
+                          const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.payment),
+                            icon: const Icon(Icons.payment, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
@@ -62,34 +103,70 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
               );
             },
             tooltip: 'Payments',
-          ),
-        ],
-        bottom: TabBar(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  
+                  // Tab bar (no matter which mode)
+                  TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Daily Entries'),
-            Tab(text: 'Summary'),
-            Tab(text: 'Reports'),
-          ],
-        ),
-      ) : null,
-      body: TabBarView(
+                      Tab(
+                        text: 'Daily Entry',
+                        icon: Icon(Icons.calendar_today, size: 18),
+                        height: 42,
+                      ),
+                      Tab(
+                        text: 'Monthly Summary',
+                        icon: Icon(Icons.analytics, size: 18),
+                        height: 42,
+                      ),
+                    ],
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.white70,
+                    indicatorColor: Colors.white,
+                    indicatorWeight: 3,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    labelPadding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+            ),
+            
+            // Tab content
+            Expanded(
+              child: TabBarView(
         controller: _tabController,
         children: [
           _buildDailyEntriesTab(),
-          _buildSummaryTab(),
-          _buildReportsTab(),
+                  _buildMonthlySummaryTab(),
+                ],
+              ),
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddEntryScreen()),
-          );
-        },
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: true,
+              enableDrag: true,
+              isDismissible: true,
+              backgroundColor: Colors.transparent,
+              builder: (context) => const Padding(
+                padding: EdgeInsets.only(top: 30),
+                child: AddEntryScreen(),
+              ),
+            );
+          },
+          backgroundColor: AppTheme.primaryColor,
         child: const Icon(Icons.add),
         tooltip: 'Add New Entry',
+        ),
       ),
     );
   }
@@ -160,13 +237,15 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
 
   Widget _buildDateSelector() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       color: Colors.grey.shade100,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back_ios),
+            icon: const Icon(Icons.arrow_back_ios, size: 18),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
             onPressed: () {
               setState(() {
                 _selectedDate = _selectedDate.subtract(const Duration(days: 1));
@@ -187,6 +266,10 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                 });
               }
             },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+            ),
             child: Text(
               DateFormat('dd MMMM yyyy').format(_selectedDate),
               style: const TextStyle(
@@ -195,13 +278,34 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
               ),
             ),
           ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () {
+                  _showAddSellerDialog();
+                },
+                icon: const Icon(Icons.person_add, size: 16),
+                label: const Text('Add Seller', style: TextStyle(fontSize: 11)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                ),
+              ),
+              const SizedBox(width: 4),
           IconButton(
-            icon: const Icon(Icons.arrow_forward_ios),
+                icon: const Icon(Icons.arrow_forward_ios, size: 18),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
             onPressed: _selectedDate.isBefore(DateTime.now()) ? () {
               setState(() {
                 _selectedDate = _selectedDate.add(const Duration(days: 1));
               });
             } : null,
+              ),
+            ],
           ),
         ],
       ),
@@ -411,7 +515,7 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildSummaryTab() {
+  Widget _buildMonthlySummaryTab() {
     return Consumer2<DailyEntryProvider, MilkSellerProvider>(
       builder: (context, entryProvider, sellerProvider, child) {
         // Get current month entries
@@ -435,6 +539,21 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                   'No entries for ${DateFormat('MMMM yyyy').format(now)}',
                   style: const TextStyle(fontSize: 16, color: Colors.grey),
                 ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (context) => const Padding(
+                        padding: EdgeInsets.only(top: 30),
+                        child: AddEntryScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add First Entry'),
+                ),
               ],
             ),
           );
@@ -453,30 +572,68 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
               'quantity': 0.0,
               'amount': 0.0,
               'entries': 0,
+              'payments': 0.0,
+              'balance': 0.0,
             };
           }
           
           sellerSummaries[entry.sellerId]!['quantity'] += entry.quantity;
           sellerSummaries[entry.sellerId]!['amount'] += entry.amount;
           sellerSummaries[entry.sellerId]!['entries'] += 1;
+          sellerSummaries[entry.sellerId]!['balance'] = 
+              sellerSummaries[entry.sellerId]!['amount'] - sellerSummaries[entry.sellerId]!['payments'];
         }
         
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
+        return DefaultTabController(
+          length: 3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildMonthlySummaryCard(totalQuantity, totalAmount, avgRate, entriesThisMonth.length),
-                const SizedBox(height: 24),
-                const Text(
-                  'Seller-wise Summary',
-                  style: TextStyle(
-                    fontSize: 18,
+              Container(
+                color: Colors.grey.shade100,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          DateFormat('MMMM yyyy').format(now),
+                          style: const TextStyle(
+                            fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
+                        ),
+                        _buildMonthSelector(),
+                      ],
                 ),
                 const SizedBox(height: 16),
+                    _buildMonthlySummaryCard(totalQuantity, totalAmount, avgRate, entriesThisMonth.length),
+                  ],
+                ),
+              ),
+              Material(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                child: TabBar(
+                  tabs: const [
+                    Tab(text: 'Seller-wise', icon: Icon(Icons.people)),
+                    Tab(text: 'Payments', icon: Icon(Icons.payment)),
+                    Tab(text: 'Reports', icon: Icon(Icons.summarize)),
+                  ],
+                  labelColor: AppTheme.primaryColor,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: AppTheme.primaryColor,
+                  indicatorWeight: 3,
+                ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    // SELLER-WISE TAB
+                    ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
                 ...sellerSummaries.entries.map((entry) {
                   final seller = sellerProvider.getSellerById(entry.key);
                   final summary = entry.value;
@@ -486,40 +643,422 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                     summary['quantity'] as double,
                     summary['amount'] as double,
                     summary['entries'] as int,
+                            summary['payments'] as double,
+                            summary['balance'] as double,
                     sellerId: entry.key,
                   );
                 }).toList(),
               ],
             ),
+                    
+                    // PAYMENTS TAB
+                    _buildPaymentsTab(sellerSummaries, sellerProvider),
+                    
+                    // REPORTS TAB
+                    _buildReportsTab(totalQuantity, totalAmount, entriesThisMonth),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
   
-  Widget _buildMonthlySummaryCard(double quantity, double amount, double avgRate, int entries) {
+  Widget _buildMonthSelector() {
+    return TextButton.icon(
+      onPressed: () async {
+        // TODO: Implement month picker dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Month selection coming soon')),
+        );
+      },
+      icon: const Icon(Icons.calendar_month),
+      label: const Text('Change'),
+    );
+  }
+  
+  Widget _buildPaymentsTab(Map<String, Map<String, dynamic>> sellerSummaries, MilkSellerProvider sellerProvider) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Payment Management',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.builder(
+              itemCount: sellerSummaries.length,
+              itemBuilder: (context, index) {
+                final entry = sellerSummaries.entries.elementAt(index);
+                final sellerId = entry.key;
+                final summary = entry.value;
+                final seller = sellerProvider.getSellerById(sellerId);
+                final double balance = summary['balance'] as double;
+                
+    return Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+                              seller?.name ?? 'Unknown Seller',
+              style: const TextStyle(
+                                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: balance > 0 ? Colors.green.shade50 : Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: balance > 0 ? Colors.green.shade300 : Colors.grey.shade400,
+                                ),
+                              ),
+                              child: Text(
+                                'Balance: ₹${balance.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: balance > 0 ? Colors.green.shade700 : Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Total Milk Value:'),
+                                  Text(
+                                    '₹${(summary['amount'] as double).toStringAsFixed(2)}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Payments Made:'),
+                                  Text(
+                                    '₹${(summary['payments'] as double).toStringAsFixed(2)}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () => _showAddPaymentDialog(sellerId, seller?.name ?? 'Unknown', balance),
+                          icon: const Icon(Icons.payment),
+                          label: const Text('Add Payment'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
+            ),
+          ],
+        ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showAddPaymentDialog(String sellerId, String sellerName, double balance) {
+    final amountController = TextEditingController();
+    final dateController = TextEditingController(
+      text: DateFormat('dd/MM/yyyy').format(DateTime.now()),
+    );
+    final remarksController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Payment for $sellerName'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Current Balance: ₹${balance.toStringAsFixed(2)}'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountController,
+                decoration: const InputDecoration(
+                  labelText: 'Payment Amount (₹)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: dateController,
+                decoration: InputDecoration(
+                  labelText: 'Payment Date',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.calendar_today),
+                    onPressed: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        dateController.text = DateFormat('dd/MM/yyyy').format(picked);
+                      }
+                    },
+                  ),
+                ),
+                readOnly: true,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: remarksController,
+                decoration: const InputDecoration(
+                  labelText: 'Remarks (Optional)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Implement payment processing
+              if (amountController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter payment amount')),
+                );
+                return;
+              }
+              
+              final amount = double.tryParse(amountController.text);
+              if (amount == null || amount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter valid amount')),
+                );
+                return;
+              }
+              
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Payment of ₹${amount.toStringAsFixed(2)} recorded')),
+              );
+            },
+            child: const Text('Save Payment'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildReportsTab(double totalQuantity, double totalAmount, List<DailyEntry> entries) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Reports & Analytics',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: ListView(
+              children: [
+                _buildReportCard(
+                  title: 'Monthly Summary Report',
+                  description: 'Complete breakdown of milk collection and payments',
+                  icon: Icons.summarize,
+                  onTap: () => _generateReport('summary'),
+                ),
+                const SizedBox(height: 16),
+                _buildReportCard(
+                  title: 'Seller-wise Report',
+                  description: 'Detailed report for each seller with daily entries',
+                  icon: Icons.people,
+                  onTap: () => _generateReport('seller'),
+                ),
+                const SizedBox(height: 16),
+                _buildReportCard(
+                  title: 'Payment Report',
+                  description: 'All payment transactions and outstanding balances',
+                  icon: Icons.payment,
+                  onTap: () => _generateReport('payment'),
+                ),
+                const SizedBox(height: 16),
+                _buildReportCard(
+                  title: 'Daily Collection Report',
+                  description: 'Day-wise milk collection quantities and amounts',
+                  icon: Icons.calendar_today,
+                  onTap: () => _generateReport('daily'),
+                ),
+                const SizedBox(height: 16),
+                _buildReportCard(
+                  title: 'Export Data',
+                  description: 'Export all data to Excel/CSV format',
+                  icon: Icons.file_download,
+                  onTap: () => _generateReport('export'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildReportCard({
+    required String title,
+    required String description,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     return Card(
       elevation: 2,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: Colors.blue,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      description,
+          style: TextStyle(
+                        fontSize: 14,
+            color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  void _generateReport(String type) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Generating $type report...'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    
+    // TODO: Implement actual report generation
+  }
+  
+  Widget _buildMonthlySummaryCard(double totalQuantity, double totalAmount, double avgRate, int entriesCount) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Summary for ${DateFormat('MMMM yyyy').format(DateTime.now())}',
-              style: const TextStyle(
+            const Text(
+              'Monthly Summary',
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildSummaryColumn('Total Quantity', '${quantity.toStringAsFixed(2)} L'),
-                _buildSummaryColumn('Total Amount', '₹${amount.toStringAsFixed(2)}', isHighlighted: true),
-                _buildSummaryColumn('Avg. Rate', '₹${avgRate.toStringAsFixed(2)}/L'),
-                _buildSummaryColumn('Entries', entries.toString()),
+                _buildSummaryItem(
+                  'Total Quantity',
+                  '${totalQuantity.toStringAsFixed(2)} L',
+                  Icons.water_drop,
+                  Colors.blue,
+                ),
+                _buildSummaryItem(
+                  'Total Amount',
+                  '₹${totalAmount.toStringAsFixed(2)}',
+                  Icons.currency_rupee,
+                  Colors.green,
+                ),
+                _buildSummaryItem(
+                  'Avg. Rate',
+                  '₹${avgRate.toStringAsFixed(2)}/L',
+                  Icons.trending_up,
+                  Colors.orange,
+                ),
+                _buildSummaryItem(
+                  'Entries',
+                  '$entriesCount',
+                  Icons.list_alt,
+                  Colors.purple,
+                ),
               ],
             ),
           ],
@@ -528,9 +1067,30 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
     );
   }
   
-  Widget _buildSummaryColumn(String label, String value, {bool isHighlighted = false}) {
+  Widget _buildSummaryItem(String label, String value, IconData icon, Color color) {
     return Column(
       children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: color,
+            size: 24,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 4),
         Text(
           label,
           style: TextStyle(
@@ -538,20 +1098,19 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
             color: Colors.grey.shade600,
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: isHighlighted ? AppTheme.primaryColor : null,
-          ),
-        ),
       ],
     );
   }
   
-  Widget _buildSellerSummaryCard(String name, double quantity, double amount, int entries, {required String sellerId}) {
+  Widget _buildSellerSummaryCard(
+    String name, 
+    double quantity, 
+    double amount, 
+    int entries, 
+    double payments,
+    double balance,
+    {required String sellerId}
+  ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: InkWell(
@@ -600,9 +1159,9 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
               ),
               const Divider(height: 20),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
+                  Expanded(
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -615,8 +1174,10 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                       ),
                     ],
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Amount:',
@@ -626,12 +1187,44 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                         '₹${amount.toStringAsFixed(2)}',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
+                            color: AppTheme.primaryColor,
                         ),
                       ),
                     ],
                   ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Balance:',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        ),
+                        Text(
+                          '₹${balance.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: balance > 0 ? Colors.green : Colors.grey.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: () => _showAddPaymentDialog(sellerId, name, balance),
+                icon: const Icon(Icons.payment, size: 16),
+                label: const Text('Add Payment'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(120, 36),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
               ),
             ],
           ),
@@ -640,35 +1233,242 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildReportsTab() {
-    return Center(
+  void _showAddSellerDialog() {
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+    final addressController = TextEditingController();
+    final rateController = TextEditingController();
+    final fatRateController = TextEditingController(text: '85.0');
+    final baseFatController = TextEditingController(text: '100.0');
+    bool isFatBased = false;
+    String unit = 'Liter (L)';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SingleChildScrollView(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.bar_chart, size: 64, color: Colors.grey),
+                    const Center(
+                      child: Text(
+                        'Add Milk Seller',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Name',
+                        prefixIcon: Icon(Icons.person),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: phoneController,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone Number',
+                        prefixIcon: Icon(Icons.phone),
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: addressController,
+                      decoration: const InputDecoration(
+                        labelText: 'Address (Optional)',
+                        prefixIcon: Icon(Icons.home),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
           const SizedBox(height: 16),
           const Text(
-            'Reports Coming Soon',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      'Price System',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Radio<bool>(
+                          value: false,
+                          groupValue: isFatBased,
+                          activeColor: AppTheme.primaryColor,
+                          onChanged: (value) {
+                            setState(() {
+                              isFatBased = false;
+                            });
+                          },
+                        ),
+                        const Text('Default Rate'),
+                        const SizedBox(width: 20),
+                        Radio<bool>(
+                          value: true,
+                          groupValue: isFatBased,
+                          activeColor: AppTheme.primaryColor,
+                          onChanged: (value) {
+                            setState(() {
+                              isFatBased = true;
+                            });
+                          },
+                        ),
+                        const Text('Fat Based'),
+                      ],
           ),
           const SizedBox(height: 8),
           const Text(
-            'Detailed reports and analytics will be available in a future update',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
+                      'Default Unit',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                      ),
+                      value: unit,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Liter (L)',
+                          child: Text('Liter (L)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Kilogram (Kg)',
+                          child: Text('Kilogram (Kg)'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            unit = value;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    if (!isFatBased) ...[
+                      TextField(
+                        controller: rateController,
+                        decoration: const InputDecoration(
+                          labelText: 'Default Rate',
+                          prefixIcon: Icon(Icons.currency_rupee),
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ] else ...[
+                      TextField(
+                        controller: fatRateController,
+                        decoration: const InputDecoration(
+                          labelText: 'Rate per 100 Fat',
+                          prefixIcon: Icon(Icons.currency_rupee),
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Ex: ₹${fatRateController.text} for 100 fat',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: baseFatController,
+                        decoration: const InputDecoration(
+                          labelText: 'Base Fat Value',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Usually 100',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
+                    ],
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const MilkPaymentsScreen()),
+                          if (nameController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter seller name')),
+                            );
+                            return;
+                          }
+                          
+                          final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
+                          
+                          // Get the appropriate rate depending on the selected option
+                          double defaultRate = 0.0;
+                          if (!isFatBased) {
+                            defaultRate = double.tryParse(rateController.text) ?? 0.0;
+                          } else {
+                            // For fat-based pricing, we store the rate per fat point
+                            defaultRate = double.tryParse(fatRateController.text) ?? 0.0;
+                          }
+                          
+                          final seller = MilkSeller(
+                            id: const Uuid().v4(),
+                            name: nameController.text.trim(),
+                            mobile: phoneController.text.trim(),
+                            address: addressController.text.trim(),
+                            defaultRate: defaultRate,
+                            isActive: true,
+                          );
+                          
+                          sellerProvider.addSeller(seller).then((_) {
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Seller ${seller.name} added successfully'),
+                                backgroundColor: Colors.green,
+                              ),
               );
-            },
-            icon: const Icon(Icons.payment),
-            label: const Text('Go to Payments'),
+                          }).catchError((error) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error adding seller: $error'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text('Add Seller'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Cancel'),
+                      ),
           ),
         ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
