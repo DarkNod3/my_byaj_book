@@ -4,8 +4,7 @@ import 'package:my_byaj_book/constants/app_theme.dart';
 import 'package:my_byaj_book/widgets/dialogs/confirm_dialog.dart';
 
 class MilkDiaryScreen extends StatefulWidget {
-  final bool showAppBar;
-  const MilkDiaryScreen({Key? key, this.showAppBar = true}) : super(key: key);
+  const MilkDiaryScreen({Key? key}) : super(key: key);
 
   @override
   State<MilkDiaryScreen> createState() => _MilkDiaryScreenState();
@@ -93,7 +92,7 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: widget.showAppBar ? AppBar(
+      appBar: AppBar(
         title: const Text('Milk Diary'),
         backgroundColor: AppTheme.primaryColor,
         bottom: TabBar(
@@ -104,29 +103,12 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
             Tab(text: 'Monthly Summary'),
           ],
         ),
-      ) : null,
-      body: Column(
+      ),
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          if (!widget.showAppBar)
-            TabBar(
-              controller: _tabController,
-              indicatorColor: AppTheme.primaryColor,
-              labelColor: AppTheme.primaryColor,
-              unselectedLabelColor: Colors.grey,
-              tabs: const [
-                Tab(text: 'Daily Entries'),
-                Tab(text: 'Monthly Summary'),
-              ],
-            ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildDailyEntriesTab(),
-                _buildMonthlySummaryTab(),
-              ],
-            ),
-          ),
+          _buildDailyEntriesTab(),
+          _buildMonthlySummaryTab(),
         ],
       ),
       floatingActionButton: FloatingActionButton(

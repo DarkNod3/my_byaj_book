@@ -13,17 +13,8 @@ class TransactionProvider extends ChangeNotifier {
   }
   
   // Get transactions for a specific contact
-  List<Map<String, dynamic>> getTransactionsForContact(String contactId, {String? tabType}) {
-    final transactions = _contactTransactions[contactId] ?? [];
-    
-    // If tabType is specified, filter transactions by tab type
-    if (tabType != null) {
-      return transactions.where((tx) => 
-        (tx['tabType'] ?? 'withoutInterest') == tabType
-      ).toList();
-    }
-    
-    return transactions;
+  List<Map<String, dynamic>> getTransactionsForContact(String contactId) {
+    return _contactTransactions[contactId] ?? [];
   }
   
   // Add a transaction
@@ -50,7 +41,7 @@ class TransactionProvider extends ChangeNotifier {
     DateTime date, 
     String note, 
     String? imagePath,
-    {Map<String, dynamic>? extraData, String? tabType}
+    {Map<String, dynamic>? extraData}
   ) async {
     // Ensure amount is always positive (absolute value)
     final double positiveAmount = amount.abs();
@@ -60,7 +51,6 @@ class TransactionProvider extends ChangeNotifier {
       'amount': positiveAmount, // Always store as positive
       'type': type,             // 'gave' or 'got' determines the sign
       'note': note,
-      'tabType': tabType ?? 'withoutInterest', // Store which tab this transaction belongs to
     };
     
     if (imagePath != null) {
@@ -75,7 +65,7 @@ class TransactionProvider extends ChangeNotifier {
     await addTransaction(contactId, transaction);
     
     // Debug print after adding
-    print('DEBUG - Added transaction to $contactId with tabType ${tabType ?? 'withoutInterest'}: $transaction');
+    print('DEBUG - Added transaction to $contactId: $transaction');
     debugPrintAllTransactions();
   }
   
@@ -184,28 +174,20 @@ class TransactionProvider extends ChangeNotifier {
     }
   }
   
-  // Calculate balance for a contact
-  double calculateBalance(String contactId, {String? tabType}) {
-    double balance = 0.0;
-    
-    // Get filtered transactions by tabType if provided
-    List<Map<String, dynamic>> transactions;
-    if (tabType != null) {
-      transactions = getTransactionsForContact(contactId, tabType: tabType);
-    } else {
-      transactions = getTransactionsForContact(contactId);
-    }
+  // Calculate total balance for a contact
+  double calculateBalance(String contactId) {
+    double balance = 0;
+    final transactions = getTransactionsForContact(contactId);
     
     for (var tx in transactions) {
-      final type = tx['type'];
-      final amount = tx['amount'] as double? ?? 0.0;
+      final amount = (tx['amount'] as double).abs(); // Always get positive amount
       
-      if (type == 'gave') {
-        // Money going out (negative)
-        balance -= amount;
-      } else if (type == 'got') {
-        // Money coming in (positive)
+      if (tx['type'] == 'gave') {
+        // If you GAVE money, it's a positive balance (you'll get it back)
         balance += amount;
+      } else {
+        // If you GOT money, it's a negative balance (you'll give it back)
+        balance -= amount;
       }
     }
     

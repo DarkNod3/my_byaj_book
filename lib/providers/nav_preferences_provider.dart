@@ -5,82 +5,98 @@ class NavItem {
   final String id;
   final String title;
   final IconData icon;
+  final bool isFixed;
 
   NavItem({
     required this.id, 
     required this.title, 
     required this.icon,
+    this.isFixed = false
   });
 }
 
 class NavPreferencesProvider with ChangeNotifier {
-  // All available tools
-  final List<NavItem> _allTools = [
+  final List<NavItem> _availableNavItems = [
+    NavItem(id: 'home', title: 'Home', icon: Icons.home_rounded, isFixed: true),
     NavItem(id: 'loans', title: 'Loans', icon: Icons.account_balance_rounded),
     NavItem(id: 'cards', title: 'Cards', icon: Icons.credit_card_rounded),
     NavItem(id: 'bill_diary', title: 'Bill Diary', icon: Icons.receipt_long_rounded),
-    NavItem(id: 'emi_calc', title: 'EMI Calculator', icon: Icons.calculate_rounded),
-    NavItem(id: 'land_calc', title: 'Land Calculator', icon: Icons.landscape_rounded),
-    NavItem(id: 'sip_calc', title: 'SIP Calculator', icon: Icons.savings_rounded),
-    NavItem(id: 'tax_calc', title: 'Tax Calculator', icon: Icons.monetization_on_rounded),
+    NavItem(id: 'emi_calc', title: 'EMI Calc', icon: Icons.calculate_rounded),
+    NavItem(id: 'land_calc', title: 'Land Calc', icon: Icons.landscape_rounded),
+    NavItem(id: 'sip_calc', title: 'SIP Calc', icon: Icons.savings_rounded),
+    NavItem(id: 'tax_calc', title: 'Tax Calc', icon: Icons.monetization_on_rounded),
     NavItem(id: 'milk_diary', title: 'Milk Diary', icon: Icons.local_drink_rounded),
     NavItem(id: 'work_diary', title: 'Work Diary', icon: Icons.work_rounded),
     NavItem(id: 'tea_diary', title: 'Tea Diary', icon: Icons.emoji_food_beverage_rounded),
   ];
 
-  // Fixed home item
-  final NavItem _homeItem = NavItem(id: 'home', title: 'Home', icon: Icons.home_rounded);
-
-  // Default selected tool IDs (first 3)
-  List<String> _selectedToolIds = [
+  // Default nav items
+  List<String> _selectedNavItemIds = [
+    'home',
     'loans',
-    'cards',
-    'bill_diary',
+    'cards', 
+    'bill_diary'
   ];
 
   bool _isLoaded = false;
   
   // Public getters
   bool get isLoaded => _isLoaded;
-  NavItem get homeItem => _homeItem;
-  List<NavItem> get allTools => _allTools;
   
-  // Get the selected tools (max 3)
-  List<NavItem> get selectedTools {
-    return _selectedToolIds
-        .take(3) // Ensure only max 3 selected
-        .map((id) => _allTools.firstWhere(
-            (tool) => tool.id == id,
-            orElse: () => _allTools.first))
-        .toList();
+  // Return only available items that are not fixed
+  List<NavItem> get availableNavItems {
+    return _availableNavItems.where((item) => !item.isFixed).toList();
   }
   
-  // Get the unselected tools
-  List<NavItem> get unselectedTools {
-    return _allTools
-        .where((tool) => !_selectedToolIds.contains(tool.id))
+  // Return all available items including fixed ones
+  List<NavItem> get allNavItems => _availableNavItems;
+
+  List<NavItem> get selectedNavItems {
+    // Always include fixed items and then the selected ones
+    List<NavItem> fixedItems = _availableNavItems.where((item) => item.isFixed).toList();
+    
+    List<NavItem> selectedItems = _selectedNavItemIds
+        .where((id) => !fixedItems.any((item) => item.id == id)) // Don't duplicate fixed items
+        .map((id) => _availableNavItems.firstWhere(
+            (item) => item.id == id,
+            orElse: () => _availableNavItems.firstWhere((item) => !item.isFixed)))
         .toList();
-  }
-  
-  // Check if a tool is selected
-  bool isSelected(String id) {
-    return _selectedToolIds.contains(id);
+    
+    return [...fixedItems, ...selectedItems];
   }
 
-  // Load user preferences
+  bool isSelected(String id) {
+    // A fixed item is always "selected"
+    final navItem = _availableNavItems.firstWhere(
+      (item) => item.id == id,
+      orElse: () => NavItem(id: '', title: '', icon: Icons.error),
+    );
+    
+    if (navItem.isFixed) {
+      return true;
+    }
+    
+    return _selectedNavItemIds.contains(id);
+  }
+
   Future<void> loadPreferences() async {
     if (_isLoaded) return;
     
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedTools = prefs.getStringList('selectedTools');
+      final savedNavItems = prefs.getStringList('selected_nav_items');
       
-      if (savedTools != null && savedTools.isNotEmpty) {
-        // Filter to ensure only valid tool IDs are included
-        _selectedToolIds = savedTools
-            .where((id) => _allTools.any((tool) => tool.id == id))
-            .take(3) // Limit to max 3 tools
+      if (savedNavItems != null && savedNavItems.isNotEmpty) {
+        // Always ensure fixed items like 'home' are included
+        final fixedItemIds = _availableNavItems
+            .where((item) => item.isFixed)
+            .map((item) => item.id)
             .toList();
+        
+        _selectedNavItemIds = [
+          ...fixedItemIds,
+          ...savedNavItems.where((id) => !fixedItemIds.contains(id))
+        ];
       }
       
       _isLoaded = true;
@@ -90,68 +106,61 @@ class NavPreferencesProvider with ChangeNotifier {
     }
   }
 
-  // Save user preferences
   Future<void> savePreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList('selectedTools', _selectedToolIds);
+      await prefs.setStringList('selected_nav_items', _selectedNavItemIds);
     } catch (e) {
       print('Error saving navigation preferences: $e');
     }
   }
 
-  // Add a tool to selected tools
-  Future<void> addTool(String id) async {
-    // Check if tool exists and isn't already selected
-    final toolExists = _allTools.any((tool) => tool.id == id);
-    if (!toolExists || _selectedToolIds.contains(id)) {
+  Future<void> toggleNavItem(String id) async {
+    // Don't allow toggling fixed items
+    final navItem = _availableNavItems.firstWhere(
+      (item) => item.id == id,
+      orElse: () => NavItem(id: '', title: '', icon: Icons.error),
+    );
+    
+    if (navItem.isFixed) {
       return;
     }
     
-    // Add tool and limit to max 3
-    _selectedToolIds.add(id);
-    if (_selectedToolIds.length > 3) {
-      _selectedToolIds = _selectedToolIds.take(3).toList();
+    if (_selectedNavItemIds.contains(id)) {
+      // Don't allow removing the last item
+      if (_selectedNavItemIds.length > 1) {
+        _selectedNavItemIds.remove(id);
+      }
+    } else {
+      // Maximum 4 items in the nav bar (including fixed items)
+      final fixedItemsCount = _availableNavItems.where((item) => item.isFixed).length;
+      if (_selectedNavItemIds.length < 4) {
+        _selectedNavItemIds.add(id);
+      }
     }
     
     await savePreferences();
     notifyListeners();
   }
-  
-  // Remove a tool from selected tools
-  Future<void> removeTool(String id) async {
-    if (_selectedToolIds.contains(id)) {
-      _selectedToolIds.remove(id);
-      await savePreferences();
-      notifyListeners();
-    }
-  }
-  
-  // Reorder tools
-  Future<void> reorderTools(int oldIndex, int newIndex) async {
-    if (oldIndex < 0 || oldIndex >= _selectedToolIds.length ||
-        newIndex < 0 || newIndex >= _selectedToolIds.length) {
-      return;
-    }
-    
-    if (oldIndex < newIndex) {
-      newIndex -= 1;
-    }
-    
-    final item = _selectedToolIds.removeAt(oldIndex);
-    _selectedToolIds.insert(newIndex, item);
-    
-    await savePreferences();
-    notifyListeners();
-  }
-  
-  // Reset to default tools
+
   Future<void> resetToDefaults() async {
-    _selectedToolIds = [
-      'loans',
-      'cards',
-      'bill_diary',
+    // Make sure to include fixed items
+    final fixedItemIds = _availableNavItems
+        .where((item) => item.isFixed)
+        .map((item) => item.id)
+        .toList();
+    
+    _selectedNavItemIds = [
+      ...fixedItemIds,
+      'loans', 
+      'cards', 
+      'bill_diary'
     ];
+    
+    // Ensure we don't exceed 4 items total
+    if (_selectedNavItemIds.length > 4) {
+      _selectedNavItemIds = _selectedNavItemIds.sublist(0, 4);
+    }
     
     await savePreferences();
     notifyListeners();

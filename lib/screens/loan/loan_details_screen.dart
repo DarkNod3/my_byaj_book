@@ -39,21 +39,6 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
   }
 
   void _generateInstallments() {
-    // First check if there are existing installments in the loan data
-    if (widget.loanData.containsKey('installments') && 
-        widget.loanData['installments'] != null &&
-        (widget.loanData['installments'] as List).isNotEmpty) {
-      
-      // Use the existing installments data
-      final existingInstallments = widget.loanData['installments'] as List;
-      _installments = List<Map<String, dynamic>>.from(existingInstallments);
-      
-      // Count paid installments
-      _paidInstallments = _installments.where((inst) => inst['isPaid'] == true).length;
-      return;
-    }
-    
-    // No existing installments, generate new ones
     final loanAmount = double.parse(widget.loanData['loanAmount'] ?? '50000');
     final interestRate = double.parse(widget.loanData['interestRate'] ?? '12.0') / 100;
     final loanTerm = int.parse(widget.loanData['loanTerm'] ?? '12');

@@ -8,14 +8,11 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:printing/printing.dart';
-import 'package:my_byaj_book/widgets/header/app_header.dart';
 
 class SipCalculatorScreen extends StatefulWidget {
   static const routeName = '/sip-calculator';
-  final bool showAppBar;
   
-  const SipCalculatorScreen({super.key, this.showAppBar = true});
+  const SipCalculatorScreen({super.key});
 
   @override
   State<SipCalculatorScreen> createState() => _SipCalculatorScreenState();
@@ -393,7 +390,11 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: widget.showAppBar ? AppHeader(title: 'SIP Calculator') : null,
+      appBar: AppBar(
+        title: const Text('SIP Calculator'),
+        backgroundColor: Colors.indigo.shade700,
+        foregroundColor: Colors.white,
+      ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(12.0),

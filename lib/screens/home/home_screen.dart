@@ -31,11 +31,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:my_byaj_book/screens/settings/settings_screen.dart';
 import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
-import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
-import 'package:my_byaj_book/screens/tools/land_calculator_screen.dart';
-import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
-import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
-import 'package:my_byaj_book/screens/work_diary/work_diary_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -44,14 +39,9 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   DateTime? _lastBackPressTime;
-  late TabController _tabController;
-  
-  // Adding these lists that were previously missing
-  final List<Map<String, dynamic>> _withoutInterestContacts = [];
-  final List<Map<String, dynamic>> _withInterestContacts = [];
   
   // Timer for automatic backups
   Timer? _backupTimer;
@@ -59,157 +49,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      setState(() {});
-    });
-    
-    // REMOVED: Auto sync on startup
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   _syncContactsWithTransactions();
-    // });
+    // Schedule regular automatic backups
+    _setupAutomaticBackups();
   }
-
+  
   @override
   void dispose() {
-    _tabController.dispose();
+    _backupTimer?.cancel();
     super.dispose();
   }
-
-  // Method to manually update contact amounts based on transaction data
-  void _syncContactsWithTransactions() {
-    // Get transaction provider
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    
-    // Get all contacts from the provider
-    final allContacts = transactionProvider.contacts;
-    
-    // Clear existing contact lists to rebuild them properly
-    _withoutInterestContacts.clear();
-    _withInterestContacts.clear();
-    
-    // Process each contact from provider to ensure it's in our local lists
-    for (var providerContact in allContacts) {
-      final phone = providerContact['phone'] ?? '';
-      if (phone.isEmpty) continue;
-      
-      // Determine if this is a "with interest" contact
-      final isWithInterest = providerContact['type'] != null || providerContact['interestRate'] != null;
-      
-      // Make a copy of the contact to work with
-      final contactCopy = Map<String, dynamic>.from(providerContact);
-      
-      // Ensure the contact has a tabType field that marks which tab it belongs to
-      if (!contactCopy.containsKey('tabType')) {
-        contactCopy['tabType'] = isWithInterest ? 'withInterest' : 'withoutInterest';
-        
-        // Update the contact in the provider to persist this change
-        transactionProvider.updateContact(contactCopy);
-      }
-      
-      // Only add contacts to their respective tabs based on tabType
-      final String tabType = contactCopy['tabType'] ?? (isWithInterest ? 'withInterest' : 'withoutInterest');
-      
-      if (tabType == 'withInterest') {
-        // Add to with-interest list only
-        _withInterestContacts.add(contactCopy);
-      } else if (tabType == 'withoutInterest') {
-        // Add to without-interest list only
-        _withoutInterestContacts.add(contactCopy);
-      }
-    }
-    
-    // Update amounts for non-interest contacts
-    for (var contact in _withoutInterestContacts) {
-      final phone = contact['phone'] ?? '';
-      if (phone.isEmpty) continue;
-      
-      final transactions = transactionProvider.getTransactionsForContact(phone, tabType: 'withoutInterest');
-      if (transactions.isNotEmpty) {
-        // Update the contact's amount based on transaction balance
-        double balance = transactionProvider.calculateBalance(phone, tabType: 'withoutInterest');
-        
-        // Update the daysAgo based on the most recent transaction
-        final mostRecentTransaction = transactions.first; // Assuming newest first
-        if (mostRecentTransaction['date'] is DateTime) {
-          final transactionDate = mostRecentTransaction['date'] as DateTime;
-          final today = DateTime.now();
-          final difference = today.difference(transactionDate).inDays;
-          contact['daysAgo'] = difference;
-        }
-        
-        // Update the contact's amount and isGet property
-        contact['amount'] = balance.abs();
-        contact['isGet'] = balance >= 0;
-      }
-    }
-    
-    // Update amounts for with-interest contacts
-    for (var contact in _withInterestContacts) {
-      final phone = contact['phone'] ?? '';
-      if (phone.isEmpty) continue;
-      
-      final transactions = transactionProvider.getTransactionsForContact(phone, tabType: 'withInterest');
-      if (transactions.isNotEmpty) {
-        // Update the contact's amount based on transaction balance
-        double balance = transactionProvider.calculateBalance(phone, tabType: 'withInterest');
-        
-        // Update the daysAgo based on the most recent transaction
-        final mostRecentTransaction = transactions.first; // Assuming newest first
-        if (mostRecentTransaction['date'] is DateTime) {
-          final transactionDate = mostRecentTransaction['date'] as DateTime;
-          final today = DateTime.now();
-          final difference = today.difference(transactionDate).inDays;
-          contact['daysAgo'] = difference;
-        }
-        
-        // Update the contact's amount and isGet property
-        contact['amount'] = balance.abs();
-        contact['isGet'] = balance >= 0;
-      }
-    }
-    
-    // Calculate interest for interest-based contacts
-    _calculateInterestValues();
-    
-    // Force a rebuild
-    setState(() {});
-  }
-
-  // Add this method to calculate interest values
-  void _calculateInterestValues() {
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    DateTime now = DateTime.now();
-    
-    for (var contact in _withInterestContacts) {
-      final phone = contact['phone'] ?? '';
-      if (phone.isEmpty) continue;
-      
-      // Skip if there are no transactions
-      final transactions = transactionProvider.getTransactionsForContact(phone);
-      if (transactions.isEmpty) continue;
-      
-      // Process interest calculations for this contact
-      // (This is a simplified version - actual implementation would be more complex)
-      
-      // Get the principal amount (balance)
-      final double balance = contact['isGet'] 
-          ? contact['amount'] as double 
-          : -(contact['amount'] as double);
-      
-      // Get interest rate from contact
-      final double interestRate = contact['interestRate'] as double? ?? 12.0;
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // REMOVED: Auto sync when dependencies change
-    // _syncContactsWithTransactions();
-  }
-
+  
   // Setup automatic backup timer
   void _setupAutomaticBackups() {
     // Create an immediate backup when app starts
@@ -278,16 +127,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       'home': const HomeContent(),
       'loans': const LoanScreen(),
       'cards': const CardScreen(),
-      'bill_diary': const BillDiaryScreen(showAppBar: false),
-      'emi_calc': const EmiCalculatorScreen(showAppBar: false),
-      'land_calc': const LandCalculatorScreen(showAppBar: false),
-      'sip_calc': const SipCalculatorScreen(showAppBar: false),
-      'tax_calc': const TaxCalculatorScreen(showAppBar: false),
-      'milk_diary': const MilkDiaryScreen(showAppBar: false),
-      'work_diary': const WorkDiaryScreen(showAppBar: false),
-      'tea_diary': const TeaDiaryScreen(showAppBar: false),
+      'bill_diary': const BillDiaryScreen(),
+      'milk_diary': const MilkDiaryScreen(),
+      'work_diary': DiaryTestScreen(diaryType: 'Work Diary'),
+      'farm_diary': DiaryTestScreen(diaryType: 'Farm Diary'),
+      'shop_diary': DiaryTestScreen(diaryType: 'Shop Diary'),
+      'tea_diary': const TeaDiaryScreen(),
+      'expense_tracker': DiaryTestScreen(diaryType: 'Expenses'),
+      'goal_planner': DiaryTestScreen(diaryType: 'Goals'),
+      'budget_planner': DiaryTestScreen(diaryType: 'Budget'),
+      'tools': const MoreToolsScreen(),
     };
     
+    // Get selected screens from navigation preferences
+    final List<Widget> selectedScreens = navProvider.selectedNavItems
+        .map((item) => screenMap[item.id] ?? const HomeContent())
+        .toList();
+    
+    // Ensure we have at least one screen
+    if (selectedScreens.isEmpty) {
+      selectedScreens.add(const HomeContent());
+    }
+
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
@@ -325,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ],
             ),
             Expanded(
-              child: _getActiveScreen(screenMap, navProvider),
+              child: _getActiveScreen(selectedScreens),
             ),
           ],
         ),
@@ -348,74 +209,32 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         bottomNavigationBar: BottomNavBar(
           currentIndex: _currentIndex,
           onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
+            print('Bottom nav onTap called with index: $index. Available screens: ${selectedScreens.length}');
+            
+            // Make sure we don't exceed the available screens
+            if (index == 2) {
+              // Center button for tools
+              setState(() {
+                _currentIndex = index;
+              });
+            } else if (index == 3 || index == 4) {
+              // We need to handle positions 3 and 4 specially
+              final adjustedIndex = index - 1; // Adjust for the center button
+              if (adjustedIndex - 1 < selectedScreens.length) { // -1 because we're 0-indexed
+                setState(() {
+                  _currentIndex = index;
+                });
+              }
+            } else if (index < selectedScreens.length) {
+              // Normal case for positions 0 and 1
+              setState(() {
+                _currentIndex = index;
+              });
+            }
           },
         ),
       ),
     );
-  }
-
-  String _getScreenTitle(NavPreferencesProvider navProvider) {
-    // First position is always Home
-    if (_currentIndex == 0) {
-      return 'My Byaj Book';
-    }
-    
-    // Index 2 is the More button (moved from index 3)
-    if (_currentIndex == 2) {
-      return 'Tools';
-    }
-    
-    // Get the selected tools
-    final selectedTools = navProvider.selectedTools;
-    
-    // For position 1, we use the first tool
-    if (_currentIndex == 1 && selectedTools.isNotEmpty) {
-      return selectedTools[0].title;
-    }
-    
-    // For position 3, we use the second tool (moved from position 2)
-    if (_currentIndex == 3 && selectedTools.length > 1) {
-      return selectedTools[1].title;
-    }
-    
-    // For position 4, we use the third tool
-    if (_currentIndex == 4 && selectedTools.length > 2) {
-      return selectedTools[2].title;
-    }
-    
-    return 'My Byaj Book';
-  }
-
-  Widget _getActiveScreen(Map<String, Widget> screenMap, NavPreferencesProvider navProvider) {
-    // Home is always the first screen
-    if (_currentIndex == 0) {
-      return screenMap['home'] ?? const HomeContent();
-    }
-    
-    // More screen now at index 2 (moved from index 3)
-    if (_currentIndex == 2) {
-      return const MoreToolsScreen();
-    }
-    
-    // Get the available tools
-    final selectedTools = navProvider.selectedTools;
-    
-    // Map the index to the correct tool in the selected tools
-    String toolId = 'home';
-    
-    if (_currentIndex == 1 && selectedTools.isNotEmpty) {
-      toolId = selectedTools[0].id;
-    } else if (_currentIndex == 3 && selectedTools.length > 1) {
-      toolId = selectedTools[1].id;
-    } else if (_currentIndex == 4 && selectedTools.length > 2) {
-      toolId = selectedTools[2].id;
-    }
-    
-    // Return the correct screen for the tool
-    return screenMap[toolId] ?? const HomeContent();
   }
 
   void _showAddContactOptions(BuildContext context) {
@@ -429,6 +248,52 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         builder: (context) => SelectContactScreen(isWithInterest: isWithInterest),
       ),
     );
+  }
+
+  String _getScreenTitle(NavPreferencesProvider navProvider) {
+    // If we're on the tools button (index 2), return "Tools"
+    if (_currentIndex == 2) {
+      return 'Tools';
+    }
+    
+    // Get the list of selected nav items
+    final navItems = navProvider.selectedNavItems;
+    
+    // Make sure we don't exceed the list length
+    final adjustedIndex = _currentIndex > 2 ? _currentIndex - 1 : _currentIndex;
+    
+    // Return the title if it exists
+    if (adjustedIndex < navItems.length) {
+      return navItems[adjustedIndex].title;
+    }
+    
+    return 'My Byaj Book';
+  }
+
+  Widget _getActiveScreen(List<Widget> screens) {
+    print('Getting active screen for index: $_currentIndex, available screens: ${screens.length}');
+    
+    // For the center button (index 2), show the tools screen
+    if (_currentIndex == 2) {
+      return const MoreToolsScreen();
+    }
+    
+    // For other indices, we need to adjust because of the center button
+    int adjustedIndex;
+    if (_currentIndex > 2) {
+      adjustedIndex = _currentIndex - 2; // Adjust for the center button (index 2)
+    } else {
+      adjustedIndex = _currentIndex;
+    }
+    
+    // Make sure we don't exceed the list length
+    if (adjustedIndex < screens.length) {
+      return screens[adjustedIndex];
+    } else {
+      // Handle the case where adjustedIndex is out of bounds
+      print('Warning: Adjusted index $adjustedIndex is out of bounds for screens list of length ${screens.length}. Using first screen instead.');
+      return screens.isNotEmpty ? screens.first : const HomeContent();
+    }
   }
 
   void _createContact(BuildContext context, String name, String phone, bool withInterest) {
@@ -826,65 +691,112 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     super.dispose();
   }
 
-  // Add the missing _syncContactsWithTransactions method
+  // New method to update contact amounts based on transaction data
   void _syncContactsWithTransactions() {
-    if (!mounted) return;
-    
+    // Get transaction provider
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    
+    // Get all contacts from the provider
     final allContacts = transactionProvider.contacts;
     
-    // Clear existing lists
+    // Clear existing contact lists to rebuild them properly
     _withoutInterestContacts.clear();
     _withInterestContacts.clear();
     
-    // Categorize contacts
-    for (var contact in allContacts) {
-      final isWithInterest = contact['type'] != null || contact['interestRate'] != null;
-      final tabType = contact['tabType'] ?? (isWithInterest ? 'withInterest' : 'withoutInterest');
+    // Process each contact from provider to ensure it's in our local lists
+    for (var providerContact in allContacts) {
+      final phone = providerContact['phone'] ?? '';
+      if (phone.isEmpty) continue;
+      
+      // Determine if this is a "with interest" contact
+      final isWithInterest = providerContact['type'] != null || providerContact['interestRate'] != null;
+      
+      // Make a copy of the contact to work with
+      final contactCopy = Map<String, dynamic>.from(providerContact);
+      
+      // Ensure the contact has a tabType field that marks which tab it belongs to
+      if (!contactCopy.containsKey('tabType')) {
+        contactCopy['tabType'] = isWithInterest ? 'withInterest' : 'withoutInterest';
+        
+        // Update the contact in the provider to persist this change
+        transactionProvider.updateContact(contactCopy);
+      }
+      
+      // Only add contacts to their respective tabs based on tabType
+      final String tabType = contactCopy['tabType'] ?? (isWithInterest ? 'withInterest' : 'withoutInterest');
       
       if (tabType == 'withInterest') {
-        print('Adding to with-interest list: ${contact['name']}');
-        _withInterestContacts.add(Map<String, dynamic>.from(contact));
-      } else {
-        _withoutInterestContacts.add(Map<String, dynamic>.from(contact));
+        // Add to with-interest list only
+        print('Adding to with-interest list: ${contactCopy['name']}');
+        _withInterestContacts.add(contactCopy);
+      } else if (tabType == 'withoutInterest') {
+        // Add to without-interest list only
+        print('Adding to without-interest list: ${contactCopy['name']}');
+        _withoutInterestContacts.add(contactCopy);
       }
     }
     
-    // Update contact amounts based on transactions
-    for (var contact in [..._withoutInterestContacts, ..._withInterestContacts]) {
+    // Update amounts for non-interest contacts
+    for (var contact in _withoutInterestContacts) {
       final phone = contact['phone'] ?? '';
       if (phone.isEmpty) continue;
       
-      final oldAmount = contact['amount'] ?? 0.0;
-      final tabType = contact['tabType'] ?? 'withoutInterest';
-      final transactions = transactionProvider.getTransactionsForContact(phone, tabType: tabType);
-      
+      final transactions = transactionProvider.getTransactionsForContact(phone);
       if (transactions.isNotEmpty) {
-        // Calculate balance
-        double balance = transactionProvider.calculateBalance(phone, tabType: tabType);
+        // Update the contact's amount based on transaction balance
+        double balance = transactionProvider.calculateBalance(phone);
         
-        // Update days ago
-        int daysAgo = 0;
-        final mostRecentTransaction = transactions.first;
+        // Update the daysAgo based on the most recent transaction
+        final mostRecentTransaction = transactions.first; // Assuming newest first
         if (mostRecentTransaction['date'] is DateTime) {
           final transactionDate = mostRecentTransaction['date'] as DateTime;
-          daysAgo = DateTime.now().difference(transactionDate).inDays;
+          final today = DateTime.now();
+          final difference = today.difference(transactionDate).inDays;
+          contact['daysAgo'] = difference;
         }
         
-        // Update amount and direction
+        // Debug what's happening
+        print('SYNC - Contact: ${contact['name']}, Old amount: ${contact['amount']}, Balance: $balance, DaysAgo: ${contact['daysAgo']}');
+        
+        // Update the contact's amount and isGet property
         contact['amount'] = balance.abs();
         contact['isGet'] = balance >= 0;
-        contact['daysAgo'] = daysAgo;
+      }
+    }
+    
+    // Update amounts for with-interest contacts
+    for (var contact in _withInterestContacts) {
+      final phone = contact['phone'] ?? '';
+      if (phone.isEmpty) continue;
+      
+      final transactions = transactionProvider.getTransactionsForContact(phone);
+      if (transactions.isNotEmpty) {
+        // Update the contact's amount based on transaction balance
+        double balance = transactionProvider.calculateBalance(phone);
         
-        print('SYNC - Contact: ${contact['name']}, Old amount: $oldAmount, Balance: $balance, DaysAgo: $daysAgo, tabType: $tabType');
+        // Update the daysAgo based on the most recent transaction
+        final mostRecentTransaction = transactions.first; // Assuming newest first
+        if (mostRecentTransaction['date'] is DateTime) {
+          final transactionDate = mostRecentTransaction['date'] as DateTime;
+          final today = DateTime.now();
+          final difference = today.difference(transactionDate).inDays;
+          contact['daysAgo'] = difference;
+        }
+        
+        // Debug what's happening
+        print('SYNC - Contact: ${contact['name']}, Old amount: ${contact['amount']}, Balance: $balance, DaysAgo: ${contact['daysAgo']}');
+        
+        // Update the contact's amount and isGet property
+        contact['amount'] = balance.abs();
+        contact['isGet'] = balance >= 0;
       }
     }
     
     // Calculate interest for interest-based contacts
-    if (mounted) {
-      _calculateInterestValues();
-      setState(() {}); // Trigger UI update
-    }
+    _calculateInterestValues();
+    
+    // Force a rebuild
+    setState(() {});
   }
 
   // Calculate interest values for all with-interest contacts
@@ -1701,16 +1613,15 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     final contactType = contact['type'];
     final phone = contact['phone'] ?? '';
     final name = contact['name'] ?? '';
-    final tabType = contact['tabType'] ?? 'withoutInterest';
     
     // Debug prints
-    print('HomeScreen - Contact: $name, Phone: $phone, isGet: $isGet, tabType: $tabType');
+    print('HomeScreen - Contact: $name, Phone: $phone, isGet: $isGet');
     
     // Get transaction provider
     final transactionProvider = Provider.of<TransactionProvider>(context);
     
     // Debug transaction info
-    final transactions = transactionProvider.getTransactionsForContact(phone, tabType: tabType);
+    final transactions = transactionProvider.getTransactionsForContact(phone);
     print('HomeScreen - Transaction count for $name: ${transactions.length}');
     
     // Get balance from transactions
@@ -1718,7 +1629,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     double balanceFromTransactions = 0.0;
     
     if (phone.isNotEmpty) {
-      balanceFromTransactions = transactionProvider.calculateBalance(phone, tabType: tabType);
+      balanceFromTransactions = transactionProvider.calculateBalance(phone);
       print('HomeScreen - Transaction balance for $name: $balanceFromTransactions');
       
       // The original amount (what was set when creating the contact)

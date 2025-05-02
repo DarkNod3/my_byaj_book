@@ -8,13 +8,11 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:my_byaj_book/widgets/header/app_header.dart';
 
 class EmiCalculatorScreen extends StatefulWidget {
   static const routeName = '/emi-calculator';
-  final bool showAppBar;
   
-  const EmiCalculatorScreen({super.key, this.showAppBar = true});
+  const EmiCalculatorScreen({super.key});
 
   @override
   State<EmiCalculatorScreen> createState() => _EmiCalculatorScreenState();
@@ -421,11 +419,11 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: widget.showAppBar ? AppHeader(
-        title: 'EMI Calculator',
-        showBackButton: true,
-        showMenuIcon: false,
-      ) : null,
+      appBar: AppBar(
+        title: const Text('EMI Calculator'),
+        backgroundColor: Colors.blue.shade700,
+        foregroundColor: Colors.white,
+      ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(12.0),
@@ -453,13 +451,6 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
   }
 
   Widget _buildCalculatorCard() {
-    // Get the actual tenure in months for display
-    int actualTenureInMonths = _selectedTenureType == 0 
-        ? int.tryParse(_loanTenureController.text) != null 
-            ? int.parse(_loanTenureController.text) * 12 
-            : 0
-        : int.tryParse(_loanTenureController.text) ?? 0;
-        
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
@@ -478,27 +469,12 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Adjust your loan parameters and see results instantly',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-                if (_selectedTenureType == 0 && actualTenureInMonths > 0)
-                  Text(
-                    '($actualTenureInMonths months)',
-                    style: TextStyle(
-                      color: Colors.blue.shade700,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-              ],
+            const Text(
+              'Adjust your loan parameters and see results instantly',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 13,
+              ),
             ),
             const SizedBox(height: 16),
             
@@ -565,12 +541,11 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                     controller: _loanTenureController,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Loan Tenure',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.calendar_today),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                      hintText: _selectedTenureType == 0 ? 'Enter years' : 'Enter months',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.calendar_today),
+                      contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                     ),
                     onChanged: (_) => _calculateEMI(),
                   ),
@@ -715,12 +690,6 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
   }
 
   Widget _buildPaymentSchedule() {
-    // Get the input tenure for the description
-    String tenureInput = _loanTenureController.text.isEmpty ? '0' : _loanTenureController.text;
-    String tenureDescription = _selectedTenureType == 0 
-        ? '$tenureInput years (${int.tryParse(tenureInput) != null ? int.parse(tenureInput) * 12 : 0} months)' 
-        : '$tenureInput months';
-    
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
@@ -734,25 +703,12 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Payment Schedule',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Loan tenure: $tenureDescription',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
+                const Text(
+                  'Payment Schedule',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 ElevatedButton.icon(
                   onPressed: _generatePDF,
@@ -790,12 +746,12 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
           // Table rows
           Container(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.5, // Increased height to accommodate more entries
+              maxHeight: MediaQuery.of(context).size.height * 0.4,
             ),
             child: ListView.builder(
               shrinkWrap: true,
               physics: const ClampingScrollPhysics(),
-              itemCount: _paymentSchedule.length, // Show all entries, removed the clamp
+              itemCount: _paymentSchedule.length.clamp(0, 10), // Show only first 10 entries
               itemBuilder: (context, index) {
                 final payment = _paymentSchedule[index];
                 return Container(

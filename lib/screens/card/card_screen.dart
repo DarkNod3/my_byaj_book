@@ -1,680 +1,676 @@
 import 'package:flutter/material.dart';
 
 class CardScreen extends StatefulWidget {
-  // Static route name for consistent navigation
-  static const routeName = '/cards';
-  
-  final bool showAppBar;
-  
-  const CardScreen({
-    super.key,
-    this.showAppBar = false, // Default is false
-  });
+  const CardScreen({super.key});
 
   @override
   State<CardScreen> createState() => _CardScreenState();
 }
 
-class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateMixin {
+class _CardScreenState extends State<CardScreen> {
   int _selectedCardIndex = 0;
-  late PageController _pageController;
-  late TabController _tabController;
   
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(viewportFraction: 0.9);
-    _tabController = TabController(length: _cards.length > 0 ? _cards.length : 1, vsync: this);
-    
-    _pageController.addListener(() {
-      // Update tab controller when page changes
-      if (_pageController.page != null) {
-        _tabController.animateTo(_pageController.page!.round());
-      }
-    });
-  }
-  
-  @override
-  void dispose() {
-    _pageController.dispose();
-    _tabController.dispose();
-    super.dispose();
-  }
-  
-  // Replace sample cards with an empty list
-  final List<Map<String, dynamic>> _cards = [];
-  
-  // List to store transactions for each card
-  final Map<String, List<Map<String, dynamic>>> _cardTransactions = {};
+  final List<Map<String, dynamic>> _cards = [];  // Empty cards list instead of sample data
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: widget.showAppBar ? AppBar(
-        title: const Text('Cards'),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Theme.of(context).textTheme.titleLarge?.color,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              _showNotificationsWithDueDates();
-            },
-          ),
-        ],
-      ) : null,
-      body: _cards.isEmpty
-          ? _buildEmptyState()
-          : ListView.builder(
-              padding: const EdgeInsets.only(top: 16, bottom: 80),
-              itemCount: _cards.length,
-              itemBuilder: (context, index) {
-                final card = _cards[index];
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: _buildVerticalCard(card, index),
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddCardDialog,
-        child: const Icon(Icons.add_card),
-        tooltip: 'Add Card',
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-        child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-          Icon(
-            Icons.credit_card_off,
-            size: 80,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No Cards Added Yet',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Tap the + button to add your first card',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: _showAddCardDialog,
-            icon: const Icon(Icons.add_card),
-            label: const Text('Add a Card'),
-                  style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  ),
-                ),
-              ],
-      ),
-    );
-  }
-
-  Widget _buildVerticalCard(Map<String, dynamic> card, int index) {
-    bool isCredit = card['cardType'] == 'Credit Card';
-    return GestureDetector(
-      onTap: () {
-          setState(() {
-            _selectedCardIndex = index;
-          });
-        _showCardTransactions(card);
-      },
-      child: Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: card['color'].withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            // Card Display
-            Container(
-              height: 160,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            card['color'],
-            card['color'].withOpacity(0.7),
-          ],
-        ),
-              ),
-              child: Stack(
-                children: [
-                  // Background pattern
-                  Positioned.fill(
-                    child: Opacity(
-                      opacity: 0.1,
-                      child: CustomPaint(
-                        painter: CardPatternPainter(),
-                      ),
-                    ),
-                  ),
-                  
-                  // Card content
-                  Padding(
-                    padding: const EdgeInsets.all(16),
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  card['bank'],
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
+                const Text(
+                  'Your Cards',
+                  style: TextStyle(
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                  card['cardType'],
-                  style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                ElevatedButton.icon(
+                  onPressed: _showAddCardDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Card'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
                   ),
                 ),
               ],
             ),
-            const Spacer(),
-            Text(
-                          _formatCardNumber(card['cardNumber']),
-              style: const TextStyle(
-                color: Colors.white,
-                            fontSize: 16,
-                letterSpacing: 2,
-                            fontWeight: FontWeight.w500,
-              ),
-            ),
-                        const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'CARD HOLDER',
-                      style: TextStyle(
-                        color: Colors.white70,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                                const SizedBox(height: 2),
-                    Text(
-                      card['holderName'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'EXPIRES',
-                      style: TextStyle(
-                        color: Colors.white70,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                                const SizedBox(height: 2),
-                    Text(
-                      card['expiry'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.15),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                  Icons.credit_card,
-                  color: Colors.white,
-                                size: 18,
-                              ),
-                ),
-              ],
-            ),
+            const SizedBox(height: 20),
+            _cards.isEmpty
+                ? _buildEmptyCardState()
+                : _buildVerticalCardList(),
+            const SizedBox(height: 24),
+            _cards.isEmpty
+                ? const SizedBox()  // Don't show entries section when no cards
+                : _buildSelectedCardEntries(),
           ],
         ),
       ),
-                  
-                  // Card chip
-                  Positioned(
-                    top: 48,
-                    left: 16,
-                    child: Container(
-                      width: 30,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade300,
-                        borderRadius: BorderRadius.circular(4),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 3,
-                            offset: const Offset(0, 1),
-                          ),
+    );
+  }
+
+  Widget _buildEmptyCardState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.credit_card,
+            size: 70,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'No cards yet',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Add your first card by tapping the "Add Card" button above',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 30),
+          ElevatedButton.icon(
+            onPressed: _showAddCardDialog,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Your First Card'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVerticalCardList() {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _cards.length,
+      itemBuilder: (context, index) {
+        final card = _cards[index];
+        final isSelected = index == _selectedCardIndex;
+        
+        // Calculate the percentage for progress bar
+        double percentUsed = 0.0;
+        if (card['cardType'] == 'Credit Card' && card['limit'] != 'N/A') {
+          // Extract numeric values from strings
+          final balanceValue = double.tryParse(
+            card['balance'].toString().replaceAll('₹', '').replaceAll(',', '').trim()
+          ) ?? 0.0;
+          
+          final limitValue = double.tryParse(
+            card['limit'].toString().replaceAll('₹', '').replaceAll(',', '').trim()
+          ) ?? 1.0; // Default to 1.0 to avoid division by zero
+          
+          if (limitValue > 0) {
+            percentUsed = balanceValue / limitValue;
+            // Cap at 1.0 (100%)
+            if (percentUsed > 1.0) percentUsed = 1.0;
+          }
+        }
+        
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _selectedCardIndex = index;
+            });
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            child: Card(
+              elevation: isSelected ? 6 : 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: isSelected 
+                    ? BorderSide(color: card['color'], width: 2)
+                    : BorderSide.none,
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          card['color'],
+                          card['color'].withOpacity(0.7),
                         ],
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(3.0),
-                        child: CustomPaint(
-                          painter: ChipPainter(),
-                        ),
-                      ),
                     ),
-                  ),
-                  
-                  // More options button for the card
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Material(
-                      color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          _showCardOptions(context, index);
-                        },
-      child: Padding(
-                          padding: const EdgeInsets.all(6.0),
-                          child: Icon(
-                            Icons.more_horiz,
-                            color: Colors.white.withOpacity(0.8),
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Card Summary Section
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
-              ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                        isCredit ? 'Outstanding Balance' : 'Available Balance',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      Text(
-                        card['balance'],
-                        style: TextStyle(
-                          fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                          color: isCredit ? Colors.red[700] : Colors.green[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (isCredit) ...[
-                    Row(
-                        children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Due Date',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                card['dueDate'],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                        ],
-                      ),
-                    ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                              Text(
-                                'Credit Limit',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                card['limit'],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                          ),
-                ),
-              ],
-            ),
-                    const SizedBox(height: 12),
-                    Column(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                            Text(
-                              'Credit Utilization',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            Text(
-                              '${(card['utilization'] * 100).toInt()}%',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: _getUtilizationColor(card['utilization']),
-                                fontWeight: FontWeight.bold,
-                              ),
-                ),
-              ],
-            ),
-                        const SizedBox(height: 4),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: card['utilization'],
-                            backgroundColor: Colors.grey.shade200,
-                            valueColor: AlwaysStoppedAnimation<Color>(_getUtilizationColor(card['utilization'])),
-                minHeight: 6,
-              ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 6),
-              Text(
-                          'Card Active',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Text(
-                          'Tap to View Transactions',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showCardTransactions(Map<String, dynamic> card) {
-    // Get the card ID or use bank name + card number as an ID
-    final cardId = card['id'] ?? '${card['bank']}_${card['cardNumber']}';
-    
-    // Get transactions for this card, or initialize with empty list if none exist
-    final transactions = _cardTransactions[cardId] ?? [];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 10),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${card['bank']} Transactions',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    TextButton.icon(
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add Entry'),
-                      onPressed: () => _showAddEntryDialog(card),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: transactions.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.receipt_long,
-                              size: 60,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
                             Text(
-                              'No Transactions Yet',
-                              style: TextStyle(
+                              card['bank'],
+                              style: const TextStyle(
+                                color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.grey[700],
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Add a new transaction to get started',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton.icon(
-                              onPressed: () => _showAddEntryDialog(card),
-                              icon: const Icon(Icons.add),
-                              label: const Text('Add First Transaction'),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                            Row(
+                              children: [
+                                Text(
+                                  card['cardType'],
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                PopupMenuButton(
+                                  icon: const Icon(
+                                    Icons.more_vert,
+                                    color: Colors.white,
+                                  ),
+                                  onSelected: (value) {
+                                    if (value == 'edit') {
+                                      _showEditCardDialog(index);
+                                    } else if (value == 'delete') {
+                                      _showDeleteCardConfirmation(index);
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.edit, size: 20),
+                                          SizedBox(width: 8),
+                                          Text('Edit Card'),
+                                        ],
+                                      ),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.delete, size: 20, color: Colors.red),
+                                          SizedBox(width: 8),
+                                          Text('Delete Card', style: TextStyle(color: Colors.red)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      )
-                    : ListView.builder(
-                        controller: scrollController,
-                        padding: const EdgeInsets.only(bottom: 20),
-                        itemCount: transactions.length,
-                        itemBuilder: (context, index) {
-                          final transaction = transactions[index];
-                          return _buildTransactionItem(
-                            title: transaction['title'] as String,
-                            subtitle: transaction['subtitle'] as String,
-                            amount: transaction['amount'] as String,
-                            date: transaction['date'] as String,
-                            icon: transaction['icon'] as IconData,
-                            color: transaction['color'] as Color,
-                            onDelete: () => _deleteTransaction(card, index),
-                          );
-                        },
+                        const SizedBox(height: 16),
+                        Text(
+                          card['cardNumber'],
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'CARD HOLDER',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                                Text(
+                                  card['holderName'],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'EXPIRES',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                                Text(
+                                  card['expiry'],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'CVV',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                                Text(
+                                  card['cvv'],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Icon(
+                              Icons.credit_card,
+                              color: Colors.white,
+                              size: 30,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  card['cardType'] == 'Debit Card' ? 'Balance' : 'Due Amount',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                Text(
+                                  card['balance'],
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: card['cardType'] == 'Debit Card' ? Colors.green : Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            ElevatedButton(
+                              onPressed: () => _showAddEntryDialog(index),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: card['color'],
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Add Entry'),
+                            ),
+                          ],
+                        ),
+                        
+                        // Add progress bar for credit limit
+                        if (card['cardType'] == 'Credit Card' && card['limit'] != 'N/A') ...[
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Text(
+                                'Credit Limit: ',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  card['limit'],
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[800],
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          LinearProgressIndicator(
+                            value: percentUsed,
+                            backgroundColor: Colors.grey[200],
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              percentUsed > 0.75 ? Colors.red : card['color']
+                            ),
+                            minHeight: 8,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${(percentUsed * 100).toStringAsFixed(0)}% used',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: percentUsed > 0.75 ? Colors.red : Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSelectedCardEntries() {
+    final card = _cards[_selectedCardIndex];
+    final entries = card['entries'] as List;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '${card['bank']} Card History',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '(${entries.length} ${entries.length == 1 ? 'transaction' : 'transactions'})',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.sort),
+                  tooltip: 'Sort transactions',
+                  onPressed: () {
+                    // Could implement sorting options here
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sorting feature coming soon')),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Refresh transactions',
+                  onPressed: () {
+                    setState(() {});
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (entries.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.receipt_long,
+                  size: 48,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No transactions yet',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tap "Add Entry" on the card to add a transaction',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Column(
+            children: [
+              // Summary card
+              Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildSummaryItem(
+                        title: 'Total Income',
+                        value: _calculateTotalIncomeExpense(entries, isExpense: false),
+                        icon: Icons.arrow_downward,
+                        color: Colors.green,
                       ),
+                      Container(
+                        height: 40,
+                        width: 1,
+                        color: Colors.grey[300],
+                      ),
+                      _buildSummaryItem(
+                        title: 'Total Expense',
+                        value: _calculateTotalIncomeExpense(entries, isExpense: true),
+                        icon: Icons.arrow_upward,
+                        color: Colors.red,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Transaction list
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: entries.length,
+                itemBuilder: (context, index) {
+                  final entry = entries[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      leading: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: entry['isExpense'] 
+                              ? Colors.red.withOpacity(0.1)
+                              : Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          entry['isExpense'] ? Icons.arrow_upward : Icons.arrow_downward,
+                          color: entry['isExpense'] ? Colors.red : Colors.green,
+                          size: 24,
+                        ),
+                      ),
+                      title: Text(
+                        entry['description'],
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        entry['date'],
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                      trailing: Text(
+                        entry['amount'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: entry['isExpense'] ? Colors.red : Colors.green,
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
+      ],
+    );
+  }
+  
+  Widget _buildSummaryItem({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Icon(
+          icon,
+          color: color,
+          size: 24,
         ),
-      ),
-    );
-  }
-
-  // Add a method to delete a transaction
-  void _deleteTransaction(Map<String, dynamic> card, int index) {
-    final cardId = card['id'] ?? '${card['bank']}_${card['cardNumber']}';
-    
-    setState(() {
-      if (_cardTransactions.containsKey(cardId) && 
-          _cardTransactions[cardId]!.length > index) {
-        _cardTransactions[cardId]!.removeAt(index);
-      }
-    });
-    
-    // Show confirmation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Transaction deleted'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  // Show dialog to add a new entry to an existing card
-  void _showAddEntryDialog(Map<String, dynamic> card) {
-    final TextEditingController amountController = TextEditingController();
-    final TextEditingController descriptionController = TextEditingController();
-    
-    // Categories for the dropdown
-    final List<Map<String, dynamic>> categories = [
-      {'name': 'Shopping', 'icon': Icons.shopping_bag, 'color': Colors.blue},
-      {'name': 'Food & Beverages', 'icon': Icons.restaurant, 'color': Colors.orange},
-      {'name': 'Entertainment', 'icon': Icons.movie, 'color': Colors.purple},
-      {'name': 'Travel', 'icon': Icons.flight, 'color': Colors.green},
-      {'name': 'Bills & Utilities', 'icon': Icons.receipt, 'color': Colors.red},
-      {'name': 'Others', 'icon': Icons.more_horiz, 'color': Colors.grey},
-    ];
-    
-    String selectedCategory = categories[0]['name'] as String;
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => Container(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: color,
+            fontSize: 16,
           ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.grey,
+          ),
+        ),
+      ],
+    );
+  }
+  
+  String _calculateTotalIncomeExpense(List entries, {required bool isExpense}) {
+    double total = 0;
+    
+    for (var entry in entries) {
+      if (entry['isExpense'] == isExpense) {
+        // Extract amount from string like '₹1500'
+        final amountStr = entry['amount'].toString().replaceAll('₹', '').replaceAll(',', '');
+        final amount = double.tryParse(amountStr) ?? 0;
+        total += amount;
+      }
+    }
+    
+    return '₹${total.toStringAsFixed(0)}';
+  }
+
+  void _showAddEntryDialog(int cardIndex) {
+    final card = _cards[cardIndex];
+    
+    // Controllers for the form
+    final descriptionController = TextEditingController();
+    final amountController = TextEditingController();
+    bool isExpense = true;
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header with bank name
                 Row(
                   children: [
                     Container(
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: card['color'].withOpacity(0.2),
-                        shape: BoxShape.circle,
+                        color: card['color'],
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(Icons.credit_card, color: card['color']),
+                      child: const Icon(
+                        Icons.credit_card,
+                        color: Colors.white,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -682,164 +678,240 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Add Transaction Entry',
+                            'Add Entry to',
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).primaryColor,
+                              fontSize: 14,
+                              color: Colors.grey[600],
                             ),
                           ),
                           Text(
-                            '${card['bank']} ${card['cardType']}',
-                            style: TextStyle(
-                              color: Colors.grey[600],
+                            '${card['bank']} Card',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: amountController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Amount',
-                    prefixText: '₹ ',
-                    border: OutlineInputBorder(),
+                
+                const SizedBox(height: 24),
+                
+                // Description (Optional)
+                const Text(
+                  'Description (Optional)',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
-                  autofocus: true,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 6),
                 TextField(
                   controller: descriptionController,
                   decoration: const InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(),
+                    hintText: 'e.g. Grocery Shopping',
+                    border: UnderlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Text('Category'),
-                const SizedBox(height: 8),
-                Container(
-                  height: 60,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(4),
+                
+                const SizedBox(height: 20),
+                
+                // Amount (Required)
+                const Text(
+                  'Amount',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: ButtonTheme(
-                      alignedDropdown: true,
-                      child: DropdownButton<String>(
-                        value: selectedCategory,
-                        isExpanded: true,
-                        icon: const Icon(Icons.arrow_drop_down),
-                        iconSize: 24,
-                        elevation: 16,
-                        onChanged: (String? newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              selectedCategory = newValue;
-                            });
-                          }
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: amountController,
+                  decoration: const InputDecoration(
+                    prefixText: '₹ ',
+                    hintText: '0.00',
+                    border: UnderlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Transaction Type
+                const Text(
+                  'Transaction Type:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            isExpense = true;
+                          });
                         },
-                        items: categories.map((Map<String, dynamic> category) {
-                          return DropdownMenuItem<String>(
-                            value: category['name'] as String,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  category['icon'] as IconData,
-                                  color: category['color'] as Color,
-                                  size: 24,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(category['name'] as String),
-                              ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isExpense ? Colors.red[50] : Colors.transparent,
+                            border: Border.all(
+                              color: isExpense ? Colors.red : Colors.grey[300]!,
+                              width: 1,
                             ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (amountController.text.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please enter an amount')),
-                        );
-                        return;
-                      }
-                      
-                      // Get the selected category
-                      final selectedCategoryData = categories.firstWhere(
-                        (category) => category['name'] == selectedCategory,
-                        orElse: () => categories[0],
-                      );
-                      
-                      // Get the card ID or create one
-                      final cardId = card['id'] ?? '${card['bank']}_${card['cardNumber']}';
-                      
-                      // Create a new transaction
-                      final transaction = {
-                        'title': descriptionController.text.isNotEmpty 
-                            ? descriptionController.text 
-                            : selectedCategory,
-                        'subtitle': selectedCategory,
-                        'amount': '₹${amountController.text}',
-                        'date': _formatCurrentDate(),
-                        'icon': selectedCategoryData['icon'] as IconData,
-                        'color': selectedCategoryData['color'] as Color,
-                        'timestamp': DateTime.now().millisecondsSinceEpoch,
-                      };
-                      
-                      // Add the transaction to the card's transaction list
-                      setState(() {
-                        if (!_cardTransactions.containsKey(cardId)) {
-                          _cardTransactions[cardId] = [];
-                        }
-                        _cardTransactions[cardId]!.insert(0, transaction);
-                      });
-                      
-                      // Close the dialog
-                      Navigator.pop(context);
-                      
-                      // Update the main screen state
-                      this.setState(() {});
-                      
-                      // Show confirmation
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Added ₹${amountController.text} to ${card['bank']} ${card['cardType']}'),
-                          backgroundColor: Colors.green,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.arrow_upward,
+                                color: isExpense ? Colors.red : Colors.grey[600],
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Expense',
+                                style: TextStyle(
+                                  color: isExpense ? Colors.red : Colors.grey[600],
+                                  fontWeight: isExpense ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                              if (isExpense)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 8),
+                                  child: Icon(
+                                    Icons.check_circle,
+                                    color: Colors.red,
+                                    size: 16,
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text(
-                      'Save Transaction',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            isExpense = false;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: !isExpense ? Colors.green[50] : Colors.transparent,
+                            border: Border.all(
+                              color: !isExpense ? Colors.green : Colors.grey[300]!,
+                              width: 1,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.arrow_downward,
+                                color: !isExpense ? Colors.green : Colors.grey[600],
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Income',
+                                style: TextStyle(
+                                  color: !isExpense ? Colors.green : Colors.grey[600],
+                                  fontWeight: !isExpense ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                              if (!isExpense)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 8),
+                                  child: Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                    size: 16,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
+                ),
+                
+                const SizedBox(height: 30),
+                
+                // Action buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Validate inputs - only amount is required
+                        if (amountController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please enter an amount')),
+                          );
+                          return;
+                        }
+                        
+                        // Add the entry
+                        setState(() {
+                          // Get current date formatted nicely
+                          final now = DateTime.now();
+                          final formattedDate = "${now.day} ${_getMonthName(now.month)}, ${now.year}";
+                          
+                          _cards[cardIndex]['entries'].add({
+                            'description': descriptionController.text.isEmpty ? 
+                                (isExpense ? 'Expense' : 'Income') : descriptionController.text,
+                            'amount': '₹${amountController.text}',
+                            'date': formattedDate,
+                            'isExpense': isExpense,
+                          });
+                          
+                          // Select this card
+                          _selectedCardIndex = cardIndex;
+                        });
+                        
+                        Navigator.pop(context);
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Entry added successfully')),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: card['color'],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Add Entry',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -849,300 +921,12 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Format current date as "DD MMM" (e.g. "21 Apr")
-  String _formatCurrentDate() {
-    final now = DateTime.now();
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${now.day} ${months[now.month - 1]}';
-  }
-
-  Widget _buildTransactionItem({
-    required String title,
-    required String subtitle,
-    required String amount,
-    required String date,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onDelete,
-  }) {
-    return Dismissible(
-      key: UniqueKey(),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20.0),
-        color: Colors.red,
-        child: const Icon(
-          Icons.delete,
-          color: Colors.white,
-        ),
-      ),
-      onDismissed: (direction) {
-        onDelete();
-      },
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
-              blurRadius: 6,
-              spreadRadius: 0,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    amount,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    date,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showNotificationsWithDueDates() {
-    // Filter cards with upcoming due dates
-    final cardsWithDueDates = _cards.where((card) => 
-      card['cardType'] == 'Credit Card' && 
-      card['dueDate'] != 'N/A').toList();
-    
-    if (cardsWithDueDates.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No upcoming due dates'))
-      );
-      return;
-    }
-    
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-      child: Column(
-          mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-              margin: const EdgeInsets.only(top: 10),
-              width: 40,
-              height: 4,
-            decoration: BoxDecoration(
-                color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Icon(Icons.notifications, color: Theme.of(context).primaryColor),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Upcoming Due Dates',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                padding: EdgeInsets.zero,
-                itemCount: cardsWithDueDates.length,
-                itemBuilder: (context, index) {
-                  final card = cardsWithDueDates[index];
-                  return ListTile(
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: card['color'].withOpacity(0.2),
-                        shape: BoxShape.circle,
-            ),
-            child: Icon(
-                        Icons.credit_card,
-                        color: card['color'],
-                      ),
-                    ),
-                    title: Text(card['bank'] + ' ' + card['cardType']),
-                    subtitle: Text('Due Date: ' + card['dueDate']),
-                    trailing: Text(
-                      card['balance'],
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red[700],
-                      ),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      // Find the index of this card in the original list
-                      final originalIndex = _cards.indexWhere((c) => 
-                        c['cardNumber'] == card['cardNumber']);
-                      if (originalIndex >= 0) {
-                        setState(() {
-                          _selectedCardIndex = originalIndex;
-                          _pageController.animateToPage(
-                            originalIndex,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        });
-                      }
-                    },
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showCardOptions(BuildContext context, int cardIndex) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 10),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.edit, color: Colors.blue),
-              ),
-              title: const Text('Edit Card'),
-              onTap: () {
-                Navigator.pop(context);
-                _showEditCardDialog(cardIndex);
-              },
-            ),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.block, color: Colors.orange),
-              ),
-              title: const Text('Block Card'),
-              subtitle: const Text('Temporarily block this card'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.delete, color: Colors.red),
-              ),
-              title: const Text('Delete Card'),
-              onTap: () {
-                Navigator.pop(context);
-                _showDeleteCardConfirmation(cardIndex);
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _getUtilizationColor(double utilization) {
-    if (utilization < 0.3) return Colors.green;
-    if (utilization < 0.6) return Colors.orange;
-    return Colors.red;
+  String _getMonthName(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return months[month - 1];
   }
 
   void _showAddCardDialog() {
@@ -1203,30 +987,6 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
                   ),
                   keyboardType: TextInputType.number,
                   maxLength: 19,
-                  onChanged: (value) {
-                    // Format the card number as the user types
-                    if (value.isNotEmpty) {
-                      // Remove all non-digits
-                      String digitsOnly = value.replaceAll(RegExp(r'\D'), '');
-                      
-                      // Format with spaces every 4 digits
-                      String formatted = '';
-                      for (int i = 0; i < digitsOnly.length; i++) {
-                        if (i > 0 && i % 4 == 0) {
-                          formatted += ' ';
-                        }
-                        formatted += digitsOnly[i];
-                      }
-                      
-                      // Only update if different to avoid cursor jumping
-                      if (formatted != value) {
-                        cardNumberController.value = TextEditingValue(
-                          text: formatted,
-                          selection: TextSelection.collapsed(offset: formatted.length),
-                        );
-                      }
-                    }
-                  },
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -1238,10 +998,7 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
                   textCapitalization: TextCapitalization.characters,
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
+                TextField(
                   controller: expiryController,
                   decoration: const InputDecoration(
                     labelText: 'Expiry Date',
@@ -1249,31 +1006,17 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
                   ),
                   keyboardType: TextInputType.datetime,
                   maxLength: 5,
-                        onChanged: (value) {
-                          // Format expiry date as MM/YY
-                          if (value.length == 2 && !value.contains('/')) {
-                            expiryController.text = '$value/';
-                            expiryController.selection = TextSelection.fromPosition(
-                              TextPosition(offset: expiryController.text.length),
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextField(
-                        controller: cvvController,
-                        decoration: const InputDecoration(
-                          labelText: 'CVV',
-                          hintText: '123',
-                        ),
-                        keyboardType: TextInputType.number,
-                        maxLength: 3,
-                        obscureText: true,
-                      ),
-                    ),
-                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: cvvController,
+                  decoration: const InputDecoration(
+                    labelText: 'CVV',
+                    hintText: '123',
+                  ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 3,
+                  obscureText: true,
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -1353,22 +1096,23 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
                 if (bankController.text.isEmpty ||
                     cardNumberController.text.isEmpty ||
                     holderNameController.text.isEmpty ||
-                    expiryController.text.isEmpty) {
+                    expiryController.text.isEmpty ||
+                    cvvController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Please fill all required fields')),
                   );
                   return;
                 }
                 
-                // Get the card number
-                String cardNumber = cardNumberController.text;
+                // Format card number for display
+                String formattedCardNumber = cardNumberController.text;
                 
                 // Add the new card
                 setState(() {
                   _cards.add({
                     'bank': bankController.text,
                     'cardType': cardTypeController.text,
-                    'cardNumber': cardNumber,  // Store full card number
+                    'cardNumber': formattedCardNumber,
                     'holderName': holderNameController.text.toUpperCase(),
                     'expiry': expiryController.text,
                     'cvv': cvvController.text,
@@ -1383,7 +1127,7 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
                     'dueDate': dueDateController.text.isEmpty 
                         ? 'N/A' 
                         : dueDateController.text,
-                    'utilization': 0.0, // Assuming 0% utilization
+                    'entries': [],
                   });
                   
                   // Select the newly added card
@@ -1404,26 +1148,6 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Function to format card number for display
-  String _formatCardNumber(String cardNumber) {
-    // If it's already a formatted string with stars, return as is
-    if (cardNumber.contains('*')) return cardNumber;
-    
-    // Remove any spaces
-    String cleaned = cardNumber.replaceAll(' ', '');
-    
-    // Format with spaces for display
-    String formatted = '';
-    for (int i = 0; i < cleaned.length; i++) {
-      if (i > 0 && i % 4 == 0) {
-        formatted += ' ';
-      }
-      formatted += cleaned[i];
-    }
-    
-    return formatted;
-  }
-
   void _showEditCardDialog(int cardIndex) {
     final card = _cards[cardIndex];
     
@@ -1432,6 +1156,7 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
     final TextEditingController cardNumberController = TextEditingController(text: card['cardNumber']);
     final TextEditingController holderNameController = TextEditingController(text: card['holderName']);
     final TextEditingController expiryController = TextEditingController(text: card['expiry']);
+    final TextEditingController cvvController = TextEditingController(text: card['cvv']);
     
     // Remove the "₹" symbol and format for controllers
     String balanceValue = card['balance'].toString().replaceAll('₹', '').trim();
@@ -1487,7 +1212,8 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
                   decoration: const InputDecoration(
                     labelText: 'Card Number',
                   ),
-                  readOnly: true, // For security, don't allow editing full card number
+                  keyboardType: TextInputType.number,
+                  maxLength: 19,
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -1506,6 +1232,16 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
                   ),
                   keyboardType: TextInputType.datetime,
                   maxLength: 5,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: cvvController,
+                  decoration: const InputDecoration(
+                    labelText: 'CVV',
+                  ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 3,
+                  obscureText: true,
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -1599,6 +1335,7 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
                     'cardNumber': cardNumberController.text,
                     'holderName': holderNameController.text.toUpperCase(),
                     'expiry': expiryController.text,
+                    'cvv': cvvController.text,
                     'color': selectedColor,
                     'logo': card['logo'], // Keep the existing logo
                     'balance': balanceController.text.isEmpty 
@@ -1610,7 +1347,7 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
                     'dueDate': dueDateController.text.isEmpty 
                         ? 'N/A' 
                         : dueDateController.text,
-                    'utilization': 0.0, // Assuming 0% utilization
+                    'entries': card['entries'],
                   };
                 });
                 
@@ -1672,61 +1409,4 @@ class _CardScreenState extends State<CardScreen> with SingleTickerProviderStateM
       ),
     );
   }
-}
-
-// Custom painters for visual enhancement
-class CardPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    
-    // Draw a pattern of circles
-    for (int i = -1; i < 4; i++) {
-      for (int j = -1; j < 3; j++) {
-        final center = Offset(
-          size.width * (i / 3),
-          size.height * (j / 2),
-        );
-        canvas.drawCircle(center, size.width * 0.15, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class ChipPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.amber.shade800
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8;
-    
-    // Draw chip lines
-    for (int i = 0; i < 4; i++) {
-      final y = size.height * (i / 3);
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        paint,
-      );
-    }
-    
-    for (int i = 0; i < 5; i++) {
-      final x = size.width * (i / 4);
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

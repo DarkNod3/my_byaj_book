@@ -101,45 +101,19 @@ class LoanProvider extends ChangeNotifier {
       // Convert DateTime objects to ISO strings for storage
       final activeLoansJson = _activeLoans.map((loan) {
         final loanCopy = Map<String, dynamic>.from(loan);
-        
-        // Convert the loan's date fields
         loanCopy['startDate'] = loanCopy['startDate']?.toIso8601String();
         loanCopy['firstPaymentDate'] = loanCopy['firstPaymentDate']?.toIso8601String();
         loanCopy['createdDate'] = loanCopy['createdDate']?.toIso8601String();
         loanCopy['completionDate'] = loanCopy['completionDate']?.toIso8601String();
-        
-        // Also handle dates within installments
-        if (loanCopy.containsKey('installments') && loanCopy['installments'] != null) {
-          loanCopy['installments'] = (loanCopy['installments'] as List).map((installment) {
-            final installmentCopy = Map<String, dynamic>.from(installment);
-            installmentCopy['dueDate'] = installmentCopy['dueDate']?.toIso8601String();
-            installmentCopy['paidDate'] = installmentCopy['paidDate']?.toIso8601String();
-            return installmentCopy;
-          }).toList();
-        }
-        
         return loanCopy;
       }).toList();
       
       final completedLoansJson = _completedLoans.map((loan) {
         final loanCopy = Map<String, dynamic>.from(loan);
-        
-        // Convert the loan's date fields
         loanCopy['startDate'] = loanCopy['startDate']?.toIso8601String();
         loanCopy['firstPaymentDate'] = loanCopy['firstPaymentDate']?.toIso8601String();
         loanCopy['createdDate'] = loanCopy['createdDate']?.toIso8601String();
         loanCopy['completionDate'] = loanCopy['completionDate']?.toIso8601String();
-        
-        // Also handle dates within installments
-        if (loanCopy.containsKey('installments') && loanCopy['installments'] != null) {
-          loanCopy['installments'] = (loanCopy['installments'] as List).map((installment) {
-            final installmentCopy = Map<String, dynamic>.from(installment);
-            installmentCopy['dueDate'] = installmentCopy['dueDate']?.toIso8601String();
-            installmentCopy['paidDate'] = installmentCopy['paidDate']?.toIso8601String();
-            return installmentCopy;
-          }).toList();
-        }
-        
         return loanCopy;
       }).toList();
       
@@ -161,23 +135,10 @@ class LoanProvider extends ChangeNotifier {
         final List<dynamic> activeLoansJson = jsonDecode(activeLoansString);
         _activeLoans = activeLoansJson.map((loan) {
           final loanMap = Map<String, dynamic>.from(loan);
-          
-          // Parse loan DateTime fields
           loanMap['startDate'] = loanMap['startDate'] != null ? DateTime.parse(loanMap['startDate']) : null;
           loanMap['firstPaymentDate'] = loanMap['firstPaymentDate'] != null ? DateTime.parse(loanMap['firstPaymentDate']) : null;
           loanMap['createdDate'] = loanMap['createdDate'] != null ? DateTime.parse(loanMap['createdDate']) : null;
           loanMap['completionDate'] = loanMap['completionDate'] != null ? DateTime.parse(loanMap['completionDate']) : null;
-          
-          // Parse DateTime fields in installments
-          if (loanMap.containsKey('installments') && loanMap['installments'] != null) {
-            loanMap['installments'] = (loanMap['installments'] as List).map((installment) {
-              final installmentMap = Map<String, dynamic>.from(installment);
-              installmentMap['dueDate'] = installmentMap['dueDate'] != null ? DateTime.parse(installmentMap['dueDate']) : null;
-              installmentMap['paidDate'] = installmentMap['paidDate'] != null ? DateTime.parse(installmentMap['paidDate']) : null;
-              return installmentMap;
-            }).toList();
-          }
-          
           return loanMap;
         }).toList();
       }
@@ -186,23 +147,10 @@ class LoanProvider extends ChangeNotifier {
         final List<dynamic> completedLoansJson = jsonDecode(completedLoansString);
         _completedLoans = completedLoansJson.map((loan) {
           final loanMap = Map<String, dynamic>.from(loan);
-          
-          // Parse loan DateTime fields
           loanMap['startDate'] = loanMap['startDate'] != null ? DateTime.parse(loanMap['startDate']) : null;
           loanMap['firstPaymentDate'] = loanMap['firstPaymentDate'] != null ? DateTime.parse(loanMap['firstPaymentDate']) : null;
           loanMap['createdDate'] = loanMap['createdDate'] != null ? DateTime.parse(loanMap['createdDate']) : null;
           loanMap['completionDate'] = loanMap['completionDate'] != null ? DateTime.parse(loanMap['completionDate']) : null;
-          
-          // Parse DateTime fields in installments
-          if (loanMap.containsKey('installments') && loanMap['installments'] != null) {
-            loanMap['installments'] = (loanMap['installments'] as List).map((installment) {
-              final installmentMap = Map<String, dynamic>.from(installment);
-              installmentMap['dueDate'] = installmentMap['dueDate'] != null ? DateTime.parse(installmentMap['dueDate']) : null;
-              installmentMap['paidDate'] = installmentMap['paidDate'] != null ? DateTime.parse(installmentMap['paidDate']) : null;
-              return installmentMap;
-            }).toList();
-          }
-          
           return loanMap;
         }).toList();
       }
