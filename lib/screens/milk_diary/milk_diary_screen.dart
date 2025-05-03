@@ -105,8 +105,8 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
             tooltip: 'Payments',
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
-                          ),
-                        ],
+          ),
+        ],
                       ),
                     ),
                   
@@ -132,9 +132,9 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                     labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                     labelPadding: EdgeInsets.zero,
                   ),
-                ],
-              ),
-            ),
+          ],
+        ),
+      ),
             
             // Tab content
             Expanded(
@@ -161,8 +161,8 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                 padding: EdgeInsets.only(top: 30),
                 child: AddEntryScreen(),
               ),
-            );
-          },
+          );
+        },
           backgroundColor: AppTheme.primaryColor,
         child: const Icon(Icons.add),
         tooltip: 'Add New Entry',
