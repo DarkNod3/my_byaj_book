@@ -49,7 +49,6 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
 
   final List<String> _interestTypes = [
     'Fixed',
-    'Floating',
   ];
 
   final List<String> _periodTypes = [
@@ -238,20 +237,47 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       flex: 2,
-                      child: _buildDropdown(
-                        label: 'Interest Type',
-                        value: _selectedInterestType,
-                        items: _interestTypes.map((type) => DropdownMenuItem(
-                          value: type,
-                          child: Text(type),
-                        )).toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _selectedInterestType = value;
-                            });
-                          }
-                        },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8, bottom: 4),
+                            child: Text(
+                              'Interest Type',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.secondaryTextColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.shade200,
+                                  blurRadius: 2,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: AppTheme.primaryColor.withOpacity(0.7), size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Fixed',
+                                    style: const TextStyle(fontSize: 16, color: AppTheme.textColor),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],

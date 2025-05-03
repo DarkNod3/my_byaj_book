@@ -33,10 +33,10 @@ import 'package:flutter/scheduler.dart';
 import 'package:my_byaj_book/screens/settings/settings_screen.dart';
 import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
 import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
-import 'package:my_byaj_book/screens/tools/land_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
 import 'package:my_byaj_book/providers/card_provider.dart';
+import 'package:my_byaj_book/providers/loan_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -145,7 +145,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'tea_diary': const TeaDiaryScreen(),
       'tools': const MoreToolsScreen(),
       'emi_calc': const EmiCalculatorScreen(showAppBar: false),
-      'land_calc': const LandCalculatorScreen(showAppBar: false),
       'sip_calc': const SipCalculatorScreen(showAppBar: false),
       'tax_calc': const TaxCalculatorScreen(showAppBar: false),
     };
@@ -228,8 +227,53 @@ class _HomeScreenState extends State<HomeScreen> {
                         }
                       }
                       
+                      // Check for upcoming loan payments
+                      final loanProvider = Provider.of<LoanProvider>(context, listen: false);
+                      int upcomingLoanDueDates = 0;
+                      
+                      // Find active loans with unpaid installments due in the next 5 days
+                      for (final loan in loanProvider.activeLoans) {
+                        if (loan['status'] != 'Inactive' && loan.containsKey('installments')) {
+                          final installments = loan['installments'] as List?;
+                          
+                          if (installments != null && installments.isNotEmpty) {
+                            final now = DateTime.now();
+                            
+                            // Find the next unpaid installment
+                            for (var installment in installments) {
+                              if (installment['isPaid'] != true) {
+                                final dueDate = installment['dueDate'] as DateTime?;
+                                
+                                if (dueDate != null) {
+                                  // Check if the due date is within the next 5 days
+                                  final difference = dueDate.difference(now).inDays;
+                                  if (difference >= 0 && difference <= 5) {
+                                    upcomingLoanDueDates++;
+                                    break; // Count only one upcoming payment per loan
+                                  }
+                                }
+                                break; // Only check the first unpaid installment
+                              }
+                            }
+                          } else if (loan.containsKey('firstPaymentDate')) {
+                            // If no installments, check the first payment date
+                            final firstPaymentDate = loan['firstPaymentDate'] as DateTime?;
+                            if (firstPaymentDate != null) {
+                              // Check if the due date is within the next 5 days
+                              final difference = firstPaymentDate.difference(DateTime.now()).inDays;
+                              if (difference >= 0 && difference <= 5) {
+                                upcomingLoanDueDates++;
+                              }
+                            }
+                          }
+                        }
+                      }
+                      
+                      // Total upcoming due dates
+                      final totalUpcomingDueDates = upcomingCardDueDates + upcomingLoanDueDates;
+                      
                       // Return the appropriate icon with a badge if needed
-                      if (upcomingCardDueDates > 0) {
+                      if (totalUpcomingDueDates > 0) {
                         return Stack(
                           alignment: Alignment.center,
                           children: [
@@ -248,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   minHeight: 14,
                                 ),
                                 child: Text(
-                                  '$upcomingCardDueDates',
+                                  '$totalUpcomingDueDates',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 10,
@@ -2354,10 +2398,27 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                             color: AppTheme.textColor,
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                          tooltip: 'Close',
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () async {
+                                await _pickQRCodeImage();
+                                Navigator.pop(context);
+                                _showQRCodeOptions(context);
+                              },
+                              tooltip: 'Edit',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () async {
+                                await _deleteQRCode();
+                                Navigator.pop(context);
+                                _showQRCodeOptions(context);
+                              },
+                              tooltip: 'Delete',
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -2396,51 +2457,48 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                                     border: Border.all(color: Colors.grey.shade300, width: 1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.file(
-                                      File(qrCodePath),
-                                      fit: BoxFit.cover,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      // Show full screen image with zoom capability
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) => Scaffold(
+                                            appBar: AppBar(
+                                              backgroundColor: Colors.black,
+                                              iconTheme: const IconThemeData(color: Colors.white),
+                                            ),
+                                            backgroundColor: Colors.black,
+                                            body: Center(
+                                              child: InteractiveViewer(
+                                                panEnabled: true,
+                                                boundaryMargin: const EdgeInsets.all(20),
+                                                minScale: 0.5,
+                                                maxScale: 4.0,
+                                                child: Image.file(
+                                                  File(qrCodePath),
+                                                  fit: BoxFit.contain,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.file(
+                                        File(qrCodePath),
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              Wrap(
-                                spacing: 16,
-                                runSpacing: 10,
-                                alignment: WrapAlignment.center,
-                                children: [
-                                  ElevatedButton.icon(
-                                    onPressed: () async {
-                                      await _pickQRCodeImage();
-                                      Navigator.pop(context);
-                                      _showQRCodeOptions(context);
-                                    },
-                                    icon: const Icon(Icons.edit),
-                                    label: const Text('Change QR'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.primaryColor,
-                                    ),
-                                  ),
-                                  ElevatedButton.icon(
-                                    onPressed: () async {
-                                      await _deleteQRCode();
-                                      Navigator.pop(context);
-                                      _showQRCodeOptions(context);
-                                    },
-                                    icon: const Icon(Icons.delete),
-                                    label: const Text('Delete'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  ),
-                                ],
-                              ),
                               const SizedBox(height: 20),
                               TextButton(
                                 onPressed: () => Navigator.pop(context),
-                                child: const Text('Cancel'),
+                                child: const Text('Close', style: TextStyle(fontSize: 16)),
                               ),
                               const SizedBox(height: 10),
                             ],

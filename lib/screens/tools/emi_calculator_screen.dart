@@ -139,9 +139,16 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
     });
     
     try {
-      double p = double.parse(_reverseLoanAmountController.text); // Principal
-      double emi = double.parse(_reverseEmiAmountController.text); // EMI amount
-      int n = int.parse(_reverseTenureController.text); // Tenure
+      double p = double.tryParse(_reverseLoanAmountController.text) ?? 1.0; // Principal
+      double emi = double.tryParse(_reverseEmiAmountController.text) ?? 1.0; // EMI amount
+      
+      // Ensure minimum values are 1
+      p = p < 1.0 ? 1.0 : p;
+      emi = emi < 1.0 ? 1.0 : emi;
+      
+      int n = int.tryParse(_reverseTenureController.text) ?? 1; // Tenure
+      // Ensure minimum tenure is 1
+      n = n < 1 ? 1 : n;
       
       // Convert years to months if needed
       if (_reverseTenureType == 0) {
@@ -234,12 +241,18 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         principal = 100000; // Default
       }
       
+      // Ensure minimum principal is 1
+      principal = principal < 1 ? 1 : principal;
+      
       // Safely parse interest rate with validation
       if (_interestRateController.text.isNotEmpty) {
         rate = double.tryParse(_interestRateController.text) ?? 10.5;
       } else {
         rate = 10.5; // Default
       }
+      
+      // Ensure minimum rate is 0 (allow 0% interest)
+      rate = rate < 0 ? 0 : rate;
       
       rate = rate / 12 / 100; // Monthly interest rate
       
@@ -249,6 +262,9 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
       } else {
         tenure = 24; // Default
       }
+      
+      // Ensure minimum tenure is 1
+      tenure = tenure < 1 ? 1 : tenure;
       
       // Convert years to months if years is selected
       if (_selectedTenureType == 0) {
@@ -692,7 +708,13 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                       prefixIcon: Icon(Icons.currency_rupee),
                       contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                     ),
-                    onChanged: (_) => _calculateEMI(),
+                    onChanged: (value) {
+                      // Ensure the value is at least 1
+                      if (value.isEmpty || (int.tryParse(value) ?? 0) < 1) {
+                        _loanAmountController.text = '1';
+                      }
+                      _calculateEMI();
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -999,7 +1021,9 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
 
   Widget _buildBreakdownCard() {
     // Calculate the principal and interest ratio for the pie chart
-    double principal = double.parse(_loanAmountController.text);
+    double principal = double.tryParse(_loanAmountController.text) ?? 1.0;
+    // Ensure minimum value is 1
+    principal = principal < 1.0 ? 1.0 : principal;
     double principalRatio = principal / _totalAmount;
     double interestRatio = _totalInterest / _totalAmount;
 
@@ -1281,6 +1305,13 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                         prefixIcon: Icon(Icons.currency_rupee),
                         contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                       ),
+                      onChanged: (value) {
+                        // Ensure the value is at least 1
+                        if (value.isEmpty || (int.tryParse(value) ?? 0) < 1) {
+                          _reverseLoanAmountController.text = '1';
+                        }
+                        _checkReverseInputs();
+                      },
                     ),
                     const SizedBox(height: 16),
                     
@@ -1295,6 +1326,13 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                         prefixIcon: Icon(Icons.payment),
                         contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                       ),
+                      onChanged: (value) {
+                        // Ensure the value is at least 1
+                        if (value.isEmpty || (int.tryParse(value) ?? 0) < 1) {
+                          _reverseEmiAmountController.text = '1';
+                        }
+                        _checkReverseInputs();
+                      },
                     ),
                     const SizedBox(height: 16),
                     
@@ -1312,6 +1350,13 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                               prefixIcon: Icon(Icons.calendar_today),
                               contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                             ),
+                            onChanged: (value) {
+                              // Ensure the value is at least 1
+                              if (value.isEmpty || (int.tryParse(value) ?? 0) < 1) {
+                                _reverseTenureController.text = '1';
+                              }
+                              _checkReverseInputs();
+                            },
                           ),
                         ),
                         const SizedBox(width: 12),

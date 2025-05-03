@@ -434,7 +434,7 @@ class _CardScreenState extends State<CardScreen> {
                                   card['balance'],
                                   style: const TextStyle(
                                     fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.bold,
                                     color: Colors.red,
                                   ),
                                 ),
@@ -455,10 +455,10 @@ class _CardScreenState extends State<CardScreen> {
                                           fontSize: 11,
                                           color: Colors.grey[800],
                                           fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
                                   ),
+                                ),
+                              ],
+                            ),
                                 ],
                               ],
                             ),
@@ -942,12 +942,12 @@ class _CardScreenState extends State<CardScreen> {
                             };
                             
                             addCard(newCard);
-                            Navigator.pop(context);
-                            
-                            ScaffoldMessenger.of(context).showSnackBar(
+                        Navigator.pop(context);
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Card added successfully')),
-                            );
-                          },
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                             backgroundColor: selectedColor,
                         foregroundColor: Colors.white,
@@ -1178,26 +1178,26 @@ class _CardScreenState extends State<CardScreen> {
                 
                 // Update the card using the provider
                 final updatedCard = {
-                  'bank': bankController.text,
+                    'bank': bankController.text,
                   'cardType': 'Credit Card',
                   'cardNumber': cardNumberController.text,
-                  'holderName': holderNameController.text.toUpperCase(),
-                  'expiry': expiryController.text,
-                  'cvv': cvvController.text,
-                  'color': selectedColor,
+                    'holderName': holderNameController.text.toUpperCase(),
+                    'expiry': expiryController.text,
+                    'cvv': cvvController.text,
+                    'color': selectedColor,
                   'logo': card['logo'], // Keep the existing logo
-                  'balance': balanceController.text.isEmpty 
+                    'balance': balanceController.text.isEmpty 
+                        ? '₹0' 
+                        : '₹${balanceController.text}',
+                    'limit': limitController.text.isEmpty 
                       ? '₹0' 
-                      : '₹${balanceController.text}',
-                  'limit': limitController.text.isEmpty 
-                      ? '₹0' 
-                      : '₹${limitController.text}',
-                  'dueDate': dueDateController.text.isEmpty 
-                      ? 'N/A' 
-                      : dueDateController.text,
+                        : '₹${limitController.text}',
+                    'dueDate': dueDateController.text.isEmpty 
+                        ? 'N/A' 
+                        : dueDateController.text,
                   'entries': card['entries'],
                 };
-                
+                  
                 updateCard(cardIndex, updatedCard);
                 Navigator.pop(context);
                 

@@ -24,7 +24,7 @@ class HelpResources {
     },
     {
       'question': 'What calculators are available?',
-      'answer': 'My Byaj Book offers EMI calculator, SIP calculator, Land calculator, and Tax calculator to help you with financial planning and calculations.'
+      'answer': 'My Byaj Book offers EMI calculator, SIP calculator, and Tax calculator to help you with financial planning and calculations.'
     },
   ];
   

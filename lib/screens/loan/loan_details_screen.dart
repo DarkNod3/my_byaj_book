@@ -107,7 +107,9 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
     setState(() {
       _installments[index]['isPaid'] = true;
       _installments[index]['paidDate'] = now;
-      _paidInstallments++;
+      
+      // Calculate paid installments count
+      _paidInstallments = _installments.where((inst) => inst['isPaid'] == true).length;
       
       // Calculate progress percentage
       double progress = _paidInstallments / _installments.length;
@@ -157,10 +159,12 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
     setState(() {
       _installments[index]['isPaid'] = false;
       _installments[index]['paidDate'] = null;
-      _paidInstallments--;
+      
+      // Recalculate paid installments count
+      _paidInstallments = _installments.where((inst) => inst['isPaid'] == true).length;
       
       // Calculate progress percentage
-      double progress = _paidInstallments / _installments.length;
+      double progress = _installments.isEmpty ? 0.0 : _paidInstallments / _installments.length;
       
       // Update the loan data
       final loanProvider = Provider.of<LoanProvider>(context, listen: false);
@@ -1189,6 +1193,7 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
   }
 
   void _updateLoanStatus() {
+    // Calculate paid installments count
     _paidInstallments = _installments.where((inst) => inst['isPaid'] == true).length;
     
     // Update the loan provider
@@ -1197,11 +1202,11 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
     updatedLoanData['installments'] = _installments;
     
     // Update progress
-    final progress = _paidInstallments / _installments.length;
+    final progress = _installments.isEmpty ? 0.0 : _paidInstallments / _installments.length;
     updatedLoanData['progress'] = progress;
     
     // Update status if all installments are paid
-    if (_paidInstallments == _installments.length) {
+    if (_paidInstallments == _installments.length && _installments.isNotEmpty) {
       updatedLoanData['status'] = 'Completed';
     }
     

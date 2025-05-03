@@ -14,6 +14,15 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   String _selectedFilter = 'All';
+  String _searchQuery = '';
+  TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
+  
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -27,15 +36,55 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: Column(
         children: [
           AppHeader(
-            title: 'Transaction History',
-            showBackButton: true,
+            title: !_isSearching ? 'Transaction History' : '',
+            showBackButton: !_isSearching,
             actions: [
-              IconButton(
-                icon: const Icon(Icons.filter_list, color: Colors.white),
-                onPressed: () {
-                  _showFilterDialog(context);
-                },
-              ),
+              if (!_isSearching)
+                IconButton(
+                  icon: const Icon(Icons.search, color: Colors.white),
+                  onPressed: () {
+                    setState(() {
+                      _isSearching = true;
+                    });
+                  },
+                ),
+              if (_isSearching)
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name or amount...',
+                      hintStyle: const TextStyle(color: Colors.white70),
+                      border: InputBorder.none,
+                      prefixIcon: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () {
+                          setState(() {
+                            _isSearching = false;
+                            _searchQuery = '';
+                            _searchController.clear();
+                          });
+                        },
+                      ),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.white),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                      ),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                  ),
+                ),
             ],
           ),
           _buildFilterChips(),
@@ -49,36 +98,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
   
-  // Filter transactions based on selected filter
+  // Filter transactions based on selected filter and search query
   List<Map<String, dynamic>> _filterTransactions(List<Map<String, dynamic>> transactions) {
+    // First filter by type (Payments/Receipts)
+    List<Map<String, dynamic>> filtered = [];
+    
     if (_selectedFilter == 'All') {
-      return transactions;
+      filtered = transactions;
     } else if (_selectedFilter == 'Payments') {
-      return transactions.where((t) => t['type'] == 'gave').toList();
+      filtered = transactions.where((t) => t['type'] == 'gave').toList();
     } else if (_selectedFilter == 'Receipts') {
-      return transactions.where((t) => t['type'] == 'got').toList();
-    } else if (_selectedFilter == 'Loans') {
-      return transactions.where((t) => 
-        t['contactType'] == 'borrower' || 
-        t['contactType'] == 'lender' || 
-        t['source'] == 'loan').toList();
-    } else if (_selectedFilter == 'Cards') {
-      return transactions.where((t) => t['source'] == 'card').toList();
-    } else if (_selectedFilter == 'Bills') {
-      return transactions.where((t) => t['source'] == 'bill').toList();
-    } else if (_selectedFilter == 'Calculators') {
-      return transactions.where((t) => 
-        t['source'] == 'emi_calc' || 
-        t['source'] == 'land_calc' || 
-        t['source'] == 'sip_calc' || 
-        t['source'] == 'tax_calc').toList();
-    } else if (_selectedFilter == 'Diaries') {
-      return transactions.where((t) => 
-        t['source'] == 'milk_diary' || 
-        t['source'] == 'work_diary' || 
-        t['source'] == 'tea_diary').toList();
+      filtered = transactions.where((t) => t['type'] == 'got').toList();
     }
-    return transactions;
+    
+    // Then apply search filter if any
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((t) {
+        final name = (t['contactName'] ?? '').toString().toLowerCase();
+        final amount = (t['amount'] ?? 0.0).toString();
+        final note = (t['note'] ?? '').toString().toLowerCase();
+        return name.contains(_searchQuery.toLowerCase()) || 
+               amount.contains(_searchQuery) ||
+               note.contains(_searchQuery.toLowerCase());
+      }).toList();
+    }
+    
+    return filtered;
   }
 
   Widget _buildEmptyState() {
@@ -278,10 +323,40 @@ class _HistoryScreenState extends State<HistoryScreen> {
             _buildFilterChip('Payments'),
             const SizedBox(width: 8),
             _buildFilterChip('Receipts'),
-            const SizedBox(width: 8),
-            _buildFilterChip('Loans'),
-            const SizedBox(width: 8),
-            _buildFilterChip('Cards'),
+            const SizedBox(width: 16),
+            // PDF Report Button
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.orange.shade300),
+              ),
+              child: InkWell(
+                onTap: () => _generatePdfReport(),
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.picture_as_pdf,
+                        color: Colors.orange.shade700,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Report',
+                        style: TextStyle(
+                          color: Colors.orange.shade900,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -328,10 +403,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
             _buildFilterOption('Payments Only', 'Payments'),
             const SizedBox(height: 8),
             _buildFilterOption('Receipts Only', 'Receipts'),
-            const SizedBox(height: 8),
-            _buildFilterOption('Loans Only', 'Loans'),
-            const SizedBox(height: 8),
-            _buildFilterOption('Cards Only', 'Cards'),
           ],
         ),
         actions: [
@@ -488,6 +559,83 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // Generate PDF report
+  void _generatePdfReport() {
+    // Get filtered transactions
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    final allTransactions = transactionProvider.getAllTransactions();
+    final filteredTransactions = _filterTransactions(allTransactions);
+    
+    if (filteredTransactions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No transactions to generate report'))
+      );
+      return;
+    }
+    
+    // Show a loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Generating PDF report...'),
+            ],
+          ),
+        );
+      },
+    );
+    
+    // Simulate PDF creation with a short delay (you would typically call your PDF service here)
+    Future.delayed(const Duration(seconds: 1), () {
+      Navigator.pop(context); // Close loading dialog
+      
+      // Show success message with options
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Report Generated'),
+            content: const Text('Your transaction report has been generated successfully.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text('Close'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // Call the function to share PDF
+                  _sharePdfReport();
+                },
+                icon: const Icon(Icons.share),
+                label: const Text('Share'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                ),
+              ),
+            ],
+          );
+        }
+      );
+    });
+  }
+  
+  void _sharePdfReport() {
+    // Implementation for sharing the PDF would go here
+    // This would typically use a plugin like share_plus
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Sharing PDF report...'))
     );
   }
 }

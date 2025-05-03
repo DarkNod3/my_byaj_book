@@ -3,7 +3,6 @@ import 'package:my_byaj_book/screens/settings/nav_settings_screen.dart';
 import 'package:my_byaj_book/constants/app_theme.dart';
 import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
-import 'package:my_byaj_book/screens/tools/land_calculator_screen.dart';
 
 class MoreToolsScreen extends StatelessWidget {
   const MoreToolsScreen({super.key});
@@ -164,21 +163,6 @@ class MoreToolsScreen extends StatelessWidget {
           onTap: () {
             // Navigate to customize navigation
             Navigator.pushNamed(context, NavSettingsScreen.routeName);
-          },
-        ),
-        _buildToolItem(
-          context,
-          title: 'Land Calculator',
-          icon: Icons.landscape,
-          color: Colors.teal,
-          onTap: () {
-            // Navigate to Land Calculator
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const LandCalculatorScreen(),
-              ),
-            );
           },
         ),
         _buildToolItem(

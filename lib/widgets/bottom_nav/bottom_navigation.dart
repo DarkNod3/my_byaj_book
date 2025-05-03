@@ -12,7 +12,6 @@ import 'package:my_byaj_book/screens/tea_diary/tea_diary_screen.dart';
 import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
-import 'package:my_byaj_book/screens/tools/land_calculator_screen.dart';
 import 'package:my_byaj_book/screens/work_diary/work_diary_screen.dart';
 import '../header/app_header.dart';
 
@@ -167,7 +166,6 @@ class ToolsPopup extends StatelessWidget {
   final Map<String, List<Map<String, dynamic>>> _toolCategories = {
     'Calculators': [
       {'icon': Icons.calculate_rounded, 'title': 'EMI Calc', 'color': Colors.purple, 'id': 'emi_calc'},
-      {'icon': Icons.landscape_rounded, 'title': 'Land Calc', 'color': Colors.teal, 'id': 'land_calc'},
       {'icon': Icons.account_balance_wallet_rounded, 'title': 'SIP Calc', 'color': Colors.indigo, 'id': 'sip_calc'},
       {'icon': Icons.assignment_rounded, 'title': 'Tax Calc', 'color': Colors.red, 'id': 'tax_calc'},
     ],
@@ -389,9 +387,6 @@ class ToolsPopup extends StatelessWidget {
     switch (id) {
       case 'emi_calc':
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const EmiCalculatorScreen(showAppBar: true)));
-        break;
-      case 'land_calc':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const LandCalculatorScreen(showAppBar: true)));
         break;
       case 'sip_calc':
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SipCalculatorScreen(showAppBar: true)));

@@ -423,7 +423,10 @@ class _LoanScreenState extends State<LoanScreen> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: LinearProgressIndicator(
-                        value: double.tryParse(loan['progress'].toString()) ?? 0.0,
+                        value: (loan['progress'] != null && loan['progress'] is num) ? loan['progress'] : 
+                          (loan['installments'] != null && loan['installments'] is List) ? 
+                            (loan['installments'] as List).where((inst) => inst['isPaid'] == true).length / 
+                            (loan['installments'] as List).length : 0.0,
                         backgroundColor: Colors.grey[200],
                         valueColor: AlwaysStoppedAnimation<Color>(loanColor),
                         minHeight: 10,
@@ -432,7 +435,10 @@ class _LoanScreenState extends State<LoanScreen> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    '${((double.tryParse(loan['progress'].toString()) ?? 0.0) * 100).toInt()}%',
+                    '${((loan['progress'] != null && loan['progress'] is num) ? (loan['progress'] * 100).toInt() : 
+                        (loan['installments'] != null && loan['installments'] is List) ? 
+                            ((loan['installments'] as List).where((inst) => inst['isPaid'] == true).length / 
+                            (loan['installments'] as List).length * 100).toInt() : 0)}%',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: loanColor,

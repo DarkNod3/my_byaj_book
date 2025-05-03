@@ -72,7 +72,21 @@ class LoanProvider extends ChangeNotifier {
   Future<void> updateLoanById(String id, Map<String, dynamic> updatedData) async {
     final index = _activeLoans.indexWhere((loan) => loan['id'] == id);
     if (index != -1) {
+      // Create a new map with all the updated data
       _activeLoans[index] = {..._activeLoans[index], ...updatedData};
+      
+      // Ensure progress field is correctly calculated if installments are present
+      if (_activeLoans[index].containsKey('installments') && _activeLoans[index]['installments'] is List) {
+        final installments = _activeLoans[index]['installments'] as List;
+        final totalInstallments = installments.length;
+        final paidInstallments = installments.where((inst) => inst['isPaid'] == true).length;
+        
+        // Calculate and update progress
+        if (totalInstallments > 0) {
+          final progress = paidInstallments / totalInstallments;
+          _activeLoans[index]['progress'] = progress;
+        }
+      }
       
       // If loan is completed, move it to completed loans
       if (_activeLoans[index]['progress'] == 1.0 || _activeLoans[index]['status'] == 'Completed') {

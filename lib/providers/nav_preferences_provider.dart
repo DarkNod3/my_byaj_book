@@ -22,7 +22,6 @@ class NavPreferencesProvider with ChangeNotifier {
     NavItem(id: 'cards', title: 'Cards', icon: Icons.credit_card_rounded),
     NavItem(id: 'bill_diary', title: 'Bill Diary', icon: Icons.receipt_long_rounded),
     NavItem(id: 'emi_calc', title: 'EMI Calc', icon: Icons.calculate_rounded),
-    NavItem(id: 'land_calc', title: 'Land Calc', icon: Icons.landscape_rounded),
     NavItem(id: 'sip_calc', title: 'SIP Calc', icon: Icons.savings_rounded),
     NavItem(id: 'tax_calc', title: 'Tax Calc', icon: Icons.monetization_on_rounded),
     NavItem(id: 'milk_diary', title: 'Milk Diary', icon: Icons.local_drink_rounded),

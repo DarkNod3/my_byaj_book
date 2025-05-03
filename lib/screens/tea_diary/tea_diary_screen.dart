@@ -778,8 +778,11 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
   
   // Restore the add customer method that was accidentally removed
   void _addCustomer() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.5),
       builder: (BuildContext context) {
         String name = '';
         String phoneNumber = '';
@@ -787,99 +790,298 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
         double coffeeRate = 15.0;
         double milkRate = 8.0;
         
-        return AlertDialog(
-          title: const Text('Add New Customer'),
-          content: SingleChildScrollView(
+        // Calculate available height for the bottom sheet (80% of screen height)
+        final availableHeight = MediaQuery.of(context).size.height * 0.8;
+        
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          height: availableHeight,
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 10,
+                spreadRadius: 0,
+                offset: Offset(0, -2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  autofocus: true,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                  onChanged: (value) {
-                    name = value;
-                  },
-                ),
-                TextField(
-                  decoration: const InputDecoration(labelText: 'Phone Number'),
-                  keyboardType: TextInputType.phone,
-                  onChanged: (value) {
-                    phoneNumber = value;
-                  },
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Beverage Prices',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                // Header with decorative handle
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.teal.shade50,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Column(
+                    children: [
+                      // Handle bar
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        margin: const EdgeInsets.only(bottom: 16),
+                      ),
+                      const Text(
+                        'Add New Customer',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 ),
-                TextField(
-                  decoration: const InputDecoration(labelText: 'Tea Cup Price'),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) {
-                    teaRate = double.tryParse(value) ?? 10.0;
-                  },
+                
+                // Form content in scrollable area
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Customer info section
+                        TextField(
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            labelText: 'Name',
+                            hintText: 'Enter customer name',
+                            prefixIcon: const Icon(Icons.person_outline, color: Colors.teal),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Colors.teal, width: 2),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            name = value;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          decoration: InputDecoration(
+                            labelText: 'Phone Number (Optional)',
+                            hintText: 'Enter phone number',
+                            prefixIcon: const Icon(Icons.phone_outlined, color: Colors.teal),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Colors.teal, width: 2),
+                            ),
+                          ),
+                          keyboardType: TextInputType.phone,
+                          onChanged: (value) {
+                            phoneNumber = value;
+                          },
+                        ),
+                        
+                        // Beverage Prices section
+                        Container(
+                          margin: const EdgeInsets.only(top: 24, bottom: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.local_cafe_outlined, color: Colors.teal),
+                              const SizedBox(width: 10),
+                              const Text(
+                                'Beverage Prices',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Colors.teal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Tea price
+                        TextField(
+                          decoration: InputDecoration(
+                            labelText: 'Tea Cup Price',
+                            hintText: '10.0',
+                            prefixIcon: const Icon(Icons.emoji_food_beverage, color: Colors.brown),
+                            prefixText: '₹ ',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            teaRate = double.tryParse(value) ?? 10.0;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Coffee price
+                        TextField(
+                          decoration: InputDecoration(
+                            labelText: 'Coffee Cup Price',
+                            hintText: '15.0',
+                            prefixIcon: const Icon(Icons.coffee, color: Colors.brown),
+                            prefixText: '₹ ',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            coffeeRate = double.tryParse(value) ?? 15.0;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Milk price
+                        TextField(
+                          decoration: InputDecoration(
+                            labelText: 'Milk Cup Price',
+                            hintText: '8.0',
+                            prefixIcon: const Icon(Icons.water_drop_outlined, color: Colors.blue),
+                            prefixText: '₹ ',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            milkRate = double.tryParse(value) ?? 8.0;
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                TextField(
-                  decoration: const InputDecoration(labelText: 'Coffee Cup Price'),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) {
-                    coffeeRate = double.tryParse(value) ?? 15.0;
-                  },
-                ),
-                TextField(
-                  decoration: const InputDecoration(labelText: 'Milk Cup Price'),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) {
-                    milkRate = double.tryParse(value) ?? 8.0;
-                  },
+                
+                // Action buttons at the bottom
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 5,
+                        spreadRadius: 0,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.grey.shade300),
+                            ),
+                          ),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (name.isNotEmpty) {
+                              final newCustomer = Customer(
+                                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                name: name,
+                                phoneNumber: phoneNumber,
+                                cups: 0,
+                                teaRate: teaRate,
+                                coffeeRate: coffeeRate,
+                                milkRate: milkRate,
+                                totalAmount: 0,
+                                paymentsMade: 0,
+                                date: _selectedDate,
+                                lastUpdated: DateTime.now(),
+                                history: [],
+                              );
+                              
+                              setState(() {
+                                // Add to both main list and filtered list
+                                _allCustomers.add(newCustomer);
+                                _customersForSelectedDate.add(newCustomer);
+                                _filteredCustomers = List.from(_customersForSelectedDate);
+                                _sortCustomers();
+                                _updateTotals();
+                              });
+                              
+                              Navigator.of(context).pop();
+                              _counterAnimationController.forward(from: 0);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Add Customer',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (name.isNotEmpty) {
-                  final newCustomer = Customer(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    name: name,
-                    phoneNumber: phoneNumber,
-                    cups: 0,
-                    teaRate: teaRate,
-                    coffeeRate: coffeeRate,
-                    milkRate: milkRate,
-                    totalAmount: 0,
-                    paymentsMade: 0,
-                    date: _selectedDate,
-                    lastUpdated: DateTime.now(),
-                    history: [],
-                  );
-                  
-                  setState(() {
-                    // Add to both main list and filtered list
-                    _allCustomers.add(newCustomer);
-                    _customersForSelectedDate.add(newCustomer);
-                    _filteredCustomers = List.from(_customersForSelectedDate);
-                    _sortCustomers();
-                    _updateTotals();
-                  });
-                  
-                  Navigator.of(context).pop();
-                  _counterAnimationController.forward(from: 0);
-                }
-              },
-              child: const Text('Add'),
-            ),
-          ],
         );
       },
     );

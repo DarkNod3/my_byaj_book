@@ -653,16 +653,6 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: _generatePDF,
-                  icon: const Icon(Icons.download, size: 18),
-                  label: const Text('Download PDF'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  ),
-                ),
               ],
             ),
           ),

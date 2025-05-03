@@ -46,8 +46,10 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
   );
   
   // Alternative formatter if the locale doesn't work correctly
-  String _formatCurrency(double amount) {
-    return '₹${amount.toStringAsFixed(0).replaceAllMapped(
+  String _formatCurrency(dynamic amount) {
+    // Convert to double if not already a double
+    double amountDouble = amount is double ? amount : amount.toDouble();
+    return '₹${amountDouble.toStringAsFixed(0).replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]},'
     )}';
@@ -94,10 +96,10 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
         // Old Tax Regime Calculation
         if (taxableIncome <= 250000) {
           taxAmount = 0;
-          _taxSlabBreakdown.add({'slab': '0 - 2.5L', 'rate': '0%', 'tax': 0});
+          _taxSlabBreakdown.add({'slab': '0 - 2.5L', 'rate': '0%', 'tax': 0.0});
         } else {
           // Up to 2.5L - 0%
-          _taxSlabBreakdown.add({'slab': '0 - 2.5L', 'rate': '0%', 'tax': 0});
+          _taxSlabBreakdown.add({'slab': '0 - 2.5L', 'rate': '0%', 'tax': 0.0});
           
           // 2.5L to 5L - 5%
           if (taxableIncome > 250000) {
@@ -127,10 +129,10 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
         // New Tax Regime Calculation
         if (taxableIncome <= 300000) {
           taxAmount = 0;
-          _taxSlabBreakdown.add({'slab': '0 - 3L', 'rate': '0%', 'tax': 0});
+          _taxSlabBreakdown.add({'slab': '0 - 3L', 'rate': '0%', 'tax': 0.0});
         } else {
           // Up to 3L - 0%
-          _taxSlabBreakdown.add({'slab': '0 - 3L', 'rate': '0%', 'tax': 0});
+          _taxSlabBreakdown.add({'slab': '0 - 3L', 'rate': '0%', 'tax': 0.0});
           
           // 3L to 6L - 5%
           if (taxableIncome > 300000) {
@@ -844,8 +846,8 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
                         _formatCurrency(slab['tax']),
                         style: TextStyle(
                           fontSize: 14,
-                          color: slab['tax'] > 0 ? Colors.red.shade700 : Colors.grey.shade800,
-                          fontWeight: slab['tax'] > 0 ? FontWeight.w500 : FontWeight.normal,
+                          color: (slab['tax'] is double ? slab['tax'] : slab['tax'].toDouble()) > 0 ? Colors.red.shade700 : Colors.grey.shade800,
+                          fontWeight: (slab['tax'] is double ? slab['tax'] : slab['tax'].toDouble()) > 0 ? FontWeight.w500 : FontWeight.normal,
                         ),
                         textAlign: TextAlign.end,
                       ),
