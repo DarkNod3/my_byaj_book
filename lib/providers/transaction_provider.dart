@@ -149,8 +149,77 @@ class TransactionProvider extends ChangeNotifier {
       }
     });
     
-    // Could add other payment sources: loans, cards, bills, etc.
-    // ...
+    // Add credit card payment reminders
+    try {
+      // Get all cards from SharedPreferences
+      final prefs = SharedPreferences.getInstance();
+      String? cardsJson;
+      prefs.then((sharedPrefs) {
+        cardsJson = sharedPrefs.getString('cards');
+        if (cardsJson != null) {
+          final List<dynamic> cards = jsonDecode(cardsJson!);
+          
+          // Process each card
+          for (int i = 0; i < cards.length; i++) {
+            final card = cards[i];
+            
+            // Skip cards without due date
+            if (card['dueDate'] == null || card['dueDate'] == 'N/A') continue;
+            
+            // Parse the balance amount
+            final String balanceStr = card['balance'].toString().replaceAll('₹', '').replaceAll(',', '').trim();
+            final double balance = double.tryParse(balanceStr) ?? 0.0;
+            if (balance <= 0) continue;
+            
+            try {
+              // Parse the due date
+              final String dueDateStr = card['dueDate'];
+              final parts = dueDateStr.split(' ');
+              
+              if (parts.length >= 3) {
+                final int day = int.tryParse(parts[0]) ?? 1;
+                final String monthName = parts[1].replaceAll(',', '');
+                
+                // Get month number
+                final List<String> monthNames = [
+                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                ];
+                final int month = monthNames.indexOf(monthName) + 1;
+                
+                // Create date for current month's due date
+                DateTime dueDate = DateTime(now.year, now.month, day);
+                
+                // If the day has already passed, use next month
+                if (dueDate.isBefore(now)) {
+                  dueDate = DateTime(now.year, now.month + 1, day);
+                }
+                
+                // Calculate days left
+                final int daysLeft = dueDate.difference(now).inDays;
+                
+                // Only add cards that are due within the next 30 days
+                if (daysLeft <= 30) {
+                  upcomingPayments.add({
+                    'title': '${card['bank']} Card Payment',
+                    'amount': balance,
+                    'dueDate': dueDate,
+                    'daysLeft': daysLeft,
+                    'cardIndex': i,
+                    'type': 'card_payment',
+                    'isCompleted': false,
+                  });
+                }
+              }
+            } catch (e) {
+              print('Error creating card reminder: $e');
+            }
+          }
+        }
+      });
+    } catch (e) {
+      print('Error fetching cards for reminders: $e');
+    }
     
     // Sort by due date (closest first)
     upcomingPayments.sort((a, b) => 

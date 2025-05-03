@@ -7,9 +7,12 @@ import 'package:my_byaj_book/screens/bill_diary/bill_diary_screen.dart';
 import 'package:my_byaj_book/screens/tools/more_tools_screen.dart';
 import 'package:my_byaj_book/screens/settings/nav_settings_screen.dart';
 import 'package:my_byaj_book/screens/settings/settings_screen.dart';
+import 'package:my_byaj_book/screens/profile/profile_edit_screen.dart';
 import '../../constants/app_theme.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
+import '../../resources/help_resources.dart';
+import 'dart:io';
 
 class AppNavigationDrawer extends StatefulWidget {
   const AppNavigationDrawer({super.key});
@@ -20,7 +23,6 @@ class AppNavigationDrawer extends StatefulWidget {
 
 class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
   bool _notificationsEnabled = true;
-  String _currentLanguage = 'English';
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +38,6 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                 const SizedBox(height: 4),
                 _buildSectionTitle(context, 'Settings & Support'),
                 _buildNotificationToggle(),
-                _buildLanguageSelector(),
                 _buildMenuItem(
                   context,
                   title: 'Customize Navigation',
@@ -45,6 +46,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, NavSettingsScreen.routeName);
                   },
+                  description: 'Arrange your bottom navigation bar tabs',
                 ),
                 _buildMenuItem(
                   context,
@@ -57,6 +59,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                       MaterialPageRoute(builder: (context) => const SettingsScreen()),
                     );
                   },
+                  description: 'App preferences and account settings',
                 ),
                 _buildMenuItem(
                   context,
@@ -64,8 +67,9 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                   icon: Icons.help_outline,
                   onTap: () {
                     Navigator.pop(context);
-                    _showComingSoonSnackbar(context);
+                    _showHelpAndSupportDialog(context);
                   },
+                  description: 'Get assistance with using the app',
                 ),
                 _buildMenuItem(
                   context,
@@ -73,8 +77,9 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                   icon: Icons.star_outline,
                   onTap: () {
                     Navigator.pop(context);
-                    _showComingSoonSnackbar(context, 'Rating feature will be available soon!');
+                    _showRateAppDialog(context);
                   },
+                  description: 'Tell us what you think about the app',
                 ),
                 
                 const SizedBox(height: 8),
@@ -87,6 +92,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                     Navigator.pop(context);
                     _showAboutDialog(context);
                   },
+                  description: 'Learn more about My Byaj Book',
                 ),
                 _buildMenuItem(
                   context,
@@ -94,8 +100,9 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                   icon: Icons.privacy_tip_outlined,
                   onTap: () {
                     Navigator.pop(context);
-                    _showComingSoonSnackbar(context);
+                    _showPrivacyPolicyDialog(context);
                   },
+                  description: 'How we handle your data',
                 ),
                 _buildMenuItem(
                   context,
@@ -105,6 +112,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                     Navigator.pop(context);
                     _showShareAppDialog(context);
                   },
+                  description: 'Share the app with friends and family',
                 ),
                 
                 const Divider(height: 8),
@@ -146,6 +154,9 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final user = userProvider.user;
+    
     return Container(
       color: AppTheme.primaryColor,
       padding: const EdgeInsets.only(top: 24, bottom: 12, left: 12, right: 12),
@@ -166,19 +177,24 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                   ),
                 ],
               ),
-              child: const CircleAvatar(
+              child: CircleAvatar(
                 radius: 22,
                 backgroundColor: Colors.white,
-                child: Icon(
-                  Icons.person,
-                  size: 24,
-                  color: AppTheme.primaryColor,
-                ),
+                backgroundImage: user?.profileImagePath != null 
+                    ? FileImage(File(user!.profileImagePath!)) 
+                    : null,
+                child: user?.profileImagePath == null
+                    ? const Icon(
+                        Icons.person,
+                        size: 24,
+                        color: AppTheme.primaryColor,
+                      )
+                    : null,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              Provider.of<UserProvider>(context, listen: false).user?.name ?? 'User',
+              user?.name ?? 'User',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 14,
@@ -187,7 +203,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              Provider.of<UserProvider>(context, listen: false).user?.mobile ?? 'Update Profile',
+              user?.mobile ?? 'Update Profile',
               style: const TextStyle(
                 color: Colors.white70,
                 fontSize: 12,
@@ -198,7 +214,10 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                _showComingSoonSnackbar(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
@@ -229,6 +248,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
     required VoidCallback onTap,
     Color? textColor,
     Color? iconColor,
+    String? description,
   }) {
     final theme = Theme.of(context);
     
@@ -246,6 +266,15 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
           fontSize: 13,
         ),
       ),
+      subtitle: description != null 
+          ? Text(
+              description,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey[600],
+              ),
+            ) 
+          : null,
       dense: true,
       visualDensity: const VisualDensity(horizontal: -4, vertical: -2),
       onTap: onTap,
@@ -295,121 +324,6 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
             activeColor: AppTheme.primaryColor,
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildLanguageSelector() {
-    return InkWell(
-      onTap: _showLanguageDialog,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Icon(
-              Icons.language_outlined,
-              size: 18,
-              color: AppTheme.primaryColor,
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Text(
-                'Language',
-                style: TextStyle(
-                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            Text(
-              _currentLanguage,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 12,
-              color: Colors.grey.shade600,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showLanguageDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Language'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildLanguageOption('English'),
-            const SizedBox(height: 8),
-            _buildLanguageOption('हिंदी (Hindi)'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLanguageOption(String language) {
-    final bool isSelected = _currentLanguage == language || 
-        (language == 'हिंदी (Hindi)' && _currentLanguage == 'Hindi');
-    
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _currentLanguage = language == 'हिंदी (Hindi)' ? 'Hindi' : language;
-        });
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Language set to $language'),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : null,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                language,
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? AppTheme.primaryColor : null,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: AppTheme.primaryColor,
-                size: 16,
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -538,39 +452,182 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
     );
   }
   
-  void _showBackupDialog(BuildContext context, bool isExport) {
+  void _showHelpAndSupportDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isExport ? 'Export Backup' : 'Import & Restore Backup'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isExport 
-                ? 'This will export all your data to a backup file.'
-                : 'This will import data from a backup file and restore your account.',
-            ),
-            const SizedBox(height: 12),
-            if (isExport)
-              const Text(
-                'Note: Your backup will include all loans, cards, and settings data.',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
-                ),
-              )
-            else
-              const Text(
-                'Warning: This will replace your current data with the data from the backup file.',
-                style: TextStyle(
-                  color: Colors.orange,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+        title: const Text('Help & Support'),
+        content: Container(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSupportOption(
+                'FAQs', 
+                'Get answers to common questions',
+                Icons.question_answer_outlined,
+                () {
+                  Navigator.pop(context);
+                  _showFAQsDialog(context);
+                },
               ),
-          ],
+              const SizedBox(height: 12),
+              _buildSupportOption(
+                'Contact Support', 
+                'Email our support team',
+                Icons.email_outlined,
+                () {
+                  Navigator.pop(context);
+                  _showContactSupportDialog(context);
+                },
+              ),
+              const SizedBox(height: 12),
+              _buildSupportOption(
+                'Report a Bug', 
+                'Let us know if something isn\'t working',
+                Icons.bug_report_outlined,
+                () {
+                  Navigator.pop(context);
+                  _showReportBugDialog(context);
+                },
+              ),
+              const SizedBox(height: 12),
+              _buildSupportOption(
+                'Video Tutorials', 
+                'Learn how to use My Byaj Book',
+                Icons.play_circle_outline,
+                () {
+                  Navigator.pop(context);
+                  _showVideoTutorialsDialog(context);
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showFAQsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Frequently Asked Questions'),
+        content: Container(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: HelpResources.faqList.map((faq) {
+                return ExpansionTile(
+                  title: Text(
+                    faq['question'],
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        faq['answer'],
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showContactSupportDialog(BuildContext context) {
+    final supportOptions = HelpResources.getSupportOptions();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Contact Support'),
+        content: Container(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Choose your preferred way to reach our support team:',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              ...supportOptions.map((option) {
+                return ListTile(
+                  leading: Icon(option['icon'], color: AppTheme.primaryColor),
+                  title: Text(option['title']),
+                  subtitle: Text(option['description']),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoonSnackbar(context, '${option['title']} feature coming soon!');
+                  },
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showReportBugDialog(BuildContext context) {
+    final bugDescriptionController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Report a Bug'),
+        content: Container(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Please describe the issue you encountered:',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: bugDescriptionController,
+                decoration: const InputDecoration(
+                  hintText: 'Describe the bug here...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 5,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -580,18 +637,221 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _showComingSoonSnackbar(
-                context, 
-                isExport 
-                  ? 'Backup exported successfully!'
-                  : 'Backup restored successfully!'
-              );
+              _showComingSoonSnackbar(context, 'Bug report submitted successfully!');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
             ),
-            child: Text(isExport ? 'Export Now' : 'Import Now'),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showVideoTutorialsDialog(BuildContext context) {
+    final tutorials = HelpResources.getTutorialsList();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Video Tutorials'),
+        content: Container(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Watch these helpful tutorials to learn how to use My Byaj Book:',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              ...tutorials.map((tutorial) {
+                return ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(tutorial['icon'], color: AppTheme.primaryColor),
+                  ),
+                  title: Text(tutorial['title']),
+                  subtitle: Text(tutorial['description']),
+                  trailing: Text(
+                    tutorial['duration'],
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoonSnackbar(context, 'Video tutorials will be available soon!');
+                  },
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildSupportOption(String title, String subtitle, IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Row(
+          children: [
+            Icon(icon, color: AppTheme.primaryColor, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey[400]),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _showRateAppDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rate My Byaj Book'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Enjoying My Byaj Book? Please take a moment to rate your experience and provide feedback.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (index) {
+                return IconButton(
+                  icon: Icon(
+                    Icons.star,
+                    color: index < 3 ? Colors.amber : Colors.grey[300],
+                    size: 36,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showComingSoonSnackbar(
+                      context, 
+                      'Thanks for rating! Rating functionality coming soon.'
+                    );
+                  },
+                );
+              }),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Maybe Later'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showComingSoonSnackbar(context, 'Rating functionality coming soon!');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+            ),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showPrivacyPolicyDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Privacy Policy'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text(
+                'My Byaj Book Privacy Policy',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Last updated: January 2023',
+                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'At My Byaj Book, we take your privacy seriously. This privacy policy describes how we collect, use, and protect your personal information when you use our app.',
+                style: TextStyle(fontSize: 14),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Information We Collect:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• Personal information you provide (name, contact details)\n'
+                '• Financial information you input\n'
+                '• App usage data\n'
+                '• Device information',
+                style: TextStyle(fontSize: 14),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'How We Use Your Information:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• To provide and improve our services\n'
+                '• To personalize your experience\n'
+                '• To communicate with you\n'
+                '• To ensure app security',
+                style: TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
           ),
         ],
       ),

@@ -13,6 +13,7 @@ import 'providers/milk_diary/milk_seller_provider.dart';
 import 'providers/card_provider.dart';
 import 'screens/bill_diary/bill_diary_screen.dart';
 import 'screens/settings/nav_settings_screen.dart';
+import 'screens/profile/profile_edit_screen.dart';
 import 'utils/string_extensions.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
 import 'package:my_byaj_book/screens/tea_diary/tea_diary_screen.dart';
@@ -78,6 +79,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void _scheduleNotifications() {
     final loanProvider = Provider.of<LoanProvider>(navigatorKey.currentContext!, listen: false);
     notificationService.scheduleLoanPaymentNotifications(loanProvider);
+    
+    // Also schedule card due date notifications
+    final cardProvider = Provider.of<CardProvider>(navigatorKey.currentContext!, listen: false);
+    notificationService.scheduleCardDueNotifications(cardProvider);
   }
 
   // This widget is the root of your application.
@@ -110,6 +115,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               BillDiaryScreen.routeName: (ctx) => const BillDiaryScreen(),
               NavSettingsScreen.routeName: (ctx) => const NavSettingsScreen(),
               TeaDiaryScreen.routeName: (ctx) => const TeaDiaryScreen(),
+              ProfileEditScreen.routeName: (ctx) => const ProfileEditScreen(),
             },
           );
         },

@@ -4,6 +4,8 @@ import 'package:my_byaj_book/widgets/header/app_header.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:my_byaj_book/screens/card/card_screen.dart';
+import 'package:my_byaj_book/providers/card_provider.dart';
 
 class ReminderScreen extends StatefulWidget {
   const ReminderScreen({super.key});
@@ -233,172 +235,237 @@ class _ReminderScreenState extends State<ReminderScreen> {
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.1)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: typeColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    typeIcon,
-                    color: typeColor,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    reminder['title'],
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
+      child: InkWell(
+        onTap: () {
+          // Handle navigation based on reminder type
+          if (type.contains('card') && reminder.containsKey('cardIndex')) {
+            final cardIndex = reminder['cardIndex'] as int;
+            
+            // Navigate to card screen with the correct card selected
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) {
+                  final cardProvider = Provider.of<CardProvider>(context, listen: false);
+                  cardProvider.setSelectedCardIndex(cardIndex);
+                  return const CardScreen(showAppBar: true);
+                },
+              ),
+            );
+          }
+          // Handle other reminder types if needed
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: typeColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
                     ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
+                    child: Icon(
+                      typeIcon,
+                      color: typeColor,
+                      size: 18,
+                    ),
                   ),
-                ),
-                Text(
-                  formattedAmount,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
-                    fontSize: 16,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      reminder['title'],
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.calendar_today, size: 16),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          'Due: $formattedDate',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade700,
+                  Text(
+                    formattedAmount,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.calendar_today, size: 16),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Due: $formattedDate',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade700,
+                            ),
                           ),
                         ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      reminder['isCompleted']
+                          ? 'Completed'
+                          : daysLeft <= 0
+                              ? 'Due Today'
+                              : '$daysLeft days left',
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
                       ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    reminder['isCompleted']
-                        ? 'Completed'
-                        : daysLeft <= 0
-                            ? 'Due Today'
-                            : '$daysLeft days left',
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (!reminder['isCompleted'])
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      final provider = Provider.of<TransactionProvider>(context, listen: false);
-                      
-                      // Check if this is a manual reminder
-                      if (reminder['manuallyCreated'] == true) {
-                        // Find index of this reminder in the provider's list
-                        final index = provider.manualReminders.indexWhere((r) => 
-                          r['title'] == reminder['title'] && 
-                          r['dueDate'] == reminder['dueDate']);
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              // Special section for credit card reminders
+              if (type.contains('card'))
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Credit Card Payment',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        if (reminder.containsKey('cardIndex')) {
+                          final cardIndex = reminder['cardIndex'] as int;
                           
-                        if (index != -1) {
-                          provider.updateManualReminderStatus(index, true);
+                          // Navigate to card screen with the correct card selected
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) {
+                                final cardProvider = Provider.of<CardProvider>(context, listen: false);
+                                cardProvider.setSelectedCardIndex(cardIndex);
+                                return const CardScreen(showAppBar: true);
+                              },
+                            ),
+                          );
                         }
-                      } else {
-                        // For non-manual reminders, just update locally
-                        setState(() {
-                          reminder['isCompleted'] = true;
-                        });
-                      }
-                      
-                      // Show success message
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('${reminder['title']} marked as paid'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.check, size: 16),
-                    label: const Text('Mark as Paid'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.primaryColor,
-                      side: BorderSide(color: AppTheme.primaryColor),
+                      },
+                      icon: const Icon(Icons.credit_card_outlined, size: 14),
+                      label: const Text('Go to Card', style: TextStyle(fontSize: 12)),
+                      style: TextButton.styleFrom(
+                        foregroundColor: typeColor,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
                     ),
-                  )
-                else
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      final provider = Provider.of<TransactionProvider>(context, listen: false);
-                      
-                      // Check if this is a manual reminder
-                      if (reminder['manuallyCreated'] == true) {
-                        // Find index of this reminder
-                        final index = provider.manualReminders.indexWhere((r) => 
-                          r['title'] == reminder['title'] && 
-                          r['dueDate'] == reminder['dueDate']);
-                          
-                        if (index != -1) {
-                          provider.updateManualReminderStatus(index, false);
-                        }
-                      } else {
-                        // For non-manual reminders, just update locally
-                        setState(() {
-                          reminder['isCompleted'] = false;
-                        });
-                      }
-                    },
-                    icon: const Icon(Icons.undo, size: 16),
-                    label: const Text('Unmark'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.grey,
-                      side: const BorderSide(color: Colors.grey),
-                    ),
-                  ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.info_outline),
-                  color: AppTheme.primaryColor,
-                  onPressed: () {
-                    _showPaymentDetails(context, reminder);
-                  },
+                  ],
                 ),
-              ],
-            ),
-          ],
+              
+              // Action buttons for all reminders
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (!reminder['isCompleted'])
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        final provider = Provider.of<TransactionProvider>(context, listen: false);
+                        
+                        // Check if this is a manual reminder
+                        if (reminder['manuallyCreated'] == true) {
+                          // Find index of this reminder in the provider's list
+                          final index = provider.manualReminders.indexWhere((r) => 
+                            r['title'] == reminder['title'] && 
+                            r['dueDate'] == reminder['dueDate']);
+                            
+                          if (index != -1) {
+                            provider.updateManualReminderStatus(index, true);
+                          }
+                        } else {
+                          // For non-manual reminders, just update locally
+                          setState(() {
+                            reminder['isCompleted'] = true;
+                          });
+                        }
+                        
+                        // Show success message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${reminder['title']} marked as paid'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.check, size: 16),
+                      label: const Text('Mark as Paid'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryColor,
+                        side: BorderSide(color: AppTheme.primaryColor),
+                      ),
+                    )
+                  else
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        final provider = Provider.of<TransactionProvider>(context, listen: false);
+                        
+                        // Check if this is a manual reminder
+                        if (reminder['manuallyCreated'] == true) {
+                          // Find index of this reminder
+                          final index = provider.manualReminders.indexWhere((r) => 
+                            r['title'] == reminder['title'] && 
+                            r['dueDate'] == reminder['dueDate']);
+                            
+                          if (index != -1) {
+                            provider.updateManualReminderStatus(index, false);
+                          }
+                        } else {
+                          // For non-manual reminders, just update locally
+                          setState(() {
+                            reminder['isCompleted'] = false;
+                          });
+                        }
+                      },
+                      icon: const Icon(Icons.undo, size: 16),
+                      label: const Text('Unmark'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.grey,
+                        side: const BorderSide(color: Colors.grey),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.info_outline),
+                    color: AppTheme.primaryColor,
+                    onPressed: () {
+                      _showPaymentDetails(context, reminder);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

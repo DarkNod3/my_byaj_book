@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/card_provider.dart';
+import '../../services/notification_service.dart';
+import '../../main.dart' show notificationService;
 
 class CardScreen extends StatefulWidget {
   static const routeName = '/cards';
@@ -23,6 +25,10 @@ class _CardScreenState extends State<CardScreen> {
     // Add this call to convert any existing income transactions
     Future.delayed(Duration.zero, () {
       _initializeCardData();
+      
+      // Schedule notifications for card due dates
+      final cardProvider = Provider.of<CardProvider>(context, listen: false);
+      notificationService.scheduleCardDueNotifications(cardProvider);
     });
   }
 
@@ -59,9 +65,6 @@ class _CardScreenState extends State<CardScreen> {
                         ? _buildEmptyCardState()
                         : _buildVerticalCardList(),
                 const SizedBox(height: 24),
-                cardProvider.cards.isEmpty || cardProvider.isLoading
-                    ? const SizedBox()  // Don't show entries section when no cards
-                    : _buildSelectedCardEntries(),
               ],
             ),
           ),
@@ -211,13 +214,13 @@ class _CardScreenState extends State<CardScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: cardProvider.cards.length,
-      itemBuilder: (context, index) {
+        itemBuilder: (context, index) {
         final card = cardProvider.cards[index];
         final isSelected = index == cardProvider.selectedCardIndex;
         
         // Calculate the percentage for progress bar
         double percentUsed = 0.0;
-        if (card['cardType'] == 'Credit Card' && card['limit'] != 'N/A') {
+        if (card['limit'] != 'N/A') {
           // Extract numeric values from strings
           final balanceValue = double.tryParse(
             card['balance'].toString().replaceAll('₹', '').replaceAll(',', '').trim()
@@ -243,7 +246,7 @@ class _CardScreenState extends State<CardScreen> {
             child: Card(
               elevation: isSelected ? 6 : 2,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16),
                 side: isSelected 
                     ? BorderSide(color: card['color'], width: 2)
                     : BorderSide.none,
@@ -257,44 +260,44 @@ class _CardScreenState extends State<CardScreen> {
                         topLeft: Radius.circular(16),
                         topRight: Radius.circular(16),
                       ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          card['color'],
-                          card['color'].withOpacity(0.7),
-                        ],
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              card['bank'],
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            card['color'],
+            card['color'].withOpacity(0.7),
+          ],
+        ),
+          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  card['bank'],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                             Row(
                               children: [
-                                Text(
-                                  card['cardType'],
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 14,
-                                  ),
-                                ),
+                Text(
+                  card['cardType'],
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
                                 const SizedBox(width: 8),
                                 PopupMenuButton(
                                   icon: const Icon(
                                     Icons.more_vert,
                                     color: Colors.white,
-                                  ),
+            ),
                                   onSelected: (value) {
                                     if (value == 'edit') {
                                       _showEditCardDialog(index);
@@ -330,56 +333,56 @@ class _CardScreenState extends State<CardScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        Text(
-                          card['cardNumber'],
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
+            Text(
+              card['cardNumber'],
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
                             letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'CARD HOLDER',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                                Text(
-                                  card['holderName'],
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'EXPIRES',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                                Text(
-                                  card['expiry'],
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'CARD HOLDER',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 10,
+                      ),
+                    ),
+                    Text(
+                      card['holderName'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'EXPIRES',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 10,
+                      ),
+                    ),
+                    Text(
+                      card['expiry'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -392,36 +395,36 @@ class _CardScreenState extends State<CardScreen> {
                                 ),
                                 Text(
                                   card['cvv'],
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const Icon(
-                              Icons.credit_card,
-                              color: Colors.white,
-                              size: 30,
-                            ),
-                          ],
-                        ),
-                      ],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
+                  ],
+                ),
+                const Icon(
+                  Icons.credit_card,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  card['cardType'] == 'Debit Card' ? 'Balance' : 'Due Amount',
+              children: [
+                Text(
+                                  'Due Amount',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[600],
@@ -429,24 +432,46 @@ class _CardScreenState extends State<CardScreen> {
                                 ),
                                 Text(
                                   card['balance'],
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: card['cardType'] == 'Debit Card' ? Colors.green : Colors.red,
+                                    color: Colors.red,
                                   ),
                                 ),
+                                // Add due date display
+                                if (card['dueDate'] != null && card['dueDate'] != 'N/A') ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.event,
+                                        size: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Due: ${card['dueDate']}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[800],
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ],
                             ),
                             Column(
                               children: [
                                 // Add Entry button
-                                ElevatedButton(
-                                  onPressed: () => _showAddEntryDialog(index),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: card['color'],
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  child: const Text('Add Entry'),
+                            ElevatedButton(
+                              onPressed: () => _showAddEntryDialog(index),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: card['color'],
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Add Entry'),
                                 ),
                                 const SizedBox(height: 8),
                                 // View Details button
@@ -461,13 +486,13 @@ class _CardScreenState extends State<CardScreen> {
                               ],
                             ),
                           ],
-                        ),
+                    ),
                         
                         // Add progress bar for credit limit
-                        if (card['cardType'] == 'Credit Card' && card['limit'] != 'N/A') ...[
+                        if (card['limit'] != 'N/A') ...[
                           const SizedBox(height: 16),
                           Row(
-                            children: [
+                        children: [
                               Text(
                                 'Credit Limit: ',
                                 style: TextStyle(
@@ -503,14 +528,14 @@ class _CardScreenState extends State<CardScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               color: percentUsed > 0.75 ? Colors.red : Colors.grey[600],
-                            ),
-                          ),
-                        ],
+                      ),
+                    ),
+                  ],
                       ],
                     ),
-                  ),
-                ],
-              ),
+                ),
+              ],
+            ),
             ),
           ),
         );
@@ -518,229 +543,6 @@ class _CardScreenState extends State<CardScreen> {
     );
   }
 
-  Widget _buildSelectedCardEntries() {
-    final cardProvider = Provider.of<CardProvider>(context, listen: false);
-    final card = cardProvider.cards[cardProvider.selectedCardIndex];
-    final entries = card['entries'] as List? ?? [];
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-            Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-            Row(
-              children: [
-                Text(
-                  '${card['bank']} Card History',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).textTheme.titleLarge?.color,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '(${entries.length} ${entries.length == 1 ? 'transaction' : 'transactions'})',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.sort),
-                  tooltip: 'Sort transactions',
-                  onPressed: () {
-                    // Could implement sorting options here
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Sorting feature coming soon')),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Refresh transactions',
-                  onPressed: () {
-                    setState(() {});
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (entries.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.receipt_long,
-                  size: 48,
-                  color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-                Text(
-                  'No transactions yet',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 16,
-                  ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                  'Tap "Add Entry" on the card to add a transaction',
-                  textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 14,
-                ),
-              ),
-            ],
-            ),
-          )
-        else
-          Column(
-            children: [
-              // Summary card
-              Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildSummaryItem(
-                        title: 'Total Expense',
-                        value: _calculateTotalIncomeExpense(entries, isExpense: true),
-                        icon: Icons.arrow_upward,
-                        color: Colors.red,
-                      ),
-                      Container(
-                        height: 40,
-                        width: 1,
-                        color: Colors.grey[300],
-                      ),
-                      _buildSummaryItem(
-                        title: 'Total Payments',
-                        value: _calculateTotalPayments(entries),
-                        icon: Icons.payment,
-                        color: Colors.blue,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              // Transaction list
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: entries.length,
-                itemBuilder: (context, index) {
-                  final entry = entries[index];
-                  return Dismissible(
-                    key: UniqueKey(),
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 20.0),
-                      color: Colors.red,
-                      child: const Icon(
-                        Icons.delete,
-                        color: Colors.white,
-                      ),
-                    ),
-                    direction: DismissDirection.endToStart,
-                    confirmDismiss: (direction) async {
-                      return await showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: const Text("Confirm Delete"),
-                            content: const Text(
-                              "Are you sure you want to delete this transaction? This action will also adjust your card balance."
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(context).pop(false),
-                                child: const Text("CANCEL"),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.of(context).pop(true),
-                                child: const Text(
-                                  "DELETE",
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                    onDismissed: (direction) {
-                      _deleteTransaction(cardProvider.selectedCardIndex, index);
-                      // Close the bottom sheet after deletion if no more entries
-                      if (entries.length <= 1) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: entry['isExpense'] 
-                                ? Colors.red.withOpacity(0.1)
-                                : Colors.green.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            entry['isExpense'] ? Icons.arrow_upward : Icons.arrow_downward,
-                            color: entry['isExpense'] ? Colors.red : Colors.green,
-                            size: 24,
-                          ),
-                        ),
-                        title: Text(
-                          entry['description'],
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        subtitle: Text(
-                          entry['date'],
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-      ],
-    );
-  }
-  
   void _showAddCardDialog() {
     final cardProvider = Provider.of<CardProvider>(context, listen: false);
     final TextEditingController bankController = TextEditingController();
@@ -779,7 +581,7 @@ class _CardScreenState extends State<CardScreen> {
             ),
           ),
                       child: Column(
-                        children: [
+      children: [
                 // Header
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -791,22 +593,22 @@ class _CardScreenState extends State<CardScreen> {
                     ),
                           ),
                           child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
                         'Add New Card',
                                 style: TextStyle(
                           fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.bold,
                           color: selectedColor,
                                   ),
             ),
-                      IconButton(
+                IconButton(
                         icon: Icon(Icons.close, color: selectedColor),
                       onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
                 ),
+              ],
+            ),
                 ),
                 
                 // Form fields in a scrollable container
@@ -835,27 +637,20 @@ class _CardScreenState extends State<CardScreen> {
                         const SizedBox(height: 16),
                         
                         // Card Type
-                DropdownButtonFormField<String>(
-                  value: cardTypeController.text,
-                          decoration: InputDecoration(
-                            labelText: 'Card Type',
-                            prefixIcon: Icon(Icons.credit_card, color: selectedColor),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: selectedColor, width: 2),
-                            ),
-                          ),
-                  items: const [
-                    DropdownMenuItem(value: 'Credit Card', child: Text('Credit Card')),
-                    DropdownMenuItem(value: 'Debit Card', child: Text('Debit Card')),
-                  ],
-                  onChanged: (value) {
-                    cardTypeController.text = value!;
-                            setState(() {});
-                  },
+                TextField(
+                  controller: cardTypeController,
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'Card Type',
+                    prefixIcon: Icon(Icons.credit_card, color: selectedColor),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: selectedColor, width: 2),
+                    ),
+                  ),
                 ),
                         const SizedBox(height: 16),
                         
@@ -925,13 +720,13 @@ class _CardScreenState extends State<CardScreen> {
                               ),
                 ),
                             const SizedBox(width: 12),
-                            // CVV
+                            // CVV (Optional)
                             Expanded(
                               flex: 2,
                               child: TextField(
                   controller: cvvController,
                                 decoration: InputDecoration(
-                    labelText: 'CVV',
+                    labelText: 'CVV (Optional)',
                     hintText: '123',
                                   prefixIcon: Icon(Icons.security, color: selectedColor),
                                   border: OutlineInputBorder(
@@ -945,15 +740,15 @@ class _CardScreenState extends State<CardScreen> {
                   keyboardType: TextInputType.number,
                   maxLength: 3,
                   obscureText: true,
-                ),
-                            ),
-                          ],
+          ),
+        ),
+      ],
                         ),
                         const SizedBox(height: 8),
                         
                         // Two fields in a row: Balance and Limit
-                        Row(
-                          children: [
+                Row(
+        children: [
                             // Current Balance
                             Expanded(
                               child: TextField(
@@ -972,15 +767,15 @@ class _CardScreenState extends State<CardScreen> {
                                   ),
                   ),
                   keyboardType: TextInputType.number,
-                ),
-                            ),
-                            const SizedBox(width: 12),
+            ),
+          ),
+                    const SizedBox(width: 12),
                             // Credit Limit
-                            Expanded(
+                    Expanded(
                               child: TextField(
                   controller: limitController,
                   decoration: InputDecoration(
-                    labelText: cardTypeController.text == 'Credit Card' ? 'Credit Limit' : 'Daily Limit',
+                    labelText: 'Credit Limit',
                                   hintText: 'e.g. 50000',
                                   prefixText: '₹ ',
                                   prefixIcon: Icon(Icons.credit_score, color: selectedColor),
@@ -993,15 +788,14 @@ class _CardScreenState extends State<CardScreen> {
                                   ),
                   ),
                   keyboardType: TextInputType.number,
+      ),
+                    ),
+                  ],
                 ),
-                            ),
-                          ],
-                        ),
                         const SizedBox(height: 16),
                         
-                        // Due Date (only for Credit Cards)
-                        if (cardTypeController.text == 'Credit Card')
-                  TextField(
+                        // Due Date (always show for credit cards)
+                TextField(
                     controller: dueDateController,
                             decoration: InputDecoration(
                       labelText: 'Due Date',
@@ -1019,14 +813,14 @@ class _CardScreenState extends State<CardScreen> {
                             onTap: () async {
                               await _showDueDatePicker(context, dueDateController, selectedColor);
                             },
-                          ),
-                        
-                        const SizedBox(height: 20),
-                        
+                ),
+                
+                const SizedBox(height: 20),
+                
                         // Card Color Selection
-                        const Text(
+                const Text(
                           'Card Color',
-                          style: TextStyle(
+                  style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -1042,16 +836,16 @@ class _CardScreenState extends State<CardScreen> {
                               final isSelected = selectedColor.value == color.value;
                               
                     return GestureDetector(
-                      onTap: () {
-                        setState(() {
+                        onTap: () {
+                          setState(() {
                           selectedColor = color;
-                        });
-                      },
-                      child: Container(
+                          });
+                        },
+                        child: Container(
                                   width: 50,
                                   height: 50,
                                   margin: const EdgeInsets.only(right: 10),
-                        decoration: BoxDecoration(
+                          decoration: BoxDecoration(
                           color: color,
                           shape: BoxShape.circle,
                                     border: isSelected
@@ -1062,21 +856,21 @@ class _CardScreenState extends State<CardScreen> {
                                         color: color.withOpacity(0.5),
                                         blurRadius: 8,
                                         spreadRadius: isSelected ? 2 : 0,
-                                      ),
-                                    ],
-                                  ),
+            ),
+          ],
+        ),
                                   child: isSelected 
                                     ? const Icon(Icons.check, color: Colors.white) 
                                     : null,
                       ),
                     );
                             },
+                                  ),
+        ),
+      ],
                           ),
-                ),
-              ],
-            ),
-          ),
-                ),
+                        ),
+                      ),
                 
                 // Bottom action buttons
                 Container(
@@ -1089,16 +883,16 @@ class _CardScreenState extends State<CardScreen> {
                         spreadRadius: 1,
                         blurRadius: 10,
                         offset: const Offset(0, -5),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
                   child: Row(
-                    children: [
+                  children: [
                       Expanded(
                         child: TextButton(
-              onPressed: () => Navigator.pop(context),
-                          child: Text(
-                            'Cancel',
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
                             style: TextStyle(
                               color: Colors.grey[700],
                               fontWeight: FontWeight.bold,
@@ -1110,59 +904,59 @@ class _CardScreenState extends State<CardScreen> {
                       Expanded(
                         flex: 2,
                         child: ElevatedButton(
-              onPressed: () {
+                      onPressed: () {
                 // Validate inputs
                 if (bankController.text.isEmpty ||
                     cardNumberController.text.isEmpty ||
                     holderNameController.text.isEmpty ||
-                    expiryController.text.isEmpty ||
-                    cvvController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                    expiryController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Please fill all required fields')),
-                  );
-                  return;
-                }
-                
+                          );
+                          return;
+                        }
+                        
                 // Format card number for display
                 String formattedCardNumber = cardNumberController.text;
                 
                             // Add the new card through the provider
-                            cardProvider.addCard({
-                    'bank': bankController.text,
-                    'cardType': cardTypeController.text,
-                    'cardNumber': formattedCardNumber,
-                    'holderName': holderNameController.text.toUpperCase(),
-                    'expiry': expiryController.text,
-                    'cvv': cvvController.text,
-                    'color': selectedColor,
-                    'logo': 'assets/bank_logo.png', // Default logo
-                    'balance': balanceController.text.isEmpty 
-                        ? '₹0' 
-                        : '₹${balanceController.text}',
-                    'limit': limitController.text.isEmpty 
-                        ? cardTypeController.text == 'Credit Card' ? '₹0' : 'N/A' 
-                        : '₹${limitController.text}',
-                    'dueDate': dueDateController.text.isEmpty 
-                        ? 'N/A' 
-                        : dueDateController.text,
-                    'entries': [],
-                });
-                
-                Navigator.pop(context);
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Card added successfully')),
-                );
-              },
-                          style: ElevatedButton.styleFrom(
+                            final newCard = {
+                              'bank': bankController.text,
+                              'cardType': 'Credit Card',
+                              'cardNumber': formattedCardNumber,
+                              'holderName': holderNameController.text.toUpperCase(),
+                              'expiry': expiryController.text,
+                              'cvv': cvvController.text,
+                              'color': selectedColor,
+                              'logo': 'assets/bank_logo.png', // Default logo
+                              'balance': balanceController.text.isEmpty 
+                                  ? '₹0' 
+                                  : '₹${balanceController.text}',
+                              'limit': limitController.text.isEmpty 
+                                  ? '₹0' 
+                                  : '₹${limitController.text}',
+                              'dueDate': dueDateController.text.isEmpty 
+                                  ? 'N/A' 
+                                  : dueDateController.text,
+                              'entries': [],
+                            };
+                            
+                            addCard(newCard);
+                            Navigator.pop(context);
+                            
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Card added successfully')),
+                            );
+                          },
+                      style: ElevatedButton.styleFrom(
                             backgroundColor: selectedColor,
-                            foregroundColor: Colors.white,
+                        foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
+                        shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
+          ),
+                      ),
+                      child: const Text(
                             'Add Card',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
@@ -1170,12 +964,12 @@ class _CardScreenState extends State<CardScreen> {
                             ),
                           ),
                         ),
-            ),
-          ],
-        ),
                 ),
               ],
             ),
+          ),
+              ],
+        ),
           );
         },
       ),
@@ -1187,7 +981,7 @@ class _CardScreenState extends State<CardScreen> {
     final card = cardProvider.cards[cardIndex];
     
     final TextEditingController bankController = TextEditingController(text: card['bank']);
-    final TextEditingController cardTypeController = TextEditingController(text: card['cardType']);
+    final TextEditingController cardTypeController = TextEditingController(text: 'Credit Card');
     final TextEditingController cardNumberController = TextEditingController(text: card['cardNumber']);
     final TextEditingController holderNameController = TextEditingController(text: card['holderName']);
     final TextEditingController expiryController = TextEditingController(text: card['expiry']);
@@ -1228,17 +1022,12 @@ class _CardScreenState extends State<CardScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: cardTypeController.text,
-                  decoration: const InputDecoration(labelText: 'Card Type'),
-                  items: const [
-                    DropdownMenuItem(value: 'Credit Card', child: Text('Credit Card')),
-                    DropdownMenuItem(value: 'Debit Card', child: Text('Debit Card')),
-                  ],
-                  onChanged: (value) {
-                    cardTypeController.text = value!;
-                    setState(() {});
-                  },
+                TextField(
+                  controller: cardTypeController,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Card Type',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -1284,7 +1073,7 @@ class _CardScreenState extends State<CardScreen> {
                 TextField(
                   controller: cvvController,
                   decoration: const InputDecoration(
-                    labelText: 'CVV',
+                    labelText: 'CVV (Optional)',
                   ),
                   keyboardType: TextInputType.number,
                   maxLength: 3,
@@ -1303,7 +1092,7 @@ class _CardScreenState extends State<CardScreen> {
                 TextField(
                   controller: limitController,
                   decoration: InputDecoration(
-                    labelText: cardTypeController.text == 'Credit Card' ? 'Credit Limit' : 'Daily Limit',
+                    labelText: 'Credit Limit',
                     prefixText: limitValue == 'N/A' ? '' : '₹ ',
                   ),
                   keyboardType: TextInputType.number,
@@ -1388,27 +1177,28 @@ class _CardScreenState extends State<CardScreen> {
                 }
                 
                 // Update the card using the provider
-                cardProvider.updateCard(cardIndex, {
-                    'bank': bankController.text,
-                    'cardType': cardTypeController.text,
-                    'cardNumber': cardNumberController.text,
-                    'holderName': holderNameController.text.toUpperCase(),
-                    'expiry': expiryController.text,
-                    'cvv': cvvController.text,
-                    'color': selectedColor,
-                    'logo': card['logo'], // Keep the existing logo
-                    'balance': balanceController.text.isEmpty 
-                        ? '₹0' 
-                        : '₹${balanceController.text}',
-                    'limit': limitController.text.isEmpty 
-                        ? cardTypeController.text == 'Credit Card' ? '₹0' : 'N/A' 
-                        : '₹${limitController.text}',
-                    'dueDate': dueDateController.text.isEmpty 
-                        ? 'N/A' 
-                        : dueDateController.text,
-                    'entries': card['entries'],
-                });
+                final updatedCard = {
+                  'bank': bankController.text,
+                  'cardType': 'Credit Card',
+                  'cardNumber': cardNumberController.text,
+                  'holderName': holderNameController.text.toUpperCase(),
+                  'expiry': expiryController.text,
+                  'cvv': cvvController.text,
+                  'color': selectedColor,
+                  'logo': card['logo'], // Keep the existing logo
+                  'balance': balanceController.text.isEmpty 
+                      ? '₹0' 
+                      : '₹${balanceController.text}',
+                  'limit': limitController.text.isEmpty 
+                      ? '₹0' 
+                      : '₹${limitController.text}',
+                  'dueDate': dueDateController.text.isEmpty 
+                      ? 'N/A' 
+                      : dueDateController.text,
+                  'entries': card['entries'],
+                };
                 
+                updateCard(cardIndex, updatedCard);
                 Navigator.pop(context);
                 
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1565,7 +1355,7 @@ class _CardScreenState extends State<CardScreen> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        TextField(
+                TextField(
                           controller: descriptionController,
                           decoration: InputDecoration(
                             hintText: 'e.g. Grocery Shopping',
@@ -1587,7 +1377,7 @@ class _CardScreenState extends State<CardScreen> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        TextField(
+                TextField(
                           controller: dateController,
                           readOnly: true,
                           decoration: InputDecoration(
@@ -1649,18 +1439,18 @@ class _CardScreenState extends State<CardScreen> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        TextField(
+                TextField(
                           controller: amountController,
-                          decoration: InputDecoration(
+                  decoration: InputDecoration(
                             prefixText: '₹ ',
                             hintText: '0.00',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                             contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
                         
                         const SizedBox(height: 20),
                         
@@ -1672,7 +1462,7 @@ class _CardScreenState extends State<CardScreen> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                  const SizedBox(height: 12),
                         
                         // Only show Expense and Payment options
                         RadioListTile<bool>(
@@ -1716,11 +1506,11 @@ class _CardScreenState extends State<CardScreen> {
                             groupValue: isPayment,
                             activeColor: Colors.blue,
                             onChanged: (value) {
-                              setState(() {
+                        setState(() {
                                 isPayment = true;
                                 isExpense = false;
-                              });
-                            },
+                        });
+                      },
                           ),
                       ],
                     ),
@@ -1730,12 +1520,12 @@ class _CardScreenState extends State<CardScreen> {
                 // Bottom action bar
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
+                        decoration: BoxDecoration(
                     color: Colors.white,
                     boxShadow: [
-                      BoxShadow(
+                                  BoxShadow(
                         color: Colors.grey.withOpacity(0.1),
-                        spreadRadius: 1,
+                                    spreadRadius: 1,
                         blurRadius: 5,
                         offset: const Offset(0, -3),
                       ),
@@ -1759,52 +1549,43 @@ class _CardScreenState extends State<CardScreen> {
                       Expanded(
                         flex: 2,
                         child: ElevatedButton(
-                          onPressed: () {
+              onPressed: () {
                             // Validate inputs - only amount is required
                             if (amountController.text.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Please enter an amount')),
-                              );
-                              return;
-                            }
-                            
+                  );
+                  return;
+                }
+                
                             // Get amount value
                             double amount = double.tryParse(amountController.text) ?? 0.0;
                             
-                            // Get current balance
-                            String balanceStr = card['balance'].toString().replaceAll('₹', '').replaceAll(',', '').trim();
-                            double balance = double.tryParse(balanceStr) ?? 0.0;
-                            double newBalance = balance;
-                            
                             // Update the card balance based on transaction type
-                            if (card['cardType'] == 'Credit Card') {
-                              if (isPayment) {
-                                // Subtract the payment from the balance
-                                newBalance = balance - amount;
-                                if (newBalance < 0) newBalance = 0; // Balance can't be negative
-                                
-                                // Set a default description if none provided
-                                if (descriptionController.text.isEmpty) {
-                                  descriptionController.text = 'Card Payment';
-                                }
-                              } else if (isExpense) {
-                                // Add the expense to the balance
-                                newBalance = balance + amount;
-                                
-                                // Set a default description if none provided
-                                if (descriptionController.text.isEmpty) {
-                                  descriptionController.text = 'Card Expense';
-                                }
+                            if (isPayment) {
+                              // Subtract the payment from the balance
+                              double balance = double.tryParse(card['balance'].toString().replaceAll('₹', '').replaceAll(',', '').trim()) ?? 0.0;
+                              double newBalance = balance - amount;
+                              if (newBalance < 0) newBalance = 0; // Balance can't be negative
+                              
+                              // Set a default description if none provided
+                              if (descriptionController.text.isEmpty) {
+                                descriptionController.text = 'Card Payment';
                               }
                               
                               // Update the card with new balance
                               final updatedCard = Map<String, dynamic>.from(card);
                               updatedCard['balance'] = '₹${newBalance.toStringAsFixed(0)}';
                               cardProvider.updateCard(cardIndex, updatedCard);
-                            } else if (card['cardType'] == 'Debit Card' && isExpense) {
-                              // For debit cards, decrease the balance when expense is added
-                              newBalance = balance - amount;
-                              if (newBalance < 0) newBalance = 0; // Balance can't be negative
+                            } else if (isExpense) {
+                              // Add the expense to the balance
+                              double balance = double.tryParse(card['balance'].toString().replaceAll('₹', '').replaceAll(',', '').trim()) ?? 0.0;
+                              double newBalance = balance + amount;
+                              
+                              // Set a default description if none provided
+                              if (descriptionController.text.isEmpty) {
+                                descriptionController.text = 'Card Expense';
+                              }
                               
                               // Update the card with new balance
                               final updatedCard = Map<String, dynamic>.from(card);
@@ -1820,11 +1601,11 @@ class _CardScreenState extends State<CardScreen> {
                               'date': dateController.text,
                               'isExpense': isPayment ? false : isExpense,
                               'isPayment': isPayment,
-                            });
-                            
-                            Navigator.pop(context);
-                            
-                            ScaffoldMessenger.of(context).showSnackBar(
+                });
+                
+                Navigator.pop(context);
+                
+                ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
                                   isPayment ? 'Payment recorded successfully' : 'Expense added successfully'
@@ -1846,9 +1627,9 @@ class _CardScreenState extends State<CardScreen> {
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+            ),
+          ],
+        ),
                 ),
               ],
             ),
@@ -2070,9 +1851,9 @@ class _CardScreenState extends State<CardScreen> {
                                 title: const Text("Confirm Delete"),
                                 content: const Text(
                                   "Are you sure you want to delete this transaction? This action will also adjust your card balance."
-                                ),
-                                actions: [
-                                  TextButton(
+        ),
+        actions: [
+          TextButton(
                                     onPressed: () => Navigator.of(context).pop(false),
                                     child: const Text("CANCEL"),
                                   ),
@@ -2262,7 +2043,7 @@ class _CardScreenState extends State<CardScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context),
                       ),
                     ],
                   ),
@@ -2280,7 +2061,7 @@ class _CardScreenState extends State<CardScreen> {
                             
                             return GestureDetector(
                               onTap: () {
-                                setState(() {
+              setState(() {
                                   selectedMonth = month;
                                 });
                               },
@@ -2362,7 +2143,7 @@ class _CardScreenState extends State<CardScreen> {
                       String monthStr = selectedMonth.toString().padLeft(2, '0');
                       String yearStr = (selectedYear % 100).toString().padLeft(2, '0');
                       controller.text = '$monthStr/$yearStr';
-                      Navigator.pop(context);
+              Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: themeColor,
@@ -2431,6 +2212,9 @@ class _CardScreenState extends State<CardScreen> {
     if (selectedDate != null) {
       String formattedDate = "${selectedDate.day} ${_getMonthName(selectedDate.month)}, ${selectedDate.year}";
       controller.text = formattedDate;
+      
+      // Schedule notifications after due date changes
+      // This will happen when the dialog is closed with the new date
     }
   }
 
@@ -2567,14 +2351,8 @@ class _CardScreenState extends State<CardScreen> {
     
     final entries = card['entries'] as List;
     
-    // Start with a zero balance for credit cards
+    // Start with a zero balance
     double newBalance = 0.0;
-    
-    // For debit cards, we'll need the original starting balance, which we don't have
-    // so we'll just use the current balance if it's a debit card with no transactions
-    if (card['cardType'] == 'Debit Card' && entries.isEmpty) {
-      return; // Keep current balance for empty debit cards
-    }
     
     // Calculate the balance based on all existing transactions
     for (var entry in entries) {
@@ -2585,22 +2363,12 @@ class _CardScreenState extends State<CardScreen> {
       String amountStr = entry['amount'].toString().replaceAll('₹', '').replaceAll(',', '').trim();
       double amount = double.tryParse(amountStr) ?? 0.0;
       
-      if (card['cardType'] == 'Credit Card') {
-        if (isPayment) {
-          // Payments reduce the balance
-          newBalance -= amount;
-        } else if (isExpense) {
-          // Expenses increase the balance
-          newBalance += amount;
-        }
-      } else if (card['cardType'] == 'Debit Card') {
-        if (isExpense) {
-          // Expenses decrease the balance
-          newBalance -= amount;
-        } else if (!isExpense) {
-          // Income increases the balance
-          newBalance += amount;
-        }
+      if (isPayment) {
+        // Payments reduce the balance
+        newBalance -= amount;
+      } else if (isExpense) {
+        // Expenses increase the balance
+        newBalance += amount;
       }
     }
     
@@ -2632,12 +2400,10 @@ class _CardScreenState extends State<CardScreen> {
     
     // If this was the last entry or if there will be no entries left
     if (entries.length <= 1) {
-      // Reset balance for credit cards when all transactions are deleted
-      if (card['cardType'] == 'Credit Card') {
-        final resetCard = Map<String, dynamic>.from(cardProvider.cards[cardIndex]);
-        resetCard['balance'] = '₹0';
-        cardProvider.updateCard(cardIndex, resetCard);
-      }
+      // Reset balance when all transactions are deleted
+      final resetCard = Map<String, dynamic>.from(cardProvider.cards[cardIndex]);
+      resetCard['balance'] = '₹0';
+      cardProvider.updateCard(cardIndex, resetCard);
     } else {
       // Recalculate the entire balance from all remaining transactions
       _recalculateCardBalance(cardIndex);
@@ -2672,5 +2438,23 @@ class _CardScreenState extends State<CardScreen> {
         ),
       ),
     );
+  }
+
+  // Add a new card
+  Future<void> addCard(Map<String, dynamic> card) async {
+    final cardProvider = Provider.of<CardProvider>(context, listen: false);
+    await cardProvider.addCard(card);
+    
+    // Update notifications after adding a card
+    notificationService.scheduleCardDueNotifications(cardProvider);
+  }
+
+  // Update an existing card
+  Future<void> updateCard(int index, Map<String, dynamic> updatedCard) async {
+    final cardProvider = Provider.of<CardProvider>(context, listen: false);
+    await cardProvider.updateCard(index, updatedCard);
+    
+    // Update notifications after editing a card
+    notificationService.scheduleCardDueNotifications(cardProvider);
   }
 }

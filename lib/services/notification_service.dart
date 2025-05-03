@@ -1,8 +1,11 @@
 import 'dart:math';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../providers/loan_provider.dart';
+import '../providers/card_provider.dart';
 import '../models/loan_notification.dart';
+import '../models/card_notification.dart';
 import '../main.dart' show markLoanAsPaid;
 
 class NotificationService {
@@ -14,6 +17,8 @@ class NotificationService {
   
   // Map to track notification IDs by loan ID
   final Map<String, int> _loanNotificationIds = {};
+  // Map to track notification IDs by card ID
+  final Map<String, int> _cardNotificationIds = {};
   
   NotificationService._internal();
   
@@ -40,14 +45,29 @@ class NotificationService {
   }
   
   void _onNotificationTapped(NotificationResponse response) {
-    // Parse the payload which contains loan ID
+    // Parse the payload to determine if it's a loan or card notification
     if (response.payload != null) {
       try {
-        final notificationData = LoanNotification.fromJson(response.payload!);
+        final Map<String, dynamic> payloadData = jsonDecode(response.payload!);
         
-        // Handle the notification tap
-        if (notificationData.action == 'mark_as_paid') {
-          _markLoanAsPaid(notificationData.loanId);
+        // Check if it's a card notification
+        if (payloadData.containsKey('cardId')) {
+          final notificationData = CardNotification.fromJson(response.payload!);
+          
+          // Handle the card notification tap
+          if (notificationData.action == 'view_details') {
+            // Navigate to card details
+            // This would be implemented in main.dart similar to the loan handling
+          }
+        } 
+        // Otherwise assume it's a loan notification
+        else if (payloadData.containsKey('loanId')) {
+          final notificationData = LoanNotification.fromJson(response.payload!);
+          
+          // Handle the notification tap
+          if (notificationData.action == 'mark_as_paid') {
+            _markLoanAsPaid(notificationData.loanId);
+          }
         }
       } catch (e) {
         debugPrint('Error parsing notification payload: $e');
@@ -111,6 +131,73 @@ class NotificationService {
     }
   }
   
+  // Schedule notifications for card due dates
+  Future<void> scheduleCardDueNotifications(CardProvider cardProvider) async {
+    // Cancel all existing card notifications first
+    await cancelCardNotifications();
+    
+    final cards = cardProvider.cards;
+    
+    for (int i = 0; i < cards.length; i++) {
+      final card = cards[i];
+      final cardId = 'card_$i'; // Create a unique ID based on index
+      final bankName = card['bank'] as String;
+      
+      // Check if the card has a due date
+      if (card['dueDate'] != null && card['dueDate'] != 'N/A') {
+        // Parse the due date
+        try {
+          final String dueDateStr = card['dueDate'] as String;
+          final parts = dueDateStr.split(' ');
+          
+          if (parts.length >= 3) {
+            final int day = int.tryParse(parts[0]) ?? 1;
+            final String monthName = parts[1];
+            final int month = _getMonthNumber(monthName);
+            final int year = int.tryParse(parts[2].replaceAll(',', '')) ?? DateTime.now().year;
+            
+            // Create date for this month's due date
+            final now = DateTime.now();
+            DateTime dueDate = DateTime(now.year, now.month, day);
+            
+            // If the day has already passed this month, use next month
+            if (dueDate.isBefore(now)) {
+              dueDate = DateTime(now.year, now.month + 1, day);
+            }
+            
+            // Extract balance as amount due
+            final String balanceStr = card['balance'].toString().replaceAll('₹', '').replaceAll(',', '').trim();
+            final double amountDue = double.tryParse(balanceStr) ?? 0.0;
+            
+            // Show notification for upcoming due date
+            if (amountDue > 0) {
+              await showCardDueNotification(
+                id: _generateCardNotificationId(cardId),
+                cardId: cardId,
+                cardIndex: i,
+                bankName: bankName,
+                amount: amountDue,
+                dueDate: dueDate,
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('Error scheduling card notification: $e');
+        }
+      }
+    }
+  }
+  
+  int _getMonthNumber(String monthName) {
+    const monthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    
+    int index = monthNames.indexOf(monthName.replaceAll(',', ''));
+    return index >= 0 ? index + 1 : 1;
+  }
+  
   Future<void> showLoanDueNotification({
     required int id,
     required String loanId,
@@ -156,9 +243,87 @@ class NotificationService {
     );
   }
   
+  // Show notification for card due date
+  Future<void> showCardDueNotification({
+    required int id,
+    required String cardId,
+    required int cardIndex,
+    required String bankName,
+    required double amount,
+    required DateTime dueDate,
+  }) async {
+    final androidDetails = AndroidNotificationDetails(
+      'card_payment_channel',
+      'Card Payment Notifications',
+      channelDescription: 'Notifications for credit card payment dues',
+      importance: Importance.high,
+      priority: Priority.high,
+      color: Colors.orange,
+    );
+    
+    final iOSDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    
+    final notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iOSDetails,
+    );
+    
+    final formattedDueDate = '${dueDate.day}/${dueDate.month}/${dueDate.year}';
+    
+    // Create payload with card info
+    final payload = CardNotification(
+      cardId: cardId,
+      action: 'view_details',
+    ).toJson();
+    
+    // Store the notification ID for later cancellation
+    _cardNotificationIds[cardId] = id;
+    
+    // Calculate days remaining
+    final int daysRemaining = dueDate.difference(DateTime.now()).inDays;
+    String daysText = daysRemaining == 0 
+        ? 'TODAY!' 
+        : daysRemaining == 1 
+            ? 'TOMORROW!' 
+            : 'in $daysRemaining days';
+    
+    await _flutterLocalNotificationsPlugin.show(
+      id,
+      'Credit Card Payment Due: $bankName',
+      'Payment of ₹${amount.toStringAsFixed(0)} is due $daysText (${dueDate.day} ${_getMonthName(dueDate.month)}). Tap to view details.',
+      notificationDetails,
+      payload: payload,
+    );
+  }
+  
+  String _getMonthName(int month) {
+    const monthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    
+    if (month >= 1 && month <= 12) {
+      return monthNames[month - 1];
+    }
+    return '';
+  }
+  
   Future<void> cancelAllNotifications() async {
     await _flutterLocalNotificationsPlugin.cancelAll();
     _loanNotificationIds.clear();
+    _cardNotificationIds.clear();
+  }
+  
+  Future<void> cancelCardNotifications() async {
+    // Cancel all card notifications
+    for (final id in _cardNotificationIds.values) {
+      await _flutterLocalNotificationsPlugin.cancel(id);
+    }
+    _cardNotificationIds.clear();
   }
   
   Future<void> cancelNotificationForLoan(String loanId) async {
@@ -169,9 +334,23 @@ class NotificationService {
     }
   }
   
+  Future<void> cancelNotificationForCard(String cardId) async {
+    final notificationId = _cardNotificationIds[cardId];
+    if (notificationId != null) {
+      await _flutterLocalNotificationsPlugin.cancel(notificationId);
+      _cardNotificationIds.remove(cardId);
+    }
+  }
+  
   int _generateNotificationId(String loanId) {
     // Use a simple hash of the loan ID to generate a notification ID
     return loanId.hashCode.abs() % 10000;
+  }
+  
+  int _generateCardNotificationId(String cardId) {
+    // Use a simple hash of the card ID to generate a notification ID
+    // Add 20000 to avoid conflicts with loan notification IDs
+    return cardId.hashCode.abs() % 10000 + 20000;
   }
   
   double _calculateMonthlyEMI(Map<String, dynamic> loan) {

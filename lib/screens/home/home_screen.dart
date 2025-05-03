@@ -36,6 +36,7 @@ import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/land_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
+import 'package:my_byaj_book/providers/card_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -182,7 +183,88 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.notifications, color: Colors.white, size: 24),
+                  icon: Consumer<CardProvider>(
+                    builder: (context, cardProvider, child) {
+                      // Check for upcoming card payment due dates
+                      int upcomingCardDueDates = 0;
+                      
+                      // Find cards with due dates coming up in the next 5 days
+                      for (final card in cardProvider.cards) {
+                        if (card['dueDate'] != null && card['dueDate'] != 'N/A') {
+                          try {
+                            // Parse the due date
+                            final String dueDateStr = card['dueDate'] as String;
+                            final parts = dueDateStr.split(' ');
+                            
+                            if (parts.length >= 3) {
+                              final int day = int.tryParse(parts[0]) ?? 1;
+                              final String monthName = parts[1].replaceAll(',', '');
+                              
+                              // Get month number
+                              final List<String> monthNames = [
+                                'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                              ];
+                              final int month = monthNames.indexOf(monthName) + 1;
+                              
+                              // Create date for current month's due date
+                              final now = DateTime.now();
+                              DateTime dueDate = DateTime(now.year, now.month, day);
+                              
+                              // If the day has already passed, use next month
+                              if (dueDate.isBefore(now)) {
+                                dueDate = DateTime(now.year, now.month + 1, day);
+                              }
+                              
+                              // Check if the due date is within the next 5 days
+                              final difference = dueDate.difference(now).inDays;
+                              if (difference >= 0 && difference <= 5) {
+                                upcomingCardDueDates++;
+                              }
+                            }
+                          } catch (e) {
+                            print('Error parsing due date: $e');
+                          }
+                        }
+                      }
+                      
+                      // Return the appropriate icon with a badge if needed
+                      if (upcomingCardDueDates > 0) {
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            const Icon(Icons.notifications, color: Colors.white, size: 24),
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 14,
+                                  minHeight: 14,
+                                ),
+                                child: Text(
+                                  '$upcomingCardDueDates',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      } else {
+                        return const Icon(Icons.notifications, color: Colors.white, size: 24);
+                      }
+                    },
+                  ),
                   tooltip: 'Reminders',
                   onPressed: () {
                     Navigator.push(
@@ -673,6 +755,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   bool _isWithInterest = false;
   String _searchQuery = '';
   String _interestViewMode = 'all'; // 'all', 'borrower', 'lender'
+  String? _qrCodePath; // Add this variable for QR code path
   
   // Interest calculation variables
   double _totalPrincipal = 0.0;
@@ -2331,10 +2414,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                                   ElevatedButton.icon(
                                     onPressed: () async {
                                       await _pickQRCodeImage();
-                                      if (context.mounted) {
-                                        Navigator.pop(context);
-                                        _showQRCodeOptions(context);
-                                      }
+                                      Navigator.pop(context);
+                                      _showQRCodeOptions(context);
                                     },
                                     icon: const Icon(Icons.edit),
                                     label: const Text('Change QR'),
@@ -2345,10 +2426,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                                   ElevatedButton.icon(
                                     onPressed: () async {
                                       await _deleteQRCode();
-                                      if (context.mounted) {
-                                        Navigator.pop(context);
-                                        _showQRCodeOptions(context);
-                                      }
+                                      Navigator.pop(context);
+                                      _showQRCodeOptions(context);
                                     },
                                     icon: const Icon(Icons.delete),
                                     label: const Text('Delete'),
@@ -2408,10 +2487,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                               ElevatedButton.icon(
                                 onPressed: () async {
                                   await _pickQRCodeImage();
-                                  if (context.mounted) {
-                                    Navigator.pop(context);
-                                    _showQRCodeOptions(context);
-                                  }
+                                  Navigator.pop(context);
+                                  _showQRCodeOptions(context);
                                 },
                                 icon: const Icon(Icons.upload),
                                 label: const Text('Upload QR Code'),
@@ -2457,20 +2534,21 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('payment_qr_code_path', pickedFile.path);
         
+        // Update state if needed
+        setState(() {
+          _qrCodePath = pickedFile.path;
+        });
+        
         // Show success message
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('QR code uploaded successfully')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('QR code uploaded successfully')),
+        );
       }
     } catch (e) {
       print('Error picking QR code: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error uploading QR code: $e')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error uploading QR code: $e')),
+      );
     }
   }
   
@@ -2479,18 +2557,18 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('payment_qr_code_path');
       
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('QR code deleted successfully')),
-        );
-      }
+      setState(() {
+        _qrCodePath = null;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('QR code deleted successfully')),
+      );
     } catch (e) {
       print('Error deleting QR code: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting QR code: $e')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting QR code: $e')),
+      );
     }
   }
 

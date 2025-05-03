@@ -4,13 +4,15 @@ import 'dart:convert';
 
 class User {
   final String id;
-  final String name;
-  final String mobile;
+  String name;
+  String mobile;
+  String? profileImagePath;
 
   User({
     required this.id,
     required this.name,
     required this.mobile,
+    this.profileImagePath,
   });
 
   Map<String, dynamic> toJson() {
@@ -18,6 +20,7 @@ class User {
       'id': id,
       'name': name,
       'mobile': mobile,
+      'profileImagePath': profileImagePath,
     };
   }
 
@@ -26,6 +29,7 @@ class User {
       id: json['id'],
       name: json['name'],
       mobile: json['mobile'],
+      profileImagePath: json['profileImagePath'],
     );
   }
 }
@@ -38,6 +42,7 @@ class UserProvider with ChangeNotifier {
   static const String _userIdKey = 'user_id';
   static const String _userNameKey = 'user_name';
   static const String _userMobileKey = 'user_mobile';
+  static const String _userProfileImageKey = 'user_profile_image';
   static const String _isLoggedInKey = 'is_logged_in';
 
   // Check if user exists (in a real app, this would check with a server)
@@ -92,6 +97,28 @@ class UserProvider with ChangeNotifier {
     }
   }
 
+  // Update user profile
+  Future<void> updateUserProfile({
+    String? name,
+    String? mobile,
+    String? profileImagePath,
+  }) async {
+    if (_user == null) return;
+
+    try {
+      if (name != null) _user!.name = name;
+      if (mobile != null) _user!.mobile = mobile;
+      if (profileImagePath != null) _user!.profileImagePath = profileImagePath;
+
+      // Save updated user data
+      await _saveUserData();
+      notifyListeners();
+    } catch (e) {
+      print('Update profile error: $e');
+      throw Exception('Failed to update profile: $e');
+    }
+  }
+
   // Save user data to SharedPreferences
   Future<void> _saveUserData() async {
     try {
@@ -101,6 +128,9 @@ class UserProvider with ChangeNotifier {
         await prefs.setString(_userIdKey, _user!.id);
         await prefs.setString(_userNameKey, _user!.name);
         await prefs.setString(_userMobileKey, _user!.mobile);
+        if (_user!.profileImagePath != null) {
+          await prefs.setString(_userProfileImageKey, _user!.profileImagePath!);
+        }
         await prefs.setBool(_isLoggedInKey, true);
       }
     } catch (e) {
@@ -119,12 +149,14 @@ class UserProvider with ChangeNotifier {
         final id = prefs.getString(_userIdKey);
         final name = prefs.getString(_userNameKey);
         final mobile = prefs.getString(_userMobileKey);
+        final profileImagePath = prefs.getString(_userProfileImageKey);
         
         if (id != null && name != null && mobile != null) {
           _user = User(
             id: id,
             name: name,
             mobile: mobile,
+            profileImagePath: profileImagePath,
           );
         }
       }
@@ -149,6 +181,7 @@ class UserProvider with ChangeNotifier {
       await prefs.remove(_userIdKey);
       await prefs.remove(_userNameKey);
       await prefs.remove(_userMobileKey);
+      await prefs.remove(_userProfileImageKey);
       await prefs.setBool(_isLoggedInKey, false);
       
       notifyListeners();
