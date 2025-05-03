@@ -33,7 +33,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     // Initialize form fields with current user data
     if (_userProvider.user != null) {
       _nameController.text = _userProvider.user!.name;
-      _mobileController.text = _userProvider.user!.mobile;
+      _mobileController.text = _userProvider.user!.mobile ?? '';
       
       // Load profile image if exists
       if (_userProvider.user!.profileImagePath != null) {
@@ -250,13 +250,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     // Name Field
                     TextFormField(
                       controller: _nameController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Name',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person_outline),
+                        prefixIcon: Icon(Icons.person, color: AppTheme.primaryColor),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
+                        ),
                       ),
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
+                        if (value == null || value.isEmpty) {
                           return 'Please enter your name';
                         }
                         return null;
@@ -264,24 +270,22 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     ),
                     const SizedBox(height: 16),
                     
-                    // Mobile Field
+                    // Mobile Field - Updated to show as optional
                     TextFormField(
                       controller: _mobileController,
-                      decoration: const InputDecoration(
-                        labelText: 'Mobile Number',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.phone_android),
+                      decoration: InputDecoration(
+                        labelText: 'Mobile Number (Optional)',
+                        prefixIcon: Icon(Icons.phone, color: AppTheme.primaryColor),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
+                        ),
+                        helperText: 'Leave blank if you prefer not to provide a phone number',
                       ),
                       keyboardType: TextInputType.phone,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your mobile number';
-                        }
-                        if (value.trim().length < 10) {
-                          return 'Please enter a valid mobile number';
-                        }
-                        return null;
-                      },
                     ),
                     const SizedBox(height: 24),
                     

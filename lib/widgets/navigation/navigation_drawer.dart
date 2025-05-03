@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 import '../../resources/help_resources.dart';
 import 'dart:io';
+import '../../resources/privacy_policy.dart';
 
 class AppNavigationDrawer extends StatefulWidget {
   const AppNavigationDrawer({super.key});
@@ -199,14 +200,6 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                 color: Colors.white,
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              user?.mobile ?? 'Update Profile',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -796,64 +789,10 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
   }
   
   void _showPrivacyPolicyDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Privacy Policy'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Text(
-                'My Byaj Book Privacy Policy',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              SizedBox(height: 12),
-              Text(
-                'Last updated: January 2023',
-                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'At My Byaj Book, we take your privacy seriously. This privacy policy describes how we collect, use, and protect your personal information when you use our app.',
-                style: TextStyle(fontSize: 14),
-              ),
-              SizedBox(height: 12),
-              Text(
-                'Information We Collect:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              SizedBox(height: 8),
-              Text(
-                '• Personal information you provide (name, contact details)\n'
-                '• Financial information you input\n'
-                '• App usage data\n'
-                '• Device information',
-                style: TextStyle(fontSize: 14),
-              ),
-              SizedBox(height: 12),
-              Text(
-                'How We Use Your Information:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              SizedBox(height: 8),
-              Text(
-                '• To provide and improve our services\n'
-                '• To personalize your experience\n'
-                '• To communicate with you\n'
-                '• To ensure app security',
-                style: TextStyle(fontSize: 14),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PrivacyPolicy.buildPrivacyPolicyWidget(context),
       ),
     );
   }

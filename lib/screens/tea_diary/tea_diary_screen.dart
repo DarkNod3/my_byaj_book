@@ -108,7 +108,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
           _allCustomers.add(Customer(
             id: data['id'],
             name: data['name'],
-            phoneNumber: data['phoneNumber'] ?? '',
+            phoneNumber: data['phoneNumber'], // No need for default value, it's now optional
             cups: data['cups'],
             teaRate: data['teaRate'],
             coffeeRate: data['coffeeRate'] ?? 0.0,
@@ -444,7 +444,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                         itemBuilder: (context, index) {
                           final customerData = customersWithPending[index];
                           final name = customerData['name'] as String;
-                          final phoneNumber = customerData['phoneNumber'] as String? ?? '';
+                          final phoneNumber = customerData['phoneNumber'] as String?;
                           final pendingAmount = customerData['pendingAmount'] as double;
                           final teaRate = customerData['teaRate'] as double;
                           final coffeeRate = customerData['coffeeRate'] as double? ?? 0.0;
@@ -470,7 +470,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (phoneNumber.isNotEmpty)
+                                if (phoneNumber != null && phoneNumber.isNotEmpty)
                                   Text(
                                     phoneNumber,
                                     style: TextStyle(
@@ -846,12 +846,12 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 11,
-                                      ),
-                                    ),
-                                  ),
-                                  
+                      ),
+                    ),
+                  ),
+                  
                                 const SizedBox(height: 4),
-                                
+                  
                                 // Controls
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -879,8 +879,8 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                           ),
                         ),
                       ),
-                      ),
-                      
+                  ),
+                  
                       const SizedBox(width: 8),
                       
                       // Milk button
@@ -903,7 +903,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                                     Text(
                                       '₹${customer.milkRate.toStringAsFixed(1)}',
                                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                                    ),
+                        ),
                                   ],
                                 ),
                                 
@@ -916,10 +916,10 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                                         color: Colors.white,
                           fontWeight: FontWeight.bold,
                                         fontSize: 11,
-                                      ),
-                                    ),
-                                  ),
-                                  
+                      ),
+                  ),
+                ),
+                
                                 const SizedBox(height: 4),
                                 
                                 // Controls
@@ -933,7 +933,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                                       iconSize: 24,
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(),
-                                    ),
+                            ),
                                     
                                     IconButton(
                                       onPressed: customer.milkRate > 0 ? () => addMilkCup() : null,
@@ -942,14 +942,14 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                                       iconSize: 24,
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(),
-                                    ),
+                            ),
                                   ],
                                 ),
                               ],
                             ),
                           ),
                         ),
-                      ),
+                        ),
                     ],
                   ),
                   
@@ -992,8 +992,8 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
                                 ),
-                              ),
                             ),
+                          ),
                             
                           const SizedBox(height: 8),
                           
@@ -1014,7 +1014,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                                     padding: const EdgeInsets.symmetric(horizontal: 4),
                                   ),
                                 ),
-                              ),
+                        ),
                               
                               SizedBox(
                                 height: 32,
@@ -1034,9 +1034,9 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     ),
                         ],
                       ),
-                    ),
                   ),
-                  
+                ),
+                
                   const SizedBox(height: 16),
                   
                   // Payment and Save buttons
@@ -1071,17 +1071,17 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                   ),
                   
                   const SizedBox(height: 16),
-                ],
-              ),
+            ],
+          ),
             );
           }
         );
-      },
+              },
     ).then((_) {
                 setState(() {
                   _updateTotals();
       });
-    });
+                });
   }
 
   Widget _buildCustomerCard(Customer customer) {
@@ -1204,9 +1204,10 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                               ),
                             ),
                             const SizedBox(height: 2),
-                            if (customer.phoneNumber.isNotEmpty)
+                            // Only show phone if available
+                            if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
                               Text(
-                                customer.phoneNumber,
+                                customer.phoneNumber!,
                                 style: TextStyle(
                                   color: Colors.grey[600],
                                   fontSize: 11,
@@ -1487,93 +1488,92 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
               pw.SizedBox(height: 20),
               
               // Table header
-              pw.Container(
-                color: PdfColors.teal100,
-                padding: const pw.EdgeInsets.all(5),
-                child: pw.Row(
-                  children: [
-                    pw.Expanded(
-                      flex: 3,
-                      child: pw.Text(
-                        'Customer Name',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300),
+                children: [
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(color: PdfColors.teal100),
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(
+                          'Customer Name',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
                       ),
-                    ),
-                    pw.Expanded(
-                      flex: 1,
-                      child: pw.Text(
-                        'Cups',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        textAlign: pw.TextAlign.center,
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(
+                          'Cups',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          textAlign: pw.TextAlign.center,
+                        ),
                       ),
-                    ),
-                    pw.Expanded(
-                      flex: 2,
-                      child: pw.Text(
-                        'Rate',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        textAlign: pw.TextAlign.center,
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(
+                          'Rate',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          textAlign: pw.TextAlign.center,
+      ),
                       ),
-                    ),
-                    pw.Expanded(
-                      flex: 2,
-                      child: pw.Text(
-                        'Total',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        textAlign: pw.TextAlign.center,
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(
+                          'Total',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          textAlign: pw.TextAlign.center,
+                        ),
                       ),
-                    ),
-                    pw.Expanded(
-                      flex: 2,
-                      child: pw.Text(
-                        'Balance',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        textAlign: pw.TextAlign.center,
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(
+                          'Balance',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          textAlign: pw.TextAlign.center,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Table data
-              pw.ListView.builder(
-                itemCount: customers.length,
-                itemBuilder: (context, index) {
-                  final customer = customers[index];
-                  final pendingAmount = customer.totalAmount - customer.paymentsMade;
+                    ],
+                  ),
                   
-                  return pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 5),
-                    color: index % 2 == 0 ? PdfColors.grey100 : PdfColors.white,
-                    child: pw.Row(
+                  // Table data - all customers
+                  ...customers.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    Customer customer = entry.value;
+                    final pendingAmount = customer.totalAmount - customer.paymentsMade;
+                    
+                    return pw.TableRow(
+                      decoration: index % 2 == 0 
+                          ? const pw.BoxDecoration(color: PdfColors.grey100)
+                          : const pw.BoxDecoration(color: PdfColors.white),
                       children: [
-                        pw.Expanded(
-                          flex: 3,
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(5),
                           child: pw.Text(customer.name),
                         ),
-                        pw.Expanded(
-                          flex: 1,
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(5),
                           child: pw.Text(
                             '${customer.cups}',
                             textAlign: pw.TextAlign.center,
                           ),
                         ),
-                        pw.Expanded(
-                          flex: 2,
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(5),
                           child: pw.Text(
                             '${customer.teaRate.toStringAsFixed(1)}',
                             textAlign: pw.TextAlign.center,
                           ),
                         ),
-                        pw.Expanded(
-                          flex: 2,
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(5),
                           child: pw.Text(
                             '${customer.totalAmount.toStringAsFixed(2)}',
                             textAlign: pw.TextAlign.center,
                           ),
                         ),
-                        pw.Expanded(
-                          flex: 2,
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(5),
                           child: pw.Text(
                             '${pendingAmount.toStringAsFixed(2)}',
                             style: pendingAmount > 0
@@ -1583,9 +1583,9 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                           ),
                         ),
                       ],
-                    ),
-                  );
-                },
+                    );
+                  }).toList(),
+                ],
               ),
               
               pw.SizedBox(height: 20),
@@ -1632,6 +1632,95 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     );
   }
 
+  // Replace the improperly placed method with a proper class method at the class level
+  // Add this method properly outside the build method
+  void _showSelectCustomerForPaymentDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Select Customer for Payment',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: TextField(
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
+                        hintText: 'Search customers...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          // Filter customers based on search query
+                          // This is just a placeholder, actual implementation can be added
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: _customersForSelectedDate.isEmpty
+                        ? const Center(
+                            child: Text('No customers for this date'),
+                          )
+                        : ListView.builder(
+                            itemCount: _customersForSelectedDate.length,
+                            itemBuilder: (context, index) {
+                              final customer = _customersForSelectedDate[index];
+                              final pendingAmount = customer.totalAmount - customer.paymentsMade;
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.primaries[index % Colors.primaries.length],
+                                  child: Text(
+                                    customer.name[0].toUpperCase(),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                                title: Text(customer.name),
+                                subtitle: Text('Pending: ₹${pendingAmount.toStringAsFixed(2)}'),
+                                trailing: Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 16,
+                                  color: Colors.grey[400],
+                                ),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  _addPayment(customer);
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Now fix the build method to remove the improperly placed method
   @override
   Widget build(BuildContext context) {
     final String formattedDate = DateFormat('dd MMM yyyy').format(_selectedDate);
@@ -1640,10 +1729,26 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     return Scaffold(
       body: SafeArea(
         child: Column(
+          children: [
+            // Search bar at the top (fixed position)
+            // Remove the search bar
+            
+            // Make everything else scrollable
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  setState(() {
+                    _updateTotals();
+                    _sortCustomers();
+                    _counterAnimationController.forward(from: 0);
+                  });
+                },
+                child: ListView(
+                  padding: EdgeInsets.zero,
         children: [
           // Summary card with fixed width constraints
           Padding(
-              padding: const EdgeInsets.all(12.0),
+                      padding: const EdgeInsets.all(12.0),
             child: Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -1651,7 +1756,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
               ),
               color: Colors.teal[50],
               child: Padding(
-                  padding: const EdgeInsets.all(12.0),
+                          padding: const EdgeInsets.all(12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1659,15 +1764,15 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                          // Date picker with better constraints
+                                  // Date picker with better constraints
                         GestureDetector(
                           onTap: () => _selectDate(context),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.teal.withOpacity(0.3)),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.teal.withOpacity(0.3)),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -1681,7 +1786,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                               const SizedBox(width: 4),
                               const Icon(Icons.calendar_today, size: 15),
                             ],
-                              ),
+                                      ),
                           ),
                         ),
                         
@@ -1689,14 +1794,11 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Refresh button with minimal padding
+                                      // Replace refresh icon with PDF icon
                             IconButton(
-                              icon: const Icon(Icons.refresh, size: 18),
-                              onPressed: () {
-                                _updateTotals();
-                                _counterAnimationController.forward(from: 0);
-                              },
-                              tooltip: 'Refresh totals',
+                                        icon: const Icon(Icons.picture_as_pdf, size: 18),
+                                        onPressed: _showReportOptions,
+                                        tooltip: 'Generate PDF report',
                               constraints: const BoxConstraints(
                                 minWidth: 32,
                                 minHeight: 32,
@@ -1706,7 +1808,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                             const SizedBox(width: 4),
                             // More compact Add Customer button
                             SizedBox(
-                                height: 36,
+                                        height: 36,
                               child: ElevatedButton.icon(
                                 onPressed: _addCustomer,
                                 icon: const Icon(Icons.person_add, size: 14),
@@ -1718,26 +1820,26 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                                   backgroundColor: Colors.teal,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(20),
                                 ),
                               ),
                             ),
-                              ),
-                            ],
+                                      ),
+                                    ],
                             ),
                           ],
                         ),
-                      const SizedBox(height: 16),
+                              const SizedBox(height: 16),
                         
-                      // Statistics with 1x4 grid layout
+                              // Statistics with 1x4 grid layout
                         Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                          _buildStatCard('Total Cups', '$_totalCups', Icons.local_cafe, Colors.teal),
-                          _buildStatCard('Total Sales', '₹${_totalAmount.toStringAsFixed(2)}', Icons.monetization_on, Colors.blue),
-                          _buildStatCard('Collected', '₹${_collectedAmount.toStringAsFixed(2)}', Icons.payments, Colors.green),
-                          _buildStatCard('Remaining', '₹${_remainingAmount.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.orange),
+                                  _buildStatCard('Total Cups', '$_totalCups', Icons.local_cafe, Colors.teal),
+                                  _buildStatCard('Total Sales', '₹${_totalAmount.toStringAsFixed(2)}', Icons.monetization_on, Colors.blue),
+                                  _buildStatCard('Collected', '₹${_collectedAmount.toStringAsFixed(2)}', Icons.payments, Colors.green),
+                                  _buildStatCard('Remaining', '₹${_remainingAmount.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.orange),
                       ],
                     ),
                   ],
@@ -1746,90 +1848,80 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
             ),
           ),
 
-            // Total Market Pending button
+                    // Row with Pending and Payment buttons
           Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: ElevatedButton.icon(
-              onPressed: _showPendingBreakdown,
-                icon: const Icon(Icons.account_balance_wallet, size: 16),
-              label: Row(
-                children: [
-                  const Text('Total Market Pending: '),
-                  Text(
-                    '₹${_totalMarketPending.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange.shade100,
-                foregroundColor: Colors.deepOrange.shade800,
-                  minimumSize: const Size(double.infinity, 40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-          
-            // Search bar and Report button
-          Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 80,
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search customers...',
-                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Row(
+                        children: [
+                          // Total Market Pending button
+                          Expanded(
+                            flex: 3, // Changed from 1 to 3 for a 60% width
+                            child: ElevatedButton.icon(
+                              onPressed: _showPendingBreakdown,
+                              icon: const Icon(Icons.account_balance_wallet, size: 16),
+                              label: Row(
+                                children: [
+                                  const Text('Total Pending: '),
+                                  Text(
+                                    '₹${_totalMarketPending.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange.shade100,
+                                foregroundColor: Colors.deepOrange.shade800,
+                                minimumSize: const Size(0, 40),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ),
+                          
+                          // Add spacing between buttons
+                          const SizedBox(width: 8),
+                          
+                          // Add Payment button - fix alignment by making flex equal to the Pending button
+                          Expanded(
+                            flex: 2, // Changed from 1 to 2 for a 40% width
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                // Show dialog to select a customer first
+                                _showSelectCustomerForPaymentDialog();
+                              },
+                              icon: const Icon(Icons.payments, size: 16),
+                              label: const Text('Add Payment'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green.shade100,
+                                foregroundColor: Colors.green.shade800,
+                                minimumSize: const Size(0, 40),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 20,
-                  child: ElevatedButton(
-                    onPressed: _showReportOptions,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: const Icon(Icons.picture_as_pdf),
-                  ),
-                ),
-              ],
-            ),
           ),
           
           // Updated Customer list heading with filter option
           Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                      const Icon(Icons.people, size: 16, color: Colors.grey),
-                      const SizedBox(width: 4),
+                              const Icon(Icons.people, size: 16, color: Colors.grey),
+                              const SizedBox(width: 4),
                     const Text(
                       'Customer List',
                       style: TextStyle(
-                          fontSize: 14,
+                                  fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1840,7 +1932,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                   onTap: () => _showSortOptions(context),
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(20),
@@ -1850,10 +1942,10 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                       children: [
                         Icon(
                           _getSortIcon(),
-                            size: 14,
+                                    size: 14,
                           color: Colors.grey.shade700,
                         ),
-                          const SizedBox(width: 2),
+                                  const SizedBox(width: 2),
                         Text(
                           _getSortLabel(),
                           style: TextStyle(
@@ -1869,10 +1961,11 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
             ),
           ),
           
-            // Updated Customer list with scrolling
-          Expanded(
-            child: _filteredCustomers.isEmpty 
+                    // Customer list
+                    _filteredCustomers.isEmpty 
                 ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(30.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1899,15 +1992,24 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                             ),
                           ),
                       ],
+                            ),
                     ),
                   )
                 : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
                     itemCount: _filteredCustomers.length,
                     itemBuilder: (context, index) {
                       final customer = _filteredCustomers[index];
-                        return _buildCustomerItem(customer, index);
-                    },
+                            return _buildDismissibleCustomerItem(customer, index);
+                          },
+                        ),
+                    
+                    // Add some bottom padding for better UX
+                    const SizedBox(height: 80),
+                  ],
+                ),
                   ),
           ),
         ],
@@ -1922,6 +2024,85 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     );
   }
   
+  // Dismissible customer item with swipe and long press deletion
+  Widget _buildDismissibleCustomerItem(Customer customer, int index) {
+    return Dismissible(
+      key: Key(customer.id),
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      direction: DismissDirection.startToEnd,
+      confirmDismiss: (direction) async {
+        return await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Delete Customer'),
+              content: Text('Are you sure you want to delete ${customer.name}?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                    // Delete customer logic
+                    setState(() {
+                      _allCustomers.remove(customer);
+                      _customersForSelectedDate.remove(customer);
+                      _filteredCustomers.remove(customer);
+                      _updateTotals();
+                      _saveCustomers(); // Save changes
+                    });
+                  },
+                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            );
+          }
+        );
+      },
+      child: GestureDetector(
+        onLongPress: () {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Delete Customer'),
+                content: Text('Do you want to delete ${customer.name}?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      // Delete customer logic
+                      setState(() {
+                        _allCustomers.remove(customer);
+                        _customersForSelectedDate.remove(customer);
+                        _filteredCustomers.remove(customer);
+                        _updateTotals();
+                        _saveCustomers(); // Save changes
+                      });
+                    },
+                    child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+              );
+            }
+          );
+        },
+        child: _buildCustomerItem(customer, index),
+      ),
+    );
+  }
+
   // Helper method to build stat cards
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Expanded(
@@ -2135,7 +2316,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                   ),
                 ],
               ),
-              if (customer.phoneNumber.isNotEmpty)
+              if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4.0),
                   child: Text(
@@ -2764,7 +2945,7 @@ class CustomerEntry {
 class Customer {
   final String id;
   final String name;
-  final String phoneNumber;
+  final String? phoneNumber; // Make optional
   int cups;
   final double teaRate;
   final double coffeeRate;
@@ -2778,7 +2959,7 @@ class Customer {
   Customer({
     required this.id,
     required this.name,
-    this.phoneNumber = '',
+    this.phoneNumber, // Remove default value to make fully optional
     required this.cups,
     required this.teaRate,
     this.coffeeRate = 0.0,

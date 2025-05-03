@@ -6,6 +6,7 @@ import '../../providers/milk_diary/daily_entry_provider.dart';
 import '../../constants/app_theme.dart';
 import 'milk_seller_dialog.dart';
 import '../../widgets/dialogs/confirm_dialog.dart';
+import 'seller_profile_screen.dart';
 
 class MilkSellerScreen extends StatefulWidget {
   const MilkSellerScreen({Key? key}) : super(key: key);
@@ -74,105 +75,108 @@ class _MilkSellerScreenState extends State<MilkSellerScreen> {
   Widget _buildSellerCard(MilkSeller seller) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        seller.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+      child: InkWell(
+        onTap: () => _showSellerProfile(seller),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          seller.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (seller.mobile != null && seller.mobile!.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            seller.mobile!,
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 14,
+                        if (seller.mobile != null && seller.mobile!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              seller.mobile!,
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
-                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: seller.isActive ? Colors.green.shade100 : Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      seller.isActive ? 'Active' : 'Inactive',
+                      style: TextStyle(
+                        color: seller.isActive ? Colors.green.shade800 : Colors.red.shade800,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (seller.address != null && seller.address!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    seller.address!,
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                ),
+              const Divider(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Default Rate: ₹${seller.defaultRate.toStringAsFixed(2)}/L',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        onPressed: () => _showAddEditSellerDialog(seller: seller),
+                        tooltip: 'Edit Seller',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, size: 20),
+                        onPressed: () => _confirmDeleteSeller(seller),
+                        tooltip: 'Delete Seller',
+                      ),
                     ],
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: seller.isActive ? Colors.green.shade100 : Colors.red.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    seller.isActive ? 'Active' : 'Inactive',
-                    style: TextStyle(
-                      color: seller.isActive ? Colors.green.shade800 : Colors.red.shade800,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (seller.address != null && seller.address!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  seller.address!,
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
+                ],
               ),
-            const Divider(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Default Rate: ₹${seller.defaultRate.toStringAsFixed(2)}/L',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit, size: 20),
-                      onPressed: () => _showAddEditSellerDialog(seller: seller),
-                      tooltip: 'Edit Seller',
+              Consumer<DailyEntryProvider>(
+                builder: (context, entryProvider, child) {
+                  final totalEntries = entryProvider.getEntriesForSeller(seller.id).length;
+                  return Text(
+                    'Total Entries: $totalEntries',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade600,
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.delete, size: 20),
-                      onPressed: () => _confirmDeleteSeller(seller),
-                      tooltip: 'Delete Seller',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            Consumer<DailyEntryProvider>(
-              builder: (context, entryProvider, child) {
-                final totalEntries = entryProvider.getEntriesForSeller(seller.id).length;
-                return Text(
-                  'Total Entries: $totalEntries',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade600,
-                  ),
-                );
-              },
-            ),
-          ],
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -273,6 +277,15 @@ class _MilkSellerScreenState extends State<MilkSellerScreen> {
         content: Text(message),
         backgroundColor: isError ? Colors.red : null,
         duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showSellerProfile(MilkSeller seller) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SellerProfileScreen(seller: seller),
       ),
     );
   }

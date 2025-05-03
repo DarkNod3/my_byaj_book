@@ -5,13 +5,13 @@ import 'dart:convert';
 class User {
   final String id;
   String name;
-  String mobile;
+  String? mobile;
   String? profileImagePath;
 
   User({
     required this.id,
     required this.name,
-    required this.mobile,
+    this.mobile = '',
     this.profileImagePath,
   });
 
@@ -19,7 +19,7 @@ class User {
     return {
       'id': id,
       'name': name,
-      'mobile': mobile,
+      'mobile': mobile ?? '',
       'profileImagePath': profileImagePath,
     };
   }
@@ -28,7 +28,7 @@ class User {
     return User(
       id: json['id'],
       name: json['name'],
-      mobile: json['mobile'],
+      mobile: json['mobile'] ?? '',
       profileImagePath: json['profileImagePath'],
     );
   }
@@ -75,8 +75,8 @@ class UserProvider with ChangeNotifier {
 
   // Register new user
   Future<void> registerUser({
-    required String mobile,
     required String name,
+    String? mobile = '',
   }) async {
     try {
       // For demo, just create a new user
@@ -127,7 +127,9 @@ class UserProvider with ChangeNotifier {
       if (_user != null) {
         await prefs.setString(_userIdKey, _user!.id);
         await prefs.setString(_userNameKey, _user!.name);
-        await prefs.setString(_userMobileKey, _user!.mobile);
+        if (_user!.mobile != null && _user!.mobile!.isNotEmpty) {
+          await prefs.setString(_userMobileKey, _user!.mobile!);
+        }
         if (_user!.profileImagePath != null) {
           await prefs.setString(_userProfileImageKey, _user!.profileImagePath!);
         }
