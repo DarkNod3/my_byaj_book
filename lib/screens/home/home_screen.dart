@@ -798,7 +798,9 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   late TabController _tabController;
   bool _isWithInterest = false;
   String _searchQuery = '';
-  String _interestViewMode = 'all'; // 'all', 'borrower', 'lender'
+  String _interestViewMode = 'all'; // 'all', 'get', 'pay'
+  String _filterMode = 'All'; // 'All', 'You received', 'You paid'
+  String _sortMode = 'Recent'; // 'Recent', 'High to Low', 'Low to High', 'By Name'
   String? _qrCodePath; // Add this variable for QR code path
   
   // Interest calculation variables
@@ -1064,34 +1066,70 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       return _withInterestContacts;
     } else {
       return _withInterestContacts.where((contact) => 
-        contact['type'] == _interestViewMode).toList();
+        _interestViewMode == 'get' ? contact['isGet'] == true : 
+        _interestViewMode == 'pay' ? contact['isGet'] == false : true).toList();
     }
   }
 
   List<Map<String, dynamic>> get _filteredContacts {
+    // First get contacts from the right tab
     final contacts = _isWithInterest 
-        ? _filteredInterestContacts 
+        ? _withInterestContacts 
         : _withoutInterestContacts;
     
-    // Create a copy for sorting
-    final sortedContacts = List<Map<String, dynamic>>.from(contacts);
+    // Apply filtering
+    List<Map<String, dynamic>> filtered = [];
     
-    // Sort by daysAgo (recent first)
-    sortedContacts.sort((a, b) {
-      final daysAgoA = a['daysAgo'] as int? ?? 0;
-      final daysAgoB = b['daysAgo'] as int? ?? 0;
-      return daysAgoA.compareTo(daysAgoB); // Ascending order (0 = today, most recent first)
-    });
-        
-    if (_searchQuery.isEmpty) {
-      return sortedContacts;
+    if (_isWithInterest) {
+      // Apply 'With Interest' tab filtering
+      if (_filterMode == 'Borrower') {
+        filtered = contacts.where((contact) => contact['type'] == 'borrower').toList();
+      } else if (_filterMode == 'Lender') {
+        filtered = contacts.where((contact) => contact['type'] == 'lender').toList();
+      } else {
+        // 'All' filter - include everything
+        filtered = List.from(contacts);
+      }
+    } else {
+      // Apply 'Without Interest' tab filtering
+      if (_filterMode == 'You received') {
+        filtered = contacts.where((contact) => contact['isGet'] == true).toList();
+      } else if (_filterMode == 'You paid') {
+        filtered = contacts.where((contact) => contact['isGet'] == false).toList();
+      } else {
+        // 'All' filter - include everything
+        filtered = List.from(contacts);
+      }
     }
-    return sortedContacts
-        .where((contact) => contact['name']
-            .toString()
-            .toLowerCase()
-            .contains(_searchQuery.toLowerCase()))
-        .toList();
+    
+    // Apply search filtering
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((contact) => 
+        contact['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
+      ).toList();
+    }
+    
+    // Apply sorting
+    _applySorting(filtered);
+    
+    return filtered;
+  }
+  
+  void _applySorting(List<Map<String, dynamic>> contacts) {
+    switch (_sortMode) {
+      case 'Recent':
+        contacts.sort((a, b) => (a['daysAgo'] as int).compareTo(b['daysAgo'] as int));
+        break;
+      case 'High to Low':
+        contacts.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+        break;
+      case 'Low to High':
+        contacts.sort((a, b) => (a['amount'] as double).compareTo(b['amount'] as double));
+        break;
+      case 'By Name':
+        contacts.sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
+        break;
+    }
   }
 
   @override
@@ -1110,7 +1148,9 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       children: [
         _buildTabBar(),
         _buildBalanceSummary(),
-        if (_isWithInterest) _buildInterestTypeSelector(),
+        if (_isWithInterest) 
+          // Remove the interest type selector for With Interest tab
+          Container(),
         _buildSearchBar(),
         Expanded(
           child: _buildContactsList(),
@@ -1152,99 +1192,124 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                 ),
               ),
               const Spacer(),
-              Icon(
-                Icons.info_outline,
-                size: 18,
-                color: Colors.grey.shade600,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Select a category',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade600,
+              GestureDetector(
+                onTap: () {
+                  _showFilterOptions(context);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.filter_list,
+                        size: 14,
+                        color: Colors.grey.shade700,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'More Filters',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Row(
-              children: [
-                _buildInterestTypeOption('All', 'all'),
-                _buildInterestTypeOption('Borrowers', 'borrower'),
-                _buildInterestTypeOption('Lenders', 'lender'),
-              ],
-            ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildInterestTypeChip('All', 'all'),
+              _buildInterestTypeChip('You received', 'get'),
+              _buildInterestTypeChip('You paid', 'pay'),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInterestTypeOption(String label, String value) {
-    final isSelected = _interestViewMode == value;
+  Widget _buildInterestTypeChip(String label, String value) {
+    bool isSelected = false;
     
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _interestViewMode = value;
-          });
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? AppTheme.primaryColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: isSelected ? [
-              BoxShadow(
-                color: AppTheme.primaryColor.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ] : null,
+    if (value == 'all') {
+      isSelected = _interestViewMode == 'all';
+    } else if (value == 'get') {
+      isSelected = _interestViewMode == 'get';
+    } else if (value == 'pay') {
+      isSelected = _interestViewMode == 'pay';
+    }
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          // Simply update the filter mode - the getter will handle filtering
+          if (value == 'all') {
+            _interestViewMode = 'all';
+          } else if (value == 'get') {
+            _interestViewMode = 'get';
+          } else if (value == 'pay') {
+            _interestViewMode = 'pay';
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryColor : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
           ),
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isSelected) ...[
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    value == 'all' ? Icons.list_alt :
-                    value == 'borrower' ? Icons.person_outline :
-                    Icons.account_balance,
-                    size: 14,
-                    color: Colors.white,
-                  ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected)
+              Container(
+                padding: const EdgeInsets.all(4),
+                margin: const EdgeInsets.only(right: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 6),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : AppTheme.secondaryTextColor,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  fontSize: 14,
+                child: Icon(
+                  value == 'all' ? Icons.list_alt :
+                  value == 'get' ? Icons.arrow_downward :
+                  Icons.arrow_upward,
+                  size: 12,
+                  color: Colors.white,
                 ),
               ),
-            ],
-          ),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : AppTheme.secondaryTextColor,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+  
+  // Helper methods for filtering - remove unused methods
+  // All filtering is now handled by the _filteredContacts getter
+  
+  // Helper methods for sorting - replaced by _applySorting method
+  // All sorting is now handled by the _applySorting method
 
   Widget _buildTabBar() {
     return Container(
@@ -1567,146 +1632,258 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   }
   
   void _showFilterOptions(BuildContext context) {
+    // Use the current filter and sort modes as defaults
+    String selectedFilter = _filterMode;
+    String selectedSort = _sortMode;
+    
     showModalBottomSheet(
       context: context,
-      shape: RoundedRectangleBorder(
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Sort & Filter',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textColor,
-              ),
-            ),
-            const SizedBox(height: 24),
-            _buildFilterOption(
-              title: 'Sort by Name',
-              icon: Icons.sort_by_alpha,
-              onTap: () {
-                Navigator.pop(context);
-                setState(() {
-                  // Implement sort by name
-                  _withoutInterestContacts.sort((a, b) => 
-                    a['name'].toString().compareTo(b['name'].toString()));
-                  _withInterestContacts.sort((a, b) => 
-                    a['name'].toString().compareTo(b['name'].toString()));
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Sorted by name'),
-                    duration: Duration(seconds: 2),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateModal) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                );
-              },
-            ),
-            _buildFilterOption(
-              title: 'Sort by Amount (High to Low)',
-              icon: Icons.arrow_downward,
-              onTap: () {
-                Navigator.pop(context);
-                setState(() {
-                  // Implement sort by amount high to low
-                  _withoutInterestContacts.sort((a, b) => 
-                    b['amount'].compareTo(a['amount']));
-                  _withInterestContacts.sort((a, b) => 
-                    b['amount'].compareTo(a['amount']));
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Sorted by amount (High to Low)'),
-                    duration: Duration(seconds: 2),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Filter & Sort',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textColor,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setStateModal(() {
+                          selectedFilter = 'All';
+                          selectedSort = 'Recent';
+                        });
+                      },
+                      child: const Text('Reset'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Filter by',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textColor,
                   ),
-                );
-              },
-            ),
-            _buildFilterOption(
-              title: 'Sort by Amount (Low to High)',
-              icon: Icons.arrow_upward,
-              onTap: () {
-                Navigator.pop(context);
-                setState(() {
-                  // Implement sort by amount low to high
-                  _withoutInterestContacts.sort((a, b) => 
-                    a['amount'].compareTo(b['amount']));
-                  _withInterestContacts.sort((a, b) => 
-                    a['amount'].compareTo(b['amount']));
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Sorted by amount (Low to High)'),
-                    duration: Duration(seconds: 2),
+                ),
+                const SizedBox(height: 12),
+                
+                // Different filter options based on current tab
+                if (_isWithInterest) ...[
+                  // With Interest filter options - Borrower/Lender
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildFilterChip(
+                        label: 'All',
+                        isSelected: selectedFilter == 'All',
+                        onSelected: () => setStateModal(() => selectedFilter = 'All'),
+                      ),
+                      _buildFilterChip(
+                        label: 'Borrower',
+                        isSelected: selectedFilter == 'Borrower',
+                        onSelected: () => setStateModal(() => selectedFilter = 'Borrower'),
+                      ),
+                      _buildFilterChip(
+                        label: 'Lender',
+                        isSelected: selectedFilter == 'Lender',
+                        onSelected: () => setStateModal(() => selectedFilter = 'Lender'),
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
-            _buildFilterOption(
-              title: 'Sort by Latest Activity',
-              icon: Icons.access_time,
-              onTap: () {
-                Navigator.pop(context);
-                setState(() {
-                  // Implement sort by date
-                  _withoutInterestContacts.sort((a, b) => 
-                    a['daysAgo'].compareTo(b['daysAgo']));
-                  _withInterestContacts.sort((a, b) => 
-                    a['daysAgo'].compareTo(b['daysAgo']));
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Sorted by latest activity'),
-                    duration: Duration(seconds: 2),
+                ] else ...[
+                  // Without Interest filter options - You received/You paid
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildFilterChip(
+                        label: 'All',
+                        isSelected: selectedFilter == 'All',
+                        onSelected: () => setStateModal(() => selectedFilter = 'All'),
+                      ),
+                      _buildFilterChip(
+                        label: 'You received',
+                        isSelected: selectedFilter == 'You received',
+                        onSelected: () => setStateModal(() => selectedFilter = 'You received'),
+                      ),
+                      _buildFilterChip(
+                        label: 'You paid',
+                        isSelected: selectedFilter == 'You paid',
+                        onSelected: () => setStateModal(() => selectedFilter = 'You paid'),
+                      ),
+                    ],
                   ),
-                );
-              },
+                ],
+
+                const SizedBox(height: 24),
+                const Text(
+                  'Sort by',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                
+                // Simplified sort options
+                _buildSortOption(
+                  title: 'Recent',
+                  isSelected: selectedSort == 'Recent',
+                  onTap: () => setStateModal(() => selectedSort = 'Recent'),
+                ),
+                _buildSortOption(
+                  title: 'High to Low',
+                  isSelected: selectedSort == 'High to Low',
+                  onTap: () => setStateModal(() => selectedSort = 'High to Low'),
+                ),
+                _buildSortOption(
+                  title: 'Low to High',
+                  isSelected: selectedSort == 'Low to High',
+                  onTap: () => setStateModal(() => selectedSort = 'Low to High'),
+                ),
+                _buildSortOption(
+                  title: 'By Name',
+                  isSelected: selectedSort == 'By Name',
+                  onTap: () => setStateModal(() => selectedSort = 'By Name'),
+                ),
+                
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      
+                      // Apply the selected filters and sorting by setting state variables
+                      setState(() {
+                        _filterMode = selectedFilter;
+                        _sortMode = selectedSort;
+                      });
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Applied: $selectedFilter, $selectedSort'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Apply Filters'),
+                  ),
+                ),
+              ],
             ),
-          ],
+          );
+        },
+      ),
+    );
+  }
+  
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onSelected,
+  }) {
+    return GestureDetector(
+      onTap: onSelected,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryColor : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 13,
+          ),
         ),
       ),
     );
   }
   
-  Widget _buildFilterOption({
+  Widget _buildSortOption({
     required String title,
-    required IconData icon,
+    required bool isSelected,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: AppTheme.primaryColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          icon,
-          color: AppTheme.primaryColor,
-          size: 20,
-        ),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
+    return InkWell(
       onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? AppTheme.primaryColor : Colors.black87,
+                ),
+              ),
+            ),
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? AppTheme.primaryColor : Colors.grey.shade400,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                ? Center(
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  )
+                : null,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2100,7 +2277,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                       _buildInterestBreakdownItem(
                         label: 'Interest Due',
                         amount: totalInterestDue,
-                        iconData: Icons.monetization_on,
+                        iconData: Icons.savings,
                         color: Colors.orange,
                       ),
                       Container(

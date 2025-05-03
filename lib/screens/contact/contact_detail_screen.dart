@@ -617,18 +617,37 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       (relationshipType == 'lender' && type == 'got')       // Lenders don't pay interest
     );
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        builder: (context, setState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom
+          ),
           child: SingleChildScrollView(
             child: Container(
-              padding: const EdgeInsets.all(16),
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Bottom sheet drag handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
                   // Header
                   Row(
                     children: [
@@ -698,7 +717,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         _buildSelectionButton(
                           title: 'Interest',
                           isSelected: !isPrincipalAmount,
-                          icon: Icons.monetization_on,
+                          icon: Icons.savings,
                           color: Colors.amber.shade700,
                           onTap: () {
                             setState(() {
@@ -894,7 +913,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                             ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   
                   // Action Buttons
                   Row(
@@ -903,13 +922,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         child: TextButton(
                           onPressed: () => Navigator.pop(context),
                           style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             foregroundColor: Colors.grey[700],
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: const Text('Cancel'),
+                          child: const Text('Cancel', style: TextStyle(fontSize: 16)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -978,7 +997,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: type == 'gave' ? Colors.red : Colors.green,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -987,7 +1006,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                           child: const Text(
                             'Save',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1332,7 +1351,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                 _buildInterestSummaryItem(
                   title: 'Interest Due',
                   amount: interestDue,
-                  icon: Icons.monetization_on,
+                  icon: Icons.savings,
                   color: Colors.amber.shade800,
                 ),
                 _buildInterestSummaryItem(
@@ -2547,7 +2566,7 @@ ${_getAppUserName()}
                         _buildSelectionButton(
                           title: 'Interest',
                           isSelected: !isPrincipalAmount,
-                          icon: Icons.monetization_on,
+                          icon: Icons.savings,
                           color: Colors.amber.shade700,
                           onTap: () {
                             setState(() {
