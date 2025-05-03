@@ -651,8 +651,7 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                       _buildPdfButton(),
                       const SizedBox(height: 16),
                       _buildPaymentSchedule(),
-                      const SizedBox(height: 16),
-                      _buildBreakdownCard(),
+                      // Loan breakdown section removed
                     ],
                   ),
                 ),
@@ -709,8 +708,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                       contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                     ),
                     onChanged: (value) {
-                      // Ensure the value is at least 1
-                      if (value.isEmpty || (int.tryParse(value) ?? 0) < 1) {
+                      // Allow any value, just prevent "0" as the only digit
+                      if (value == "0") {
                         _loanAmountController.text = '1';
                       }
                       _calculateEMI();
@@ -767,7 +766,13 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                       prefixIcon: Icon(Icons.calendar_today),
                       contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                     ),
-                    onChanged: (_) => _calculateEMI(),
+                    onChanged: (value) {
+                      // Allow any value, just prevent "0" as the only digit
+                      if (value == "0") {
+                        _loanTenureController.text = '1';
+                      }
+                      _calculateEMI();
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1306,8 +1311,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                         contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                       ),
                       onChanged: (value) {
-                        // Ensure the value is at least 1
-                        if (value.isEmpty || (int.tryParse(value) ?? 0) < 1) {
+                        // Allow any value, just prevent "0" as the only digit
+                        if (value == "0") {
                           _reverseLoanAmountController.text = '1';
                         }
                         _checkReverseInputs();
@@ -1327,8 +1332,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                         contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                       ),
                       onChanged: (value) {
-                        // Ensure the value is at least 1
-                        if (value.isEmpty || (int.tryParse(value) ?? 0) < 1) {
+                        // Allow any value, just prevent "0" as the only digit
+                        if (value == "0") {
                           _reverseEmiAmountController.text = '1';
                         }
                         _checkReverseInputs();
@@ -1351,8 +1356,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                               contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                             ),
                             onChanged: (value) {
-                              // Ensure the value is at least 1
-                              if (value.isEmpty || (int.tryParse(value) ?? 0) < 1) {
+                              // Allow any value, just prevent "0" as the only digit
+                              if (value == "0") {
                                 _reverseTenureController.text = '1';
                               }
                               _checkReverseInputs();

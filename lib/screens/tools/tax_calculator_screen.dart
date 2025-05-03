@@ -209,9 +209,9 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
   Future<void> _generatePDF() async {
     final pdf = pw.Document();
     
-    // Create a custom formatter for the PDF report to ensure proper Rupee symbol
+    // Create a custom formatter for the PDF report without the Rupee symbol
     String formatCurrencyForPdf(double amount) {
-      return '₹${amount.toStringAsFixed(0).replaceAllMapped(
+      return '${amount.toStringAsFixed(0).replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
         (Match m) => '${m[1]},'
       )}';

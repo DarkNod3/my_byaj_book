@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'dart:io';
 
 import '../../models/work_diary/client.dart';
 import '../../models/work_diary/work_entry.dart';
@@ -122,10 +126,10 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
 
   void _addWorkEntry() async {
     DateTime selectedDate = DateTime.now();
-    String selectedDurationType = 'Hourly';
+    String selectedDurationType = 'Full Day';
     final TextEditingController hoursController = TextEditingController(text: '1');
     final TextEditingController amountController = TextEditingController(
-      text: _client.hourlyRate > 0 ? _client.hourlyRate.toString() : '',
+      text: _client.fullDayRate > 0 ? _client.fullDayRate.toString() : '',
     );
     final TextEditingController descriptionController = TextEditingController();
 
@@ -142,18 +146,51 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       amountController.text = amount.toString();
     }
 
-    final result = await showDialog(
+    final result = await showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return AlertDialog(
-              title: Text('Add Work Entry'),
-              content: SingleChildScrollView(
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                top: 16,
+                left: 16,
+                right: 16,
+              ),
+              child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Handle bar at top
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Header
+                    Text(
+                      'Add Work Entry',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Date selector
                     GestureDetector(
                       onTap: () async {
                         final DateTime? pickedDate = await showDatePicker(
@@ -168,8 +205,12 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                           });
                         }
                       },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                         child: Row(
                           children: [
                             Icon(Icons.calendar_today, size: 18),
@@ -182,80 +223,149 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 12),
-                    Text('Duration Type', style: TextStyle(fontWeight: FontWeight.bold)),
-                    DropdownButton<String>(
-                      isExpanded: true,
-                      value: selectedDurationType,
-                      onChanged: (String? newValue) {
-                        if (newValue != null) {
-                          setState(() {
-                            selectedDurationType = newValue;
-                            updateAmount();
-                          });
-                        }
-                      },
-                      items: ['Hourly', 'Half Day', 'Full Day']
-                          .map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
+                    SizedBox(height: 20),
+                    
+                    // Duration Type
+                    Text('Duration Type', 
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: selectedDurationType,
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                selectedDurationType = newValue;
+                                updateAmount();
+                              });
+                            }
+                          },
+                          items: ['Hourly', 'Half Day', 'Full Day']
+                              .map<DropdownMenuItem<String>>((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    
+                    // Hours field (if hourly)
                     if (selectedDurationType == 'Hourly')
                       TextField(
                         controller: hoursController,
-                        decoration: InputDecoration(labelText: 'Hours'),
+                        decoration: InputDecoration(
+                          labelText: 'Hours',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.timelapse),
+                        ),
                         keyboardType: TextInputType.number,
                         onChanged: (_) => updateAmount(),
                       ),
+                    if (selectedDurationType == 'Hourly')
+                      SizedBox(height: 16),
+                      
+                    // Amount field
                     TextField(
                       controller: amountController,
-                      decoration: InputDecoration(labelText: 'Amount (₹)'),
+                      decoration: InputDecoration(
+                        labelText: 'Amount (₹)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.currency_rupee),
+                      ),
                       keyboardType: TextInputType.number,
                     ),
-                    SizedBox(height: 8),
+                    SizedBox(height: 16),
+                    
+                    // Description field
                     TextField(
                       controller: descriptionController,
                       decoration: InputDecoration(
                         labelText: 'Description (optional)',
                         hintText: 'What was the work for?',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.description),
                       ),
                       maxLines: 2,
                     ),
+                    SizedBox(height: 24),
+                    
+                    // Action buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text('Cancel'),
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              final amount = double.tryParse(amountController.text) ?? 0.0;
+                              if (amount <= 0) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Amount must be greater than zero')),
+                                );
+                                return;
+                              }
+                              
+                              // Check for duplicate full day entries on the same day
+                              if (selectedDurationType == 'Full Day') {
+                                final sameDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+                                final existingFullDayEntries = _client.workEntries.where((entry) => 
+                                  entry.durationType == 'Full Day' && 
+                                  DateFormat('yyyy-MM-dd').format(entry.date) == sameDate
+                                ).toList();
+                                
+                                if (existingFullDayEntries.isNotEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('A full day entry already exists for this date')),
+                                  );
+                                  return;
+                                }
+                              }
+                              
+                              Navigator.of(context).pop({
+                                'date': selectedDate,
+                                'durationType': selectedDurationType,
+                                'hours': selectedDurationType == 'Hourly'
+                                    ? double.tryParse(hoursController.text) ?? 1.0
+                                    : null,
+                                'amount': amount,
+                                'description': descriptionController.text.trim(),
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text('Add'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    final amount = double.tryParse(amountController.text) ?? 0.0;
-                    if (amount <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Amount must be greater than zero')),
-                      );
-                      return;
-                    }
-                    
-                    Navigator.of(context).pop({
-                      'date': selectedDate,
-                      'durationType': selectedDurationType,
-                      'hours': selectedDurationType == 'Hourly'
-                          ? double.tryParse(hoursController.text) ?? 1.0
-                          : null,
-                      'amount': amount,
-                      'description': descriptionController.text.trim(),
-                    });
-                  },
-                  child: Text('Add'),
-                ),
-              ],
             );
           },
         );
@@ -284,6 +394,39 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   }
 
   void _deleteWorkEntry(String entryId) {
+    // For the swipe action, the confirmation is handled by the Dismissible widget
+    // For the long press, we need to show the confirmation dialog
+    final updatedEntries = List<WorkEntry>.from(_client.workEntries)
+      ..removeWhere((entry) => entry.id == entryId);
+    final updatedClient = _client.copyWith(workEntries: updatedEntries);
+
+    setState(() {
+      _client = updatedClient;
+    });
+
+    widget.updateClient(updatedClient);
+    
+    // Show a snackbar to confirm deletion
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Work entry deleted'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () {
+            // Restore the deleted entry
+            setState(() {
+              _client = widget.client;
+            });
+            widget.updateClient(widget.client);
+          },
+        ),
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // New method for confirming deletion via long press
+  void _confirmAndDeleteWorkEntry(String entryId) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -296,26 +439,15 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           ),
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop(true);
+              Navigator.of(context).pop();
+              _deleteWorkEntry(entryId);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: Text('Delete'),
           ),
         ],
       ),
-    ).then((confirmed) {
-      if (confirmed == true) {
-        final updatedEntries = List<WorkEntry>.from(_client.workEntries)
-          ..removeWhere((entry) => entry.id == entryId);
-        final updatedClient = _client.copyWith(workEntries: updatedEntries);
-
-        setState(() {
-          _client = updatedClient;
-        });
-
-        widget.updateClient(updatedClient);
-      }
-    });
+    );
   }
 
   void _confirmDeleteClient() {
@@ -346,6 +478,255 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         Navigator.of(context).pop();
       }
     });
+  }
+
+  Future<void> _generateClientPDF(Client client) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Generating PDF report...'),
+            ],
+          ),
+        ),
+      );
+
+      // Import paths and services
+      final path = await getExternalStorageDirectory();
+      final String formattedDate = DateFormat('dd-MM-yyyy_HH-mm').format(DateTime.now());
+      final fileName = 'client_report_${client.name.replaceAll(' ', '_')}_$formattedDate.pdf';
+      
+      // Format currency without rupee symbol for PDF
+      String formatCurrencyForPdf(double amount) {
+        return NumberFormat.currency(locale: 'en_IN', symbol: '', decimalDigits: 0).format(amount);
+      }
+
+      // Use the PDF service or generate PDF directly
+      
+      final pdf = pw.Document();
+      
+      // Add client summary page
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header
+                pw.Container(
+                  padding: pw.EdgeInsets.all(16),
+                  color: PdfColors.blue700,
+                  child: pw.Row(
+                    children: [
+                      pw.Container(
+                        width: 50,
+                        height: 50,
+                        decoration: pw.BoxDecoration(
+                          color: PdfColors.white,
+                          shape: pw.BoxShape.circle,
+                        ),
+                        alignment: pw.Alignment.center,
+                        child: pw.Text(
+                          client.initials,
+                          style: pw.TextStyle(
+                            fontSize: 20,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue700,
+                          ),
+                        ),
+                      ),
+                      pw.SizedBox(width: 16),
+                      pw.Text(
+                        client.name,
+                        style: pw.TextStyle(
+                          fontSize: 20,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                pw.SizedBox(height: 20),
+                
+                // Work Statistics
+                pw.Text(
+                  'Work Statistics',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Hours: ${client.hoursCount}'),
+                    pw.Text('Half Days: ${client.halfDaysCount}'),
+                    pw.Text('Full Days: ${client.fullDaysCount}'),
+                  ],
+                ),
+                
+                pw.SizedBox(height: 20),
+                
+                // Payment Summary
+                pw.Text(
+                  'Payment Summary',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Total Amount:'),
+                    pw.Text(formatCurrencyForPdf(client.totalEarnings)),
+                  ],
+                ),
+                pw.SizedBox(height: 5),
+                
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Amount Received:'),
+                    pw.Text(
+                      formatCurrencyForPdf(client.workEntries
+                          .where((entry) => 
+                            entry.description.toLowerCase().contains('received') || 
+                            entry.description.toLowerCase().contains('payment'))
+                          .fold(0.0, (sum, entry) => sum + entry.amount)),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 5),
+                
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Amount Due:'),
+                    pw.Text(
+                      formatCurrencyForPdf(client.totalEarnings - client.workEntries
+                          .where((entry) => 
+                            entry.description.toLowerCase().contains('received') || 
+                            entry.description.toLowerCase().contains('payment'))
+                          .fold(0.0, (sum, entry) => sum + entry.amount)),
+                    ),
+                  ],
+                ),
+                
+                pw.SizedBox(height: 30),
+                
+                // Work History
+                pw.Text(
+                  'Work History',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                
+                // Table header
+                pw.Container(
+                  color: PdfColors.grey200,
+                  padding: pw.EdgeInsets.all(8),
+                  child: pw.Row(
+                    children: [
+                      pw.Expanded(flex: 2, child: pw.Text('Date')),
+                      pw.Expanded(flex: 2, child: pw.Text('Type')),
+                      pw.Expanded(flex: 3, child: pw.Text('Description')),
+                      pw.Expanded(flex: 2, child: pw.Text('Amount')),
+                    ],
+                  ),
+                ),
+                
+                // Table content
+                pw.Column(
+                  children: () {
+                    final sortedEntries = List<WorkEntry>.from(client.workEntries);
+                    sortedEntries.sort((a, b) => b.date.compareTo(a.date));
+                    return sortedEntries.map((entry) {
+                        String typeText = entry.durationType;
+                        if (entry.durationType == 'Hourly' && entry.hours != null) {
+                          typeText = '${entry.hours} hour${entry.hours == 1 ? '' : 's'}';
+                        }
+                        
+                        return pw.Container(
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border(
+                              bottom: pw.BorderSide(color: PdfColors.grey300),
+                            ),
+                          ),
+                          padding: pw.EdgeInsets.all(8),
+                          child: pw.Row(
+                            children: [
+                              pw.Expanded(
+                                flex: 2, 
+                                child: pw.Text(DateFormat('dd MMM yyyy').format(entry.date)),
+                              ),
+                              pw.Expanded(
+                                flex: 2,
+                                child: pw.Text(typeText),
+                              ),
+                              pw.Expanded(
+                                flex: 3,
+                                child: pw.Text(entry.description),
+                              ),
+                              pw.Expanded(
+                                flex: 2,
+                                child: pw.Text(formatCurrencyForPdf(entry.amount)),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList();
+                    }(),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+      
+      // Save the PDF
+      final file = File('${path!.path}/$fileName');
+      await file.writeAsBytes(await pdf.save());
+
+      // Close the loading dialog
+      Navigator.of(context, rootNavigator: true).pop();
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('PDF report saved to ${file.path}'),
+          action: SnackBarAction(
+            label: 'Open',
+            onPressed: () async {
+              // Open the PDF file using a PDF viewer
+              // You'll need to implement this based on the platform
+              // For example, using open_file or url_launcher package
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      // Handle errors
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate PDF: $e')),
+      );
+    }
   }
 
   @override
@@ -391,178 +772,261 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             ),
           ],
         ),
-        body: Column(
-          children: [
-            Card(
-              margin: EdgeInsets.all(16),
-              elevation: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              // Client Summary Card
+              Card(
+                margin: EdgeInsets.all(16),
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: _client.avatarColor,
-                          radius: 30,
-                          child: Text(
-                            _client.initials,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+
+                    
+                    // Main Content Section
+                    Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          
+                          // Work Stats Section with PDF button
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                _client.name,
+                                'Work Statistics',
                                 style: TextStyle(
-                                  fontSize: 20,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
                                 ),
                               ),
-                              if (_client.phoneNumber.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4.0),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.phone, size: 16, color: Colors.grey[600]),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        _client.phoneNumber,
-                                        style: TextStyle(color: Colors.grey[700]),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                              IconButton(
+                                icon: Icon(Icons.picture_as_pdf, color: Colors.blue),
+                                tooltip: 'Download PDF Report',
+                                iconSize: 20,
+                                constraints: BoxConstraints.tightFor(width: 30, height: 30),
+                                padding: EdgeInsets.zero,
+                                onPressed: () => _generateClientPDF(_client),
+                              ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 16),
-                    Divider(),
-                    SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildRateInfo(
-                          icon: Icons.access_time,
-                          label: 'Hourly',
-                          rate: _client.hourlyRate > 0
-                              ? currencyFormat.format(_client.hourlyRate)
-                              : 'Not Set',
-                        ),
-                        _buildRateInfo(
-                          icon: Icons.more_time,
-                          label: 'Half Day',
-                          rate: _client.halfDayRate > 0
-                              ? currencyFormat.format(_client.halfDayRate)
-                              : 'Not Set',
-                        ),
-                        _buildRateInfo(
-                          icon: Icons.today,
-                          label: 'Full Day',
-                          rate: _client.fullDayRate > 0
-                              ? currencyFormat.format(_client.fullDayRate)
-                              : 'Not Set',
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 16),
-                    Divider(),
-                    SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Total Earnings:',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                          SizedBox(height: 12),
+                          
+                          // Counts of different work types
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildWorkStatItem(
+                                icon: Icons.access_time,
+                                label: 'Hours',
+                                count: _client.hoursCount,
+                                color: Colors.indigo,
+                              ),
+                              _buildWorkStatItem(
+                                icon: Icons.more_time,
+                                label: 'Half Days',
+                                count: _client.halfDaysCount,
+                                color: Colors.amber.shade700,
+                              ),
+                              _buildWorkStatItem(
+                                icon: Icons.today,
+                                label: 'Full Days',
+                                count: _client.fullDaysCount,
+                                color: Colors.green,
+                              ),
+                            ],
                           ),
-                        ),
-                        Text(
-                          currencyFormat.format(totalEarnings),
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
+                          
+                          SizedBox(height: 16),
+                          Divider(),
+                          SizedBox(height: 16),
+                          
+                          // Payment Summary Section
+                          Text(
+                            'Payment Summary',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                            ),
                           ),
-                        ),
-                      ],
+                          SizedBox(height: 12),
+                          
+                          // Calculate payments received
+                          Builder(builder: (context) {
+                            final double totalAmount = totalEarnings;
+                            // In a real implementation, you would calculate this from actual payment entries
+                            // For this example, we'll consider any entry with description containing "received" or "payment" as paid
+                            final double amountReceived = _client.workEntries
+                                .where((entry) => 
+                                  entry.description.toLowerCase().contains('received') || 
+                                  entry.description.toLowerCase().contains('payment'))
+                                .fold(0.0, (sum, entry) => sum + entry.amount);
+                            final double amountDue = totalAmount - amountReceived;
+                            final double paymentPercentage = totalAmount > 0 ? (amountReceived / totalAmount) * 100 : 0;
+                            
+                            return Column(
+                              children: [
+                                // Total Amount
+                                _buildPaymentRow(
+                                  label: 'Total Amount:',
+                                  amount: totalAmount,
+                                  isTotal: true,
+                                ),
+                                SizedBox(height: 8),
+                                
+                                // Amount Received
+                                _buildPaymentRow(
+                                  label: 'Amount Received:',
+                                  amount: amountReceived,
+                                  textColor: Colors.green,
+                                ),
+                                SizedBox(height: 8),
+                                
+                                // Amount Due
+                                _buildPaymentRow(
+                                  label: 'Amount Due:',
+                                  amount: amountDue,
+                                  textColor: Colors.red,
+                                  isLast: true,
+                                ),
+                                
+                                // Progress Bar
+                                if (totalAmount > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 12.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Payment Progress',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                        SizedBox(height: 8),
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: LinearProgressIndicator(
+                                            value: totalAmount > 0 ? amountReceived / totalAmount : 0,
+                                            minHeight: 10,
+                                            backgroundColor: Colors.grey[300],
+                                            valueColor: AlwaysStoppedAnimation<Color>(
+                                              amountReceived >= totalAmount ? Colors.green : Colors.blue,
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              '0%',
+                                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                                            ),
+                                            Text(
+                                              '${((amountReceived / totalAmount) * 100).toStringAsFixed(1)}%',
+                                              style: TextStyle(
+                                                fontSize: 12, 
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.blue,
+                                              ),
+                                            ),
+                                            Text(
+                                              '100%',
+                                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            );
+                          }),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  Text(
-                    'Work History',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    '(${workEntries.length} entries)',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: workEntries.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No work entries yet.\nTap + to add work entries.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
+              
+              // Work History Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  children: [
+                    Text(
+                      'Work History',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
-                    )
-                  : ListView.builder(
-                      itemCount: groupedEntries.length,
-                      padding: EdgeInsets.only(bottom: 80),
-                      itemBuilder: (context, index) {
-                        final monthYear = groupedEntries.keys.elementAt(index);
-                        final entries = groupedEntries[monthYear]!;
-                        
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                              child: Text(
-                                monthYear,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey[700],
-                                ),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      '(${workEntries.length} entries)',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Work History Content
+              workEntries.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Text(
+                      'No work entries yet.\nTap + to add work entries.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: groupedEntries.length,
+                    padding: EdgeInsets.only(bottom: 80),
+                    itemBuilder: (context, index) {
+                      final monthYear = groupedEntries.keys.elementAt(index);
+                      final entries = groupedEntries[monthYear]!;
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            child: Text(
+                              monthYear,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[700],
                               ),
                             ),
-                            ...entries.map((entry) => _buildWorkEntryTile(entry)),
-                          ],
-                        );
-                      },
-                    ),
-            ),
-          ],
+                          ),
+                          ...entries.map((entry) => _buildWorkEntryTile(entry)),
+                        ],
+                      );
+                    },
+                  ),
+              
+              // Add bottom padding to make room for the FAB
+              SizedBox(height: 80),
+            ],
+          ),
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: _addWorkEntry,
@@ -574,27 +1038,70 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     );
   }
 
-  Widget _buildRateInfo({
+  Widget _buildWorkStatItem({
     required IconData icon,
     required String label,
-    required String rate,
+    required int count,
+    required Color color,
   }) {
-    final isNotSet = rate == 'Not Set';
-    
     return Column(
       children: [
-        Icon(icon, color: isNotSet ? Colors.grey : AppColors.primary),
+        Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Icon(icon, color: color, size: 24),
+          ),
+        ),
         SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-        ),
-        SizedBox(height: 2),
-        Text(
-          rate,
           style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[700],
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          count.toString(),
+          style: TextStyle(
+            fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: isNotSet ? Colors.grey : Colors.black87,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildPaymentRow({
+    required String label,
+    required double amount,
+    Color? textColor,
+    bool isTotal = false,
+    bool isLast = false,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isTotal ? 16 : 14,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            color: Colors.grey[800],
+          ),
+        ),
+        Text(
+          currencyFormat.format(amount),
+          style: TextStyle(
+            fontSize: isTotal ? 18 : 16,
+            fontWeight: FontWeight.bold,
+            color: textColor ?? (isTotal ? AppColors.primary : Colors.black87),
           ),
         ),
       ],
@@ -622,57 +1129,95 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       return entry.durationType;
     }
 
+    Widget entryCard = Card(
+      elevation: 1,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: AppColors.primary.withOpacity(0.2),
+          child: Icon(getTypeIcon(), color: AppColors.primary),
+        ),
+        title: Row(
+          children: [
+            Text(
+              dateFormat.format(entry.date),
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            SizedBox(width: 8),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                getTypeText(),
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        subtitle: entry.description.isNotEmpty
+            ? Text(
+                entry.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              )
+            : null,
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              currencyFormat.format(entry.amount),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+        onLongPress: () => _confirmAndDeleteWorkEntry(entry.id),
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      child: Card(
-        elevation: 1,
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: AppColors.primary.withOpacity(0.2),
-            child: Icon(getTypeIcon(), color: AppColors.primary),
+      child: Dismissible(
+        key: Key(entry.id),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: EdgeInsets.only(right: 20.0),
+          color: Colors.red,
+          child: Icon(
+            Icons.delete,
+            color: Colors.white,
           ),
-          title: Row(
-            children: [
-              Text(
-                dateFormat.format(entry.date),
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              SizedBox(width: 8),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  getTypeText(),
-                  style: TextStyle(fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-          subtitle: entry.description.isNotEmpty
-              ? Text(
-                  entry.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                )
-              : null,
-          trailing: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                currencyFormat.format(entry.amount),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
-          ),
-          onLongPress: () => _deleteWorkEntry(entry.id),
         ),
+        confirmDismiss: (direction) async {
+          return await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text('Delete Entry'),
+              content: Text('Are you sure you want to delete this work entry?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: Text('Delete'),
+                ),
+              ],
+            ),
+          );
+        },
+        onDismissed: (direction) {
+          _deleteWorkEntry(entry.id);
+        },
+        child: entryCard,
       ),
     );
   }
