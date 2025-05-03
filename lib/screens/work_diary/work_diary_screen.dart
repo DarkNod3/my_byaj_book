@@ -1,8 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../widgets/header/app_header.dart';
 import '../../models/work_diary/client.dart';
 import '../../models/work_diary/work_entry.dart';
@@ -30,6 +35,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
   late AnimationController _animationController;
   final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
   DateTime _selectedDate = DateTime.now();
+  bool _isDialOpen = false;
 
   @override
   void initState() {
@@ -333,111 +339,101 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
         Navigator.of(context).pop();
         return false; // Prevent default back button behavior
       },
-      child: Scaffold(
-        appBar: widget.showAppBar ? AppBar(
-          title: Text('Work Diary'),
-          backgroundColor: AppColors.primary,
-          actions: [
-            IconButton(
-              icon: Icon(Icons.refresh),
-              onPressed: () {
-                _animationController.reset();
-                _loadClients();
-              },
-            ),
-            IconButton(
-              icon: Icon(Icons.notifications),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Notifications coming soon!')),
-                );
-              },
-            ),
-            IconButton(
-              icon: Icon(Icons.picture_as_pdf),
-              onPressed: _generateAllClientsPDF,
-              tooltip: 'Generate PDF Report',
-            ),
-          ],
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ) : null,
-        body: _isLoading
-            ? Center(child: CircularProgressIndicator())
-            : Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search clients...',
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
-                        contentPadding: EdgeInsets.symmetric(vertical: 0),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: Icon(Icons.clear),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _searchQuery = '';
-                                    _filterClients();
-                                  });
-                                },
-                              )
-                            : null,
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                          _filterClients();
-                        });
-                      },
-                    ),
-                  ),
-                  _buildSummaryCard(),
-                  Expanded(
-                    child: _filteredClients.isEmpty
-                        ? _buildEmptyState()
-                        : ListView.builder(
-                            itemCount: _filteredClients.length,
-                            padding: EdgeInsets.only(bottom: 80),
-                            itemBuilder: (context, index) {
-                              final client = _filteredClients[index];
-                              return _buildClientCard(client);
-                            },
-                          ),
-                  ),
-                ],
+      child: GestureDetector(
+        onTap: () {
+          if (_isDialOpen) {
+            setState(() {
+              _isDialOpen = false;
+            });
+          }
+        },
+        child: Scaffold(
+          appBar: widget.showAppBar ? AppBar(
+            title: Text('Work Diary'),
+            backgroundColor: AppColors.primary,
+            actions: [
+              IconButton(
+                icon: Icon(Icons.refresh),
+                onPressed: () {
+                  _animationController.reset();
+                  _loadClients();
+                },
               ),
-        floatingActionButton: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            FloatingActionButton(
-              mini: true,
-              heroTag: 'addPayment',
-              child: const Icon(Icons.payments),
-              onPressed: _addPayment,
-              backgroundColor: Colors.green,
-              tooltip: 'Add Payment',
+              IconButton(
+                icon: Icon(Icons.notifications),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Notifications coming soon!')),
+                  );
+                },
+              ),
+              IconButton(
+                icon: Icon(Icons.picture_as_pdf),
+                onPressed: _generateAllClientsPDF,
+                tooltip: 'Generate PDF Report',
+              ),
+            ],
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => Navigator.of(context).pop(),
             ),
-            const SizedBox(height: 16),
-            FloatingActionButton(
-              heroTag: 'addClient',
-              onPressed: _addClient,
-              backgroundColor: AppColors.primary,
-              child: Icon(Icons.add),
-              tooltip: 'Add Client',
-            ),
-          ],
+          ) : null,
+          body: _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : ListView(
+                  children: [
+                    _buildSummaryCard(),
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search clients...',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                          contentPadding: EdgeInsets.symmetric(vertical: 0),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {
+                                      _searchQuery = '';
+                                      _filterClients();
+                                    });
+                                  },
+                                )
+                              : null,
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                            _filterClients();
+                          });
+                        },
+                      ),
+                    ),
+                    _filteredClients.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: NeverScrollableScrollPhysics(),
+                          itemCount: _filteredClients.length,
+                          padding: EdgeInsets.only(bottom: 80),
+                          itemBuilder: (context, index) {
+                            final client = _filteredClients[index];
+                            return _buildClientCard(client);
+                          },
+                        ),
+                  ],
+                ),
+          floatingActionButton: _buildFloatingActionButtons(),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         ),
       ),
     );
@@ -459,28 +455,40 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
           .fold(0.0, (sum, entry) => sum + entry.amount);
     });
 
-    // Calculate pending earnings - for this example, we'll consider entries with 
-    // description containing "received" or "payment" as paid, the rest as pending
+    // Calculate pending earnings by separating work entries (earnings) from payment entries (deductions)
     final pendingEarnings = _clients.fold(0.0, (total, client) {
-      final amountReceived = client.workEntries
+      // Calculate total work/service earnings (not payments)
+      final totalWork = client.workEntries
+          .where((entry) => 
+            !entry.description.toLowerCase().contains('received') && 
+            !entry.description.toLowerCase().contains('payment'))
+          .fold(0.0, (sum, entry) => sum + entry.amount);
+      
+      // Calculate total payments received
+      final totalPayments = client.workEntries
           .where((entry) => 
             entry.description.toLowerCase().contains('received') || 
             entry.description.toLowerCase().contains('payment'))
           .fold(0.0, (sum, entry) => sum + entry.amount);
-      return total + (client.totalEarnings - amountReceived);
+      
+      // Calculate pending amount (work minus payments)
+      final clientPending = totalWork - totalPayments;
+      
+      // Add to total, ensuring we don't add negative values
+      return total + (clientPending > 0 ? clientPending : 0);
     });
 
     return Column(
       children: [
         // Main Summary Card
         Card(
-          elevation: 3,
-          margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          elevation: 2,
+          margin: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(10.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -490,7 +498,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                     Text(
                       'Work Summary',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -500,16 +508,16 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         children: [
                           Text(
                             DateFormat('dd MMM yyyy').format(_selectedDate),
-                            style: TextStyle(fontWeight: FontWeight.w500),
+                            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                           ),
-                          SizedBox(width: 4),
-                          Icon(Icons.calendar_today, size: 16),
+                          SizedBox(width: 2),
+                          Icon(Icons.calendar_today, size: 14),
                         ],
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 20),
+                SizedBox(height: 10),
                 
                 // New 2x2 grid layout for metrics
                 Row(
@@ -523,7 +531,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         backgroundColor: Colors.blue.withOpacity(0.1),
                       ),
                     ),
-                    SizedBox(width: 12),
+                    SizedBox(width: 8),
                     Expanded(
                       child: _buildNewMetricItem(
                         icon: Icons.today,
@@ -535,7 +543,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                     ),
                   ],
                 ),
-                SizedBox(height: 12),
+                SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
@@ -547,7 +555,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         backgroundColor: Colors.purple.withOpacity(0.1),
                       ),
                     ),
-                    SizedBox(width: 12),
+                    SizedBox(width: 8),
                     Expanded(
                       child: _buildNewMetricItem(
                         icon: Icons.pending_actions,
@@ -566,7 +574,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
         
         // Filter button for pending amounts
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 5.0),
           child: _buildFilterOptions(),
         ),
       ],
@@ -581,22 +589,22 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
     required Color backgroundColor,
   }) {
     return Container(
-      padding: EdgeInsets.all(12),
+      padding: EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(8),
+            padding: EdgeInsets.all(5),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(icon, color: iconColor, size: 24),
+            child: Icon(icon, color: iconColor, size: 18),
           ),
-          SizedBox(width: 12),
+          SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -604,15 +612,15 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10,
                     color: Colors.grey[700],
                   ),
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: 2),
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                   maxLines: 1,
@@ -628,53 +636,78 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
   
   // New filter options widget
   Widget _buildFilterOptions() {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () {
-              _showPendingAmountsFilter();
-            },
-            icon: Icon(Icons.filter_list),
-            label: Text('Show Clients with Pending Amounts'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
+    return SizedBox(
+      height: 36,
+      child: ElevatedButton.icon(
+        onPressed: () {
+          _showPendingAmountsFilter();
+        },
+        icon: Icon(Icons.filter_list, size: 16),
+        label: Text('Show Clients with Pending Amounts', style: TextStyle(fontSize: 13)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange,
+          foregroundColor: Colors.white,
+          padding: EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
-      ],
+      ),
     );
   }
 
   void _showPendingAmountsFilter() {
     // Create a list of clients with pending amounts
     final clientsWithPending = _clients.where((client) {
-      final amountReceived = client.workEntries
+      // Calculate total work/service earnings (not payments)
+      final totalWork = client.workEntries
           .where((entry) => 
-            entry.description.toLowerCase().contains('received') || 
-            entry.description.toLowerCase().contains('payment'))
+            !entry.description.toLowerCase().contains('received') && 
+            !entry.description.toLowerCase().contains('payment'))
           .fold(0.0, (sum, entry) => sum + entry.amount);
-      return (client.totalEarnings - amountReceived) > 0;
-    }).toList();
-    
-    // Sort by highest pending amount
-    clientsWithPending.sort((a, b) {
-      final aPending = a.totalEarnings - a.workEntries
+      
+      // Calculate total payments received
+      final totalPayments = client.workEntries
           .where((entry) => 
             entry.description.toLowerCase().contains('received') || 
             entry.description.toLowerCase().contains('payment'))
           .fold(0.0, (sum, entry) => sum + entry.amount);
       
-      final bPending = b.totalEarnings - b.workEntries
+      // Check if client has pending amount
+      return (totalWork - totalPayments) > 0;
+    }).toList();
+    
+    // Sort by highest pending amount
+    clientsWithPending.sort((a, b) {
+      // Calculate pending amount for client A
+      final aTotalWork = a.workEntries
+          .where((entry) => 
+            !entry.description.toLowerCase().contains('received') && 
+            !entry.description.toLowerCase().contains('payment'))
+          .fold(0.0, (sum, entry) => sum + entry.amount);
+      
+      final aTotalPayments = a.workEntries
           .where((entry) => 
             entry.description.toLowerCase().contains('received') || 
             entry.description.toLowerCase().contains('payment'))
           .fold(0.0, (sum, entry) => sum + entry.amount);
+      
+      final aPending = aTotalWork - aTotalPayments;
+      
+      // Calculate pending amount for client B
+      final bTotalWork = b.workEntries
+          .where((entry) => 
+            !entry.description.toLowerCase().contains('received') && 
+            !entry.description.toLowerCase().contains('payment'))
+          .fold(0.0, (sum, entry) => sum + entry.amount);
+      
+      final bTotalPayments = b.workEntries
+          .where((entry) => 
+            entry.description.toLowerCase().contains('received') || 
+            entry.description.toLowerCase().contains('payment'))
+          .fold(0.0, (sum, entry) => sum + entry.amount);
+      
+      final bPending = bTotalWork - bTotalPayments;
           
       return bPending.compareTo(aPending);
     });
@@ -724,12 +757,24 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         itemCount: clientsWithPending.length,
                         itemBuilder: (context, index) {
                           final client = clientsWithPending[index];
-                          final amountReceived = client.workEntries
+                          
+                          // Calculate total work amount (not including payments)
+                          final totalWork = client.workEntries
+                              .where((entry) => 
+                                !entry.description.toLowerCase().contains('received') && 
+                                !entry.description.toLowerCase().contains('payment'))
+                              .fold(0.0, (sum, entry) => sum + entry.amount);
+                          
+                          // Calculate total payments received
+                          final paymentsReceived = client.workEntries
                               .where((entry) => 
                                 entry.description.toLowerCase().contains('received') || 
                                 entry.description.toLowerCase().contains('payment'))
                               .fold(0.0, (sum, entry) => sum + entry.amount);
-                          final pendingAmount = client.totalEarnings - amountReceived;
+                          
+                          // Calculate pending amount (work minus payments)
+                          final pendingAmount = totalWork - paymentsReceived > 0 ? 
+                              totalWork - paymentsReceived : 0;
                           
                           return Card(
                             margin: EdgeInsets.only(bottom: 8),
@@ -752,22 +797,22 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                                   Row(
                                     children: [
                                       Text(
-                                        'Total: ',
+                                        'Work: ',
                                         style: TextStyle(fontSize: 12),
                                       ),
                                       Text(
-                                        currencyFormat.format(client.totalEarnings),
+                                        currencyFormat.format(totalWork),
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       Text(
-                                        '  |  Received: ',
+                                        '  |  Paid: ',
                                         style: TextStyle(fontSize: 12),
                                       ),
                                       Text(
-                                        currencyFormat.format(amountReceived),
+                                        currencyFormat.format(paymentsReceived),
                                         style: TextStyle(
                                           fontSize: 12, 
                                           fontWeight: FontWeight.bold,
@@ -815,7 +860,39 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
     );
   }
 
+  // Add this helper method to calculate the true pending balance
+  double _calculateClientPendingBalance(Client client) {
+    // Calculate total work amount (not including payments)
+    final totalWork = client.workEntries
+        .where((entry) => 
+          !entry.description.toLowerCase().contains('received') && 
+          !entry.description.toLowerCase().contains('payment'))
+        .fold(0.0, (sum, entry) => sum + entry.amount);
+    
+    // Calculate total payments received
+    final totalPayments = client.workEntries
+        .where((entry) => 
+          entry.description.toLowerCase().contains('received') || 
+          entry.description.toLowerCase().contains('payment'))
+        .fold(0.0, (sum, entry) => sum + entry.amount);
+    
+    // Calculate pending amount (work minus payments)
+    final pendingAmount = totalWork - totalPayments;
+    
+    return pendingAmount > 0 ? pendingAmount : 0;
+  }
+
   Widget _buildClientCard(Client client) {
+    // Calculate pending balance
+    final pendingBalance = _calculateClientPendingBalance(client);
+    
+    // Calculate total work and total payments for displaying
+    final totalWork = client.workEntries
+        .where((entry) => 
+          !entry.description.toLowerCase().contains('received') && 
+          !entry.description.toLowerCase().contains('payment'))
+        .fold(0.0, (sum, entry) => sum + entry.amount);
+    
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       elevation: 2,
@@ -891,20 +968,27 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    currencyFormat.format(client.totalEarnings),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
+                  Row(
+                    children: [
+                      if (pendingBalance > 0)
+                        Icon(Icons.warning, size: 14, color: Colors.orange),
+                      SizedBox(width: pendingBalance > 0 ? 4 : 0),
+                      Text(
+                        currencyFormat.format(pendingBalance > 0 ? pendingBalance : totalWork),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: pendingBalance > 0 ? Colors.orange : AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: 4),
                   Text(
-                    '${client.workEntries.length} entries',
+                    pendingBalance > 0 ? 'Pending' : '${client.workEntries.length} entries',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey[600],
+                      color: pendingBalance > 0 ? Colors.orange : Colors.grey[600],
                     ),
                   ),
                 ],
@@ -1229,14 +1313,22 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
       final Client client = result['client'];
       final double amount = result['amount'];
       final DateTime date = result['date'];
-      final String description = result['description'];
+      String description = result['description'];
+      
+      // Ensure the description contains the word "payment" to properly track it
+      if (description.isEmpty) {
+        description = "Payment received";
+      } else if (!description.toLowerCase().contains("payment") && 
+                !description.toLowerCase().contains("received")) {
+        description = "Payment: $description";
+      }
       
       final newEntry = WorkEntry(
         id: Uuid().v4(),
         date: date,
         durationType: 'Payment',
         amount: amount,
-        description: description.isEmpty ? 'Payment received' : description,
+        description: description,
       );
 
       final index = _clients.indexWhere((c) => c.id == client.id);
@@ -1251,8 +1343,18 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
         
         await _saveClients();
         
+        // Calculate the remaining pending amount using the same method used elsewhere
+        final remainingBalance = _calculateClientPendingBalance(updatedClient);
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment added to ${client.name}')),
+          SnackBar(
+            content: Text(
+              'Payment of ${currencyFormat.format(amount)} added to ${client.name}.' + 
+              (remainingBalance > 0 ? ' Remaining balance: ${currencyFormat.format(remainingBalance)}' : ' All payments settled!')
+            ),
+            duration: Duration(seconds: 3),
+            backgroundColor: remainingBalance > 0 ? Colors.orange : Colors.green,
+          ),
         );
       }
     }
@@ -1286,9 +1388,226 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
     );
 
     try {
-      // In a real implementation, you would use a PDF generation library like pdf or flutter_pdfview
-      // For this example, we'll just show a success message after a delay
-      await Future.delayed(Duration(seconds: 2));
+      // Get directory for storing PDFs
+      final directory = await getExternalStorageDirectory();
+      final String formattedDate = DateFormat('dd-MM-yyyy_HH-mm').format(DateTime.now());
+      final fileName = 'client_report_${client.name.replaceAll(' ', '_')}_$formattedDate.pdf';
+      final filePath = '${directory!.path}/$fileName';
+      
+      // Format currency for PDF
+      String formatCurrencyForPdf(double amount) {
+        return NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0).format(amount);
+      }
+
+      // Generate PDF
+      final pdf = pw.Document();
+      
+      // Add client summary page
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header
+                pw.Container(
+                  padding: pw.EdgeInsets.all(16),
+                  color: PdfColors.blue700,
+                  child: pw.Row(
+                    children: [
+                      pw.Container(
+                        width: 50,
+                        height: 50,
+                        decoration: pw.BoxDecoration(
+                          color: PdfColors.white,
+                          shape: pw.BoxShape.circle,
+                        ),
+                        alignment: pw.Alignment.center,
+                        child: pw.Text(
+                          client.initials,
+                          style: pw.TextStyle(
+                            fontSize: 20,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue700,
+                          ),
+                        ),
+                      ),
+                      pw.SizedBox(width: 16),
+                      pw.Text(
+                        client.name,
+                        style: pw.TextStyle(
+                          fontSize: 20,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                pw.SizedBox(height: 20),
+                
+                // Work Statistics
+                pw.Text(
+                  'Work Statistics',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Hours: ${client.hoursCount}'),
+                    pw.Text('Half Days: ${client.halfDaysCount}'),
+                    pw.Text('Full Days: ${client.fullDaysCount}'),
+                  ],
+                ),
+                
+                pw.SizedBox(height: 20),
+                
+                // Calculate work and payment amounts
+                pw.Builder(
+                  builder: (context) {
+                    // Calculate total work amount (not including payments)
+                    final totalWork = client.workEntries
+                        .where((entry) => 
+                          !entry.description.toLowerCase().contains('received') && 
+                          !entry.description.toLowerCase().contains('payment'))
+                        .fold(0.0, (sum, entry) => sum + entry.amount);
+                    
+                    // Calculate total payments received
+                    final amountReceived = client.workEntries
+                        .where((entry) => 
+                          entry.description.toLowerCase().contains('received') || 
+                          entry.description.toLowerCase().contains('payment'))
+                        .fold(0.0, (sum, entry) => sum + entry.amount);
+                    
+                    // Calculate pending amount (work minus payments)
+                    final amountDue = totalWork - amountReceived;
+                    
+                    return pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Payment Summary',
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                        pw.SizedBox(height: 10),
+                        
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('Total Amount:'),
+                            pw.Text(formatCurrencyForPdf(totalWork)),
+                          ],
+                        ),
+                        pw.SizedBox(height: 5),
+                        
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('Amount Received:'),
+                            pw.Text(formatCurrencyForPdf(amountReceived)),
+                          ],
+                        ),
+                        pw.SizedBox(height: 5),
+                        
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('Amount Due:'),
+                            pw.Text(formatCurrencyForPdf(amountDue)),
+                          ],
+                        ),
+                      ],
+                    );
+                  }
+                ),
+                
+                pw.SizedBox(height: 30),
+                
+                // Work History
+                pw.Text(
+                  'Work History',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                
+                // Table header
+                pw.Container(
+                  color: PdfColors.grey200,
+                  padding: pw.EdgeInsets.all(8),
+                  child: pw.Row(
+                    children: [
+                      pw.Expanded(flex: 2, child: pw.Text('Date')),
+                      pw.Expanded(flex: 2, child: pw.Text('Type')),
+                      pw.Expanded(flex: 3, child: pw.Text('Description')),
+                      pw.Expanded(flex: 2, child: pw.Text('Amount')),
+                    ],
+                  ),
+                ),
+                
+                // List of entries (limited to avoid overflow)
+                ...client.workEntries.take(20).map((entry) {
+                  final isPayment = entry.description.toLowerCase().contains('received') || 
+                                   entry.description.toLowerCase().contains('payment');
+                  
+                  return pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border(
+                        bottom: pw.BorderSide(color: PdfColors.grey300),
+                      ),
+                    ),
+                    padding: pw.EdgeInsets.all(8),
+                    child: pw.Row(
+                      children: [
+                        pw.Expanded(
+                          flex: 2, 
+                          child: pw.Text(DateFormat('dd/MM/yyyy').format(entry.date))
+                        ),
+                        pw.Expanded(
+                          flex: 2, 
+                          child: pw.Text(entry.durationType)
+                        ),
+                        pw.Expanded(
+                          flex: 3, 
+                          child: pw.Text(
+                            entry.description,
+                            maxLines: 1,
+                            overflow: pw.TextOverflow.clip,
+                          )
+                        ),
+                        pw.Expanded(
+                          flex: 2, 
+                          child: pw.Text(
+                            formatCurrencyForPdf(entry.amount),
+                            style: pw.TextStyle(
+                              color: isPayment ? PdfColors.green : PdfColors.black,
+                            ),
+                          )
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ],
+            );
+          },
+        ),
+      );
+
+      // Save the PDF file
+      final file = File(filePath);
+      await file.writeAsBytes(await pdf.save());
       
       // Close the loading dialog
       Navigator.of(context).pop();
@@ -1300,6 +1619,10 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
           backgroundColor: Colors.green,
         ),
       );
+      
+      // Automatically open the PDF file
+      await OpenFile.open(filePath);
+      
     } catch (e) {
       // Close the loading dialog
       Navigator.of(context).pop();
@@ -1312,5 +1635,162 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
         ),
       );
     }
+  }
+
+  Widget _buildFloatingActionButtons() {
+    return Container(
+      height: 240, // Fixed height for the stack
+      width: 180, // Fixed width for the stack
+      alignment: Alignment.bottomRight,
+      child: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          // Semi-transparent background overlay when menu is open
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: !_isDialOpen,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: _isDialOpen ? 1.0 : 0.0,
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+          ),
+          
+          // Add Payment Button
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            right: 4,
+            bottom: _isDialOpen ? 160 : 4,
+            child: AnimatedOpacity(
+              opacity: _isDialOpen ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 250),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // Label container
+                  AnimatedOpacity(
+                    duration: const Duration(milliseconds: 250),
+                    opacity: _isDialOpen ? 1.0 : 0.0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        'Add Payment',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  // Button
+                  FloatingActionButton(
+                    mini: true,
+                    heroTag: 'addPayment',
+                    elevation: _isDialOpen ? 6 : 0,
+                    backgroundColor: Colors.green,
+                    child: const Icon(Icons.payments, color: Colors.white),
+                    onPressed: _isDialOpen ? () {
+                      setState(() {
+                        _isDialOpen = false;
+                      });
+                      _addPayment();
+                    } : null,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Add Client Button
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            right: 4,
+            bottom: _isDialOpen ? 80 : 4,
+            child: AnimatedOpacity(
+              opacity: _isDialOpen ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 250),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // Label container
+                  AnimatedOpacity(
+                    duration: const Duration(milliseconds: 250),
+                    opacity: _isDialOpen ? 1.0 : 0.0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        'Add Client',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  // Button
+                  FloatingActionButton(
+                    mini: true,
+                    heroTag: 'addClient',
+                    elevation: _isDialOpen ? 6 : 0,
+                    backgroundColor: AppColors.primary,
+                    child: const Icon(Icons.person_add, color: Colors.white),
+                    onPressed: _isDialOpen ? () {
+                      setState(() {
+                        _isDialOpen = false;
+                      });
+                      _addClient();
+                    } : null,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Main FAB that toggles the dial
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: FloatingActionButton(
+              heroTag: 'mainFAB',
+              elevation: 6,
+              backgroundColor: _isDialOpen ? Colors.red : AppColors.primary,
+              onPressed: () {
+                setState(() {
+                  _isDialOpen = !_isDialOpen;
+                });
+              },
+              child: AnimatedRotation(
+                turns: _isDialOpen ? 0.125 : 0, // Rotate 45 degrees when open
+                duration: const Duration(milliseconds: 250),
+                child: Icon(_isDialOpen ? Icons.close : Icons.add, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 } 

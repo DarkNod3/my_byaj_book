@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'dart:io';
+import 'package:open_file/open_file.dart';
 
 import '../../models/work_diary/client.dart';
 import '../../models/work_diary/work_entry.dart';
@@ -497,18 +498,18 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         ),
       );
 
-      // Import paths and services
-      final path = await getExternalStorageDirectory();
+      // Get directory for storing PDFs
+      final directory = await getExternalStorageDirectory();
       final String formattedDate = DateFormat('dd-MM-yyyy_HH-mm').format(DateTime.now());
       final fileName = 'client_report_${client.name.replaceAll(' ', '_')}_$formattedDate.pdf';
+      final filePath = '${directory!.path}/$fileName';
       
       // Format currency without rupee symbol for PDF
       String formatCurrencyForPdf(double amount) {
-        return NumberFormat.currency(locale: 'en_IN', symbol: '', decimalDigits: 0).format(amount);
+        return NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0).format(amount);
       }
 
-      // Use the PDF service or generate PDF directly
-      
+      // Generate PDF
       final pdf = pw.Document();
       
       // Add client summary page
@@ -577,7 +578,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                 
                 pw.SizedBox(height: 20),
                 
-                // Payment Summary
+                // Calculate work entries (positive amounts)
                 pw.Text(
                   'Payment Summary',
                   style: pw.TextStyle(
@@ -586,43 +587,54 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                   ),
                 ),
                 pw.SizedBox(height: 10),
-                
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Total Amount:'),
-                    pw.Text(formatCurrencyForPdf(client.totalEarnings)),
-                  ],
-                ),
-                pw.SizedBox(height: 5),
-                
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Amount Received:'),
-                    pw.Text(
-                      formatCurrencyForPdf(client.workEntries
-                          .where((entry) => 
-                            entry.description.toLowerCase().contains('received') || 
-                            entry.description.toLowerCase().contains('payment'))
-                          .fold(0.0, (sum, entry) => sum + entry.amount)),
-                    ),
-                  ],
-                ),
-                pw.SizedBox(height: 5),
-                
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Amount Due:'),
-                    pw.Text(
-                      formatCurrencyForPdf(client.totalEarnings - client.workEntries
-                          .where((entry) => 
-                            entry.description.toLowerCase().contains('received') || 
-                            entry.description.toLowerCase().contains('payment'))
-                          .fold(0.0, (sum, entry) => sum + entry.amount)),
-                    ),
-                  ],
+
+                // Calculate work and payment amounts
+                pw.Builder(
+                  builder: (context) {
+                    final workAmount = client.workEntries
+                        .where((entry) => 
+                          !entry.description.toLowerCase().contains('received') && 
+                          !entry.description.toLowerCase().contains('payment'))
+                        .fold(0.0, (sum, entry) => sum + entry.amount);
+                    
+                    final amountReceived = client.workEntries
+                        .where((entry) => 
+                          entry.description.toLowerCase().contains('received') || 
+                          entry.description.toLowerCase().contains('payment'))
+                        .fold(0.0, (sum, entry) => sum + entry.amount);
+                    
+                    final amountDue = workAmount - amountReceived;
+                    
+                    return pw.Column(
+                      children: [
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('Total Amount:'),
+                            pw.Text(formatCurrencyForPdf(workAmount)),
+                          ],
+                        ),
+                        pw.SizedBox(height: 5),
+                        
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('Amount Received:'),
+                            pw.Text(formatCurrencyForPdf(amountReceived)),
+                          ],
+                        ),
+                        pw.SizedBox(height: 5),
+                        
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('Amount Due:'),
+                            pw.Text(formatCurrencyForPdf(amountDue)),
+                          ],
+                        ),
+                      ],
+                    );
+                  }
                 ),
                 
                 pw.SizedBox(height: 30),
@@ -651,80 +663,83 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                   ),
                 ),
                 
-                // Table content
-                pw.Column(
-                  children: () {
-                    final sortedEntries = List<WorkEntry>.from(client.workEntries);
-                    sortedEntries.sort((a, b) => b.date.compareTo(a.date));
-                    return sortedEntries.map((entry) {
-                        String typeText = entry.durationType;
-                        if (entry.durationType == 'Hourly' && entry.hours != null) {
-                          typeText = '${entry.hours} hour${entry.hours == 1 ? '' : 's'}';
-                        }
-                        
-                        return pw.Container(
-                          decoration: pw.BoxDecoration(
-                            border: pw.Border(
-                              bottom: pw.BorderSide(color: PdfColors.grey300),
+                // Entries
+                ...client.workEntries.map((entry) {
+                  final isPayment = entry.description.toLowerCase().contains('received') || 
+                                   entry.description.toLowerCase().contains('payment');
+                  
+                  return pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border(
+                        bottom: pw.BorderSide(color: PdfColors.grey300),
+                      ),
+                    ),
+                    padding: pw.EdgeInsets.all(8),
+                    child: pw.Row(
+                      children: [
+                        pw.Expanded(
+                          flex: 2, 
+                          child: pw.Text(DateFormat('MM/dd/yyyy').format(entry.date))
+                        ),
+                        pw.Expanded(
+                          flex: 2, 
+                          child: pw.Text(entry.durationType)
+                        ),
+                        pw.Expanded(
+                          flex: 3, 
+                          child: pw.Text(
+                            entry.description,
+                            maxLines: 1,
+                            overflow: pw.TextOverflow.clip,
+                          )
+                        ),
+                        pw.Expanded(
+                          flex: 2, 
+                          child: pw.Text(
+                            formatCurrencyForPdf(entry.amount),
+                            style: pw.TextStyle(
+                              color: isPayment ? PdfColors.green : PdfColors.black,
                             ),
-                          ),
-                          padding: pw.EdgeInsets.all(8),
-                          child: pw.Row(
-                            children: [
-                              pw.Expanded(
-                                flex: 2, 
-                                child: pw.Text(DateFormat('dd MMM yyyy').format(entry.date)),
-                              ),
-                              pw.Expanded(
-                                flex: 2,
-                                child: pw.Text(typeText),
-                              ),
-                              pw.Expanded(
-                                flex: 3,
-                                child: pw.Text(entry.description),
-                              ),
-                              pw.Expanded(
-                                flex: 2,
-                                child: pw.Text(formatCurrencyForPdf(entry.amount)),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList();
-                    }(),
-                ),
+                          )
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               ],
             );
           },
         ),
       );
       
-      // Save the PDF
-      final file = File('${path!.path}/$fileName');
+      // Save the PDF file
+      final file = File(filePath);
       await file.writeAsBytes(await pdf.save());
-
+      
       // Close the loading dialog
-      Navigator.of(context, rootNavigator: true).pop();
+      Navigator.of(context).pop();
       
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('PDF report saved to ${file.path}'),
-          action: SnackBarAction(
-            label: 'Open',
-            onPressed: () async {
-              // Open the PDF file using a PDF viewer
-              // You'll need to implement this based on the platform
-              // For example, using open_file or url_launcher package
-            },
-          ),
+          content: Text('PDF report generated successfully!'),
+          backgroundColor: Colors.green,
         ),
       );
+      
+      // Open the PDF file automatically
+      await OpenFile.open(filePath);
+      
     } catch (e) {
-      // Handle errors
-      Navigator.of(context, rootNavigator: true).pop();
+      // Close the loading dialog
+      Navigator.of(context).pop();
+      
+      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate PDF: $e')),
+        SnackBar(
+          content: Text('Failed to generate PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -861,22 +876,30 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                           // Calculate payments received
                           Builder(builder: (context) {
                             final double totalAmount = totalEarnings;
-                            // In a real implementation, you would calculate this from actual payment entries
-                            // For this example, we'll consider any entry with description containing "received" or "payment" as paid
+                            
+                            // Calculate work entries (positive amounts)
+                            final double workAmount = _client.workEntries
+                                .where((entry) => 
+                                  !entry.description.toLowerCase().contains('received') && 
+                                  !entry.description.toLowerCase().contains('payment'))
+                                .fold(0.0, (sum, entry) => sum + entry.amount);
+                            
+                            // Calculate payment entries (positive amounts)
                             final double amountReceived = _client.workEntries
                                 .where((entry) => 
                                   entry.description.toLowerCase().contains('received') || 
                                   entry.description.toLowerCase().contains('payment'))
                                 .fold(0.0, (sum, entry) => sum + entry.amount);
-                            final double amountDue = totalAmount - amountReceived;
-                            final double paymentPercentage = totalAmount > 0 ? (amountReceived / totalAmount) * 100 : 0;
+                            
+                            final double amountDue = workAmount - amountReceived;
+                            final double paymentPercentage = workAmount > 0 ? (amountReceived / workAmount) * 100 : 0;
                             
                             return Column(
                               children: [
                                 // Total Amount
                                 _buildPaymentRow(
                                   label: 'Total Amount:',
-                                  amount: totalAmount,
+                                  amount: workAmount,
                                   isTotal: true,
                                 ),
                                 SizedBox(height: 8),
@@ -898,7 +921,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                 ),
                                 
                                 // Progress Bar
-                                if (totalAmount > 0)
+                                if (workAmount > 0)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 12.0),
                                     child: Column(
@@ -915,11 +938,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                         ClipRRect(
                                           borderRadius: BorderRadius.circular(8),
                                           child: LinearProgressIndicator(
-                                            value: totalAmount > 0 ? amountReceived / totalAmount : 0,
+                                            value: workAmount > 0 ? amountReceived / workAmount : 0,
                                             minHeight: 10,
                                             backgroundColor: Colors.grey[300],
                                             valueColor: AlwaysStoppedAnimation<Color>(
-                                              amountReceived >= totalAmount ? Colors.green : Colors.blue,
+                                              amountReceived >= workAmount ? Colors.green : Colors.blue,
                                             ),
                                           ),
                                         ),
@@ -932,7 +955,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                               style: TextStyle(fontSize: 12, color: Colors.grey),
                                             ),
                                             Text(
-                                              '${((amountReceived / totalAmount) * 100).toStringAsFixed(1)}%',
+                                              '${paymentPercentage.toStringAsFixed(1)}%',
                                               style: TextStyle(
                                                 fontSize: 12, 
                                                 fontWeight: FontWeight.bold,

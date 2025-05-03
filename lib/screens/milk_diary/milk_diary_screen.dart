@@ -207,13 +207,19 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                 );
               }
               
-              // Group entries by shift
-              final morningEntries = entriesForDate
-                  .where((entry) => entry.shift == EntryShift.morning)
-                  .toList();
-              final eveningEntries = entriesForDate
-                  .where((entry) => entry.shift == EntryShift.evening)
-                  .toList();
+              // Group entries by seller ID
+              Map<String, List<DailyEntry>> entriesBySeller = {};
+              
+              for (var entry in entriesForDate) {
+                if (!entriesBySeller.containsKey(entry.sellerId)) {
+                  entriesBySeller[entry.sellerId] = [];
+                }
+                entriesBySeller[entry.sellerId]!.add(entry);
+              }
+              
+              // Calculate total for all entries
+              final totalQuantity = entriesForDate.fold(0.0, (sum, entry) => sum + entry.quantity);
+              final totalAmount = entriesForDate.fold(0.0, (sum, entry) => sum + entry.amount);
               
               return SingleChildScrollView(
                 child: Padding(
@@ -221,9 +227,33 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildShiftSection('Morning', morningEntries, sellerProvider),
-                      const SizedBox(height: 24),
-                      _buildShiftSection('Evening', eveningEntries, sellerProvider),
+                      ...entriesBySeller.entries.map((entry) => 
+                        _buildSellerEntryCard(entry.key, entry.value, sellerProvider)
+                      ).toList(),
+                      const SizedBox(height: 16),
+                      // Total summary card
+                      Card(
+                        color: Colors.grey.shade100,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Total Quantity: ${totalQuantity.toStringAsFixed(2)} L',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                'Total: ₹${totalAmount.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1469,6 +1499,150 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSellerEntryCard(String sellerId, List<DailyEntry> entries, MilkSellerProvider sellerProvider) {
+    final seller = sellerProvider.getSellerById(sellerId);
+    final sellerName = seller?.name ?? 'Unknown Seller';
+    
+    // Sort entries by shift
+    entries.sort((a, b) => a.shift.index.compareTo(b.shift.index));
+    
+    // Calculate seller totals
+    final totalQuantity = entries.fold(0.0, (sum, entry) => sum + entry.quantity);
+    final totalAmount = entries.fold(0.0, (sum, entry) => sum + entry.amount);
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  sellerName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: () {
+                        // Navigate to edit entry screen
+                      },
+                      tooltip: 'Edit Entry',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 20),
+                      onPressed: () => _confirmDeleteEntry(entries.first),
+                      tooltip: 'Delete Entry',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const Divider(),
+            
+            // List individual entries with shift times
+            ...entries.map((entry) {
+              final isFirstEntry = entries.indexOf(entry) == 0;
+              
+              return Column(
+                children: [
+                  if (!isFirstEntry) const Divider(height: 16, indent: 8, endIndent: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            entry.shift == EntryShift.morning 
+                                ? Icons.wb_sunny_outlined 
+                                : Icons.nightlight_outlined,
+                            size: 16,
+                            color: entry.shift == EntryShift.morning 
+                                ? Colors.orange 
+                                : Colors.indigo,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            entry.shift == EntryShift.morning ? 'Morning' : 'Evening',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: entry.shift == EntryShift.morning 
+                                  ? Colors.orange.shade700 
+                                  : Colors.indigo,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '₹${entry.amount.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildEntryDetail('Quantity', '${entry.quantity} L'),
+                          _buildEntryDetail('Fat', '${entry.fat}%'),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildEntryDetail('Rate', '₹${entry.rate}/L'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }).toList(),
+            
+            // Show total for this seller
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total: ${totalQuantity.toStringAsFixed(2)} L',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Total: ₹${totalAmount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

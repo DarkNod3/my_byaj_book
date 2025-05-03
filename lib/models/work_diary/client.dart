@@ -57,7 +57,10 @@ class Client {
         .fold(0, (sum, entry) => sum + entry.amount);
   }
 
-  int get hoursCount => workEntries.where((e) => e.durationType == 'Hour').length;
+  int get hoursCount => workEntries
+      .where((e) => e.durationType == 'Hourly')
+      .fold(0.0, (sum, entry) => sum + (entry.hours ?? 0.0))
+      .round();
   
   int get halfDaysCount => workEntries.where((e) => e.durationType == 'Half Day').length;
   

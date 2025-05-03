@@ -7,6 +7,8 @@ import '../../providers/milk_diary/daily_entry_provider.dart';
 import '../../providers/milk_diary/milk_seller_provider.dart';
 import '../../constants/app_theme.dart';
 import 'package:uuid/uuid.dart';
+import 'milk_seller_dialog.dart';
+import 'milk_diary_screen.dart';
 
 class AddEntryScreen extends StatefulWidget {
   final DailyEntry? entry;
@@ -75,7 +77,7 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
         } else {
           _quantityController.text = amount.replaceAll('L', '');
         }
-      } else {
+      } else if (_selectedUnit == 'Kilogram (Kg)') {
         if (amount.endsWith('g')) {
           // Convert g to kg
           final g = int.parse(amount.replaceAll('g', ''));
@@ -102,11 +104,15 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
   }
   
   void _updateRateFromSeller() {
-    final rate = _getSellerRate();
-    if (rate > 0) {
-      setState(() {
-        _rateController.text = rate.toString();
-      });
+    if (_selectedSellerId != null) {
+      final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
+      final seller = sellerProvider.getSellerById(_selectedSellerId!);
+      
+      if (seller != null) {
+        setState(() {
+          _rateController.text = seller.defaultRate.toString();
+        });
+      }
     }
   }
 
@@ -295,7 +301,7 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
                   child: TextField(
                     controller: _quantityController,
                     decoration: InputDecoration(
-                      labelText: 'Quantity (${_selectedUnit == 'Liter (L)' ? 'L' : 'KG'})',
+                      labelText: 'Quantity (${_selectedUnit == 'Liter (L)' ? 'L' : 'Kg'})',
                       border: const OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
@@ -415,47 +421,79 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
       builder: (context, sellerProvider, child) {
         final sellers = sellerProvider.sellers;
         
-        return Card(
-          margin: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.grey.shade300),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedSellerId,
-                isExpanded: true,
-                hint: const Row(
-                  children: [
-                    Icon(Icons.person, color: Colors.black),
-                    SizedBox(width: 16),
-                    Text('Select Seller'),
-                  ],
+        return Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: Card(
+                margin: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.grey.shade300),
                 ),
-                icon: const Icon(Icons.arrow_drop_down),
-                items: sellers.map((seller) {
-                  return DropdownMenuItem<String>(
-                    value: seller.id,
-                    child: Row(
-                      children: [
-                        const Icon(Icons.person),
-                        const SizedBox(width: 16),
-                        Text(seller.name),
-                      ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedSellerId,
+                      isExpanded: true,
+                      hint: const Row(
+                        children: [
+                          Icon(Icons.person, color: Colors.black),
+                          SizedBox(width: 16),
+                          Text('Select Seller'),
+                        ],
+                      ),
+                      icon: const Icon(Icons.arrow_drop_down),
+                      items: sellers.map((seller) {
+                        return DropdownMenuItem<String>(
+                          value: seller.id,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.person),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  seller.name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedSellerId = newValue;
+                          _updateRateFromSeller();
+                        });
+                      },
                     ),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _selectedSellerId = newValue;
-                    _updateRateFromSeller();
-                  });
-                },
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: 8),
+            Card(
+              margin: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.grey.shade300),
+              ),
+              child: InkWell(
+                onTap: () => _showAddSellerDialog(),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  height: 48,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: const Icon(
+                    Icons.person_add,
+                    color: Colors.blue,
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -530,8 +568,8 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
                 child: Text('Liter (L)'),
               ),
               DropdownMenuItem<String>(
-                value: 'Kilogram (KG)',
-                child: Text('Kilogram (KG)'),
+                value: 'Kilogram (Kg)',
+                child: Text('Kilogram (Kg)'),
               ),
             ],
             onChanged: (String? newValue) {
@@ -561,6 +599,244 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
         elevation: 0,
       ),
       child: Text(amount),
+    );
+  }
+  
+  void _showAddSellerDialog() {
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+    final addressController = TextEditingController();
+    final rateController = TextEditingController();
+    final fatRateController = TextEditingController(text: '85.0');
+    final baseFatController = TextEditingController(text: '100.0');
+    bool isFatBased = false;
+    String unit = 'Liter (L)';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Center(
+                      child: Text(
+                        'Add Milk Seller',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Name',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: phoneController,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone Number',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.phone),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: addressController,
+                      decoration: const InputDecoration(
+                        labelText: 'Address (Optional)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.home),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Price System',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Radio<bool>(
+                          value: false,
+                          groupValue: isFatBased,
+                          onChanged: (value) {
+                            setState(() {
+                              isFatBased = value!;
+                            });
+                          },
+                        ),
+                        const Text('Default Rate'),
+                        const SizedBox(width: 16),
+                        Radio<bool>(
+                          value: true,
+                          groupValue: isFatBased,
+                          onChanged: (value) {
+                            setState(() {
+                              isFatBased = value!;
+                            });
+                          },
+                        ),
+                        const Text('Fat Based'),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Default Unit',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    DropdownButtonFormField<String>(
+                      value: unit,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Liter (L)',
+                          child: Text('Liter (L)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Kilogram (Kg)',
+                          child: Text('Kilogram (Kg)'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          unit = value!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    if (!isFatBased) 
+                      TextField(
+                        controller: rateController,
+                        decoration: const InputDecoration(
+                          labelText: 'Default Rate',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.currency_rupee),
+                        ),
+                        keyboardType: TextInputType.number,
+                      )
+                    else
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextField(
+                            controller: fatRateController,
+                            decoration: const InputDecoration(
+                              labelText: 'Rate per Fat',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.currency_rupee),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: baseFatController,
+                            decoration: const InputDecoration(
+                              labelText: 'Base Fat %',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.percent),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (nameController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter seller name')),
+                            );
+                            return;
+                          }
+                          
+                          final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
+                          
+                          // Get the appropriate rate depending on the selected option
+                          double defaultRate = 0.0;
+                          if (!isFatBased) {
+                            defaultRate = double.tryParse(rateController.text) ?? 0.0;
+                          }
+                          
+                          final seller = MilkSeller(
+                            id: const Uuid().v4(),
+                            name: nameController.text.trim(),
+                            mobile: phoneController.text.trim(),
+                            address: addressController.text.trim(),
+                            defaultRate: defaultRate,
+                            isActive: true,
+                          );
+                          
+                          sellerProvider.addSeller(seller).then((_) {
+                            Navigator.of(context).pop();
+                            
+                            // Update the selected seller in the parent screen
+                            this.setState(() {
+                              _selectedSellerId = seller.id;
+                              _updateRateFromSeller();
+                            });
+                            
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Seller ${seller.name} added successfully'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }).catchError((error) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error adding seller: $error'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text('Add Seller'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 } 

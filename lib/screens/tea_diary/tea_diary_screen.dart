@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:my_byaj_book/widgets/header/app_header.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
+import 'dart:io'; // Use dart:io instead of file package
 
 class TeaDiaryScreen extends StatefulWidget {
   static const routeName = '/tea-diary';
@@ -40,12 +47,86 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
       duration: const Duration(milliseconds: 300),
     );
     
+    // Load saved data
+    _loadCustomers();
+    
+    // Add search listener
+    _searchController.addListener(_filterCustomers);
+  }
+
+  // Save customers to shared preferences
+  Future<void> _saveCustomers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> customersJson = _allCustomers.map((customer) => jsonEncode({
+      'id': customer.id,
+      'name': customer.name,
+      'phoneNumber': customer.phoneNumber,
+      'cups': customer.cups,
+      'teaRate': customer.teaRate,
+      'coffeeRate': customer.coffeeRate,
+      'milkRate': customer.milkRate,
+      'totalAmount': customer.totalAmount,
+      'paymentsMade': customer.paymentsMade,
+      'date': customer.date.toIso8601String(),
+      'lastUpdated': customer.lastUpdated.toIso8601String(),
+      'history': customer.history.map((entry) => {
+        'type': entry.type.index,
+        'cups': entry.cups,
+        'amount': entry.amount,
+        'timestamp': entry.timestamp.toIso8601String(),
+        'beverageType': entry.beverageType,
+      }).toList(),
+    })).toList();
+    
+    await prefs.setStringList('customers', customersJson);
+  }
+
+  // Load customers from shared preferences
+  Future<void> _loadCustomers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String>? customersJson = prefs.getStringList('customers');
+    
+    if (customersJson != null) {
+      setState(() {
+        _allCustomers.clear();
+        for (final json in customersJson) {
+          final Map<String, dynamic> data = jsonDecode(json);
+          
+          final List<CustomerEntry> history = [];
+          if (data['history'] != null) {
+            for (final Map<String, dynamic> entryData in data['history']) {
+              history.add(CustomerEntry(
+                type: EntryType.values[entryData['type']],
+                cups: entryData['cups'],
+                amount: entryData['amount'],
+                timestamp: DateTime.parse(entryData['timestamp']),
+                beverageType: entryData['beverageType'],
+              ));
+            }
+          }
+          
+          _allCustomers.add(Customer(
+            id: data['id'],
+            name: data['name'],
+            phoneNumber: data['phoneNumber'] ?? '',
+            cups: data['cups'],
+            teaRate: data['teaRate'],
+            coffeeRate: data['coffeeRate'] ?? 0.0,
+            milkRate: data['milkRate'] ?? 0.0,
+            totalAmount: data['totalAmount'],
+            paymentsMade: data['paymentsMade'],
+            date: DateTime.parse(data['date']),
+            lastUpdated: DateTime.parse(data['lastUpdated']),
+            history: history,
+          ));
+        }
+    
     _filterDataBySelectedDate();
     _updateTotals();
     _filteredCustomers = List.from(_customersForSelectedDate);
-    _sortCustomers(); // Apply default sorting
-    
-    _searchController.addListener(_filterCustomers);
+        _sortCustomers();
+      });
+    }
   }
   
   @override
@@ -499,6 +580,11 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
   
   // Modified to show running total of cups and add coffee and milk buttons
   void _showCustomerActions(Customer customer) {
+    // Initialize counters outside the builder
+    int newTeaCups = 0;
+    int newCoffeeCups = 0;
+    int newMilkCups = 0;
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -507,10 +593,121 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
       ),
       builder: (context) {
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (BuildContext context, StateSetter setModalState) {
             // Track the original cups count and newly added cups
-            int originalCups = customer.cups;
-            int newlyAddedCups = 0;
+            final int originalCups = customer.cups;
+            
+            int getTotalNewCups() => newTeaCups + newCoffeeCups + newMilkCups;
+            
+            // Add cup functions
+            void addTeaCup() {
+              setModalState(() {
+                newTeaCups++;
+              });
+            }
+            
+            void removeTeaCup() {
+              setModalState(() {
+                if (newTeaCups > 0) newTeaCups--;
+              });
+            }
+            
+            void addCoffeeCup() {
+              setModalState(() {
+                newCoffeeCups++;
+              });
+            }
+            
+            void removeCoffeeCup() {
+              setModalState(() {
+                if (newCoffeeCups > 0) newCoffeeCups--;
+              });
+            }
+            
+            void addMilkCup() {
+              setModalState(() {
+                newMilkCups++;
+              });
+            }
+            
+            void removeMilkCup() {
+              setModalState(() {
+                if (newMilkCups > 0) newMilkCups--;
+              });
+            }
+            
+            void saveChanges() {
+              // Update customer with the new cups
+              int totalNewCups = getTotalNewCups();
+              
+              // Only add tea cup entries if there are any
+              if (newTeaCups > 0) {
+                customer.cups += newTeaCups;
+                customer.totalAmount += newTeaCups * customer.teaRate;
+                
+                // Add to history
+                customer.history.add(
+                  CustomerEntry(
+                    type: EntryType.tea,
+                    cups: newTeaCups,
+                    amount: newTeaCups * customer.teaRate,
+                    timestamp: DateTime.now(),
+                    beverageType: 'tea',
+                  ),
+                );
+              }
+              
+              // Only add coffee cup entries if there are any
+              if (newCoffeeCups > 0) {
+                customer.cups += newCoffeeCups;
+                customer.totalAmount += newCoffeeCups * customer.coffeeRate;
+                
+                // Add to history
+                customer.history.add(
+                  CustomerEntry(
+                    type: EntryType.tea,
+                    cups: newCoffeeCups,
+                    amount: newCoffeeCups * customer.coffeeRate,
+                    timestamp: DateTime.now(),
+                    beverageType: 'coffee',
+                  ),
+                );
+              }
+              
+              // Only add milk cup entries if there are any
+              if (newMilkCups > 0) {
+                customer.cups += newMilkCups;
+                customer.totalAmount += newMilkCups * customer.milkRate;
+                
+                // Add to history
+                customer.history.add(
+                  CustomerEntry(
+                    type: EntryType.tea,
+                    cups: newMilkCups,
+                    amount: newMilkCups * customer.milkRate,
+                    timestamp: DateTime.now(),
+                    beverageType: 'milk',
+                  ),
+                );
+              }
+              
+              // Update last updated timestamp if any cups were added
+              if (totalNewCups > 0) {
+                customer.lastUpdated = DateTime.now();
+              }
+              
+              // Update main screen state
+              setState(() {
+                _updateTotals();
+                _sortCustomers();
+                _counterAnimationController.forward(from: 0);
+                // Save the data
+                _saveCustomers();
+              });
+              
+              // Close the bottom sheet
+              Navigator.of(context).pop();
+            }
             
             return Padding(
               padding: EdgeInsets.only(
@@ -523,12 +720,24 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
                   Text(
                     customer.name,
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop(),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Cancel',
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -543,13 +752,27 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                               children: [
                                 const Text('Cups'),
                                 const SizedBox(height: 4),
-                                Text(
-                                  newlyAddedCups > 0 
-                                    ? '$originalCups + $newlyAddedCups = ${customer.cups}'
-                                    : '${customer.cups}',
+                                RichText(
+                                  text: TextSpan(
+                                    style: const TextStyle(fontSize: 24),
+                                    children: [
+                                      TextSpan(
+                                        text: '$originalCups',
                                   style: const TextStyle(
-                                    fontSize: 24,
                                     fontWeight: FontWeight.bold,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      if (getTotalNewCups() > 0) ...[
+                                        TextSpan(
+                                          text: ' + ${getTotalNewCups()} = ${originalCups + getTotalNewCups()}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.normal,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                               ],
@@ -568,7 +791,10 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                                 const Text('Balance'),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '₹${(customer.totalAmount - customer.paymentsMade).toStringAsFixed(2)}',
+                                  '₹${((customer.totalAmount - customer.paymentsMade) + 
+                                    (newTeaCups * customer.teaRate) + 
+                                    (newCoffeeCups * customer.coffeeRate) + 
+                                    (newMilkCups * customer.milkRate)).toStringAsFixed(2)}',
                                   style: const TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,
@@ -589,92 +815,138 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     children: [
                       // Coffee button
                       Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: customer.coffeeRate > 0 ? () {
-                            setState(() {
-                              newlyAddedCups += 1;
-                              customer.cups += 1;
-                              customer.totalAmount += customer.coffeeRate;
-                            });
-                            
-                            // Add to history
-                            customer.history.add(
-                              CustomerEntry(
-                                type: EntryType.tea,
-                                cups: 1,
-                                amount: customer.coffeeRate,
-                                timestamp: DateTime.now(),
-                                beverageType: 'coffee',
-                              ),
-                            );
-                            
-                            // Update last updated timestamp
-                            customer.lastUpdated = DateTime.now();
-                            
-                            this.setState(() {
-                              _updateTotals();
-                              _sortCustomers();
-                              _counterAnimationController.forward(from: 0);
-                            });
-                          } : null,
-                          icon: const Icon(Icons.coffee, size: 16),
-                          label: Text(
-                            customer.coffeeRate > 0 
-                              ? '₹${customer.coffeeRate.toStringAsFixed(1)}'
-                              : 'N/A',
-                            style: const TextStyle(fontSize: 12),
+                        child: Card(
+                          color: Colors.brown,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.brown,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                            child: Column(
+                              children: [
+                                // Label
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.coffee, color: Colors.white, size: 16),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '₹${customer.coffeeRate.toStringAsFixed(1)}',
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  
+                                if (newCoffeeCups > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(
+                                      '+$newCoffeeCups',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                                  
+                                const SizedBox(height: 4),
+                                
+                                // Controls
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                                    IconButton(
+                                      onPressed: newCoffeeCups > 0 ? () => removeCoffeeCup() : null,
+                                      icon: const Icon(Icons.remove_circle),
+                                      color: newCoffeeCups > 0 ? Colors.white : Colors.white30,
+                                      iconSize: 24,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                    
+                                    IconButton(
+                                      onPressed: customer.coffeeRate > 0 ? () => addCoffeeCup() : null,
+                                      icon: const Icon(Icons.add_circle),
+                                      color: Colors.white,
+                                      iconSize: 24,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
+                                ),
+                              ],
                           ),
                         ),
+                      ),
                       ),
                       
                       const SizedBox(width: 8),
                       
                       // Milk button
                       Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: customer.milkRate > 0 ? () {
-                            setState(() {
-                              newlyAddedCups += 1;
-                              customer.cups += 1;
-                              customer.totalAmount += customer.milkRate;
-                            });
-                            
-                            // Add to history
-                            customer.history.add(
-                              CustomerEntry(
-                                type: EntryType.tea,
-                                cups: 1,
-                                amount: customer.milkRate,
-                                timestamp: DateTime.now(),
-                                beverageType: 'milk',
-                              ),
-                            );
-                            
-                            // Update last updated timestamp
-                            customer.lastUpdated = DateTime.now();
-                            
-                            this.setState(() {
-                              _updateTotals();
-                              _sortCustomers();
-                              _counterAnimationController.forward(from: 0);
-                            });
-                          } : null,
-                          icon: const Icon(Icons.local_drink, size: 16),
-                          label: Text(
-                            customer.milkRate > 0 
-                              ? '₹${customer.milkRate.toStringAsFixed(1)}'
-                              : 'N/A',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        child: Card(
+                          color: Colors.blue,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: Column(
+              children: [
+                                // Label
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                                    const Icon(Icons.water_drop, color: Colors.white, size: 16),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '₹${customer.milkRate.toStringAsFixed(1)}',
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                                
+                                if (newMilkCups > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(
+                                      '+$newMilkCups',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                                  
+                                const SizedBox(height: 4),
+                                
+                                // Controls
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                                    IconButton(
+                                      onPressed: newMilkCups > 0 ? () => removeMilkCup() : null,
+                                      icon: const Icon(Icons.remove_circle),
+                                      color: newMilkCups > 0 ? Colors.white : Colors.white30,
+                                      iconSize: 24,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                    
+                                    IconButton(
+                                      onPressed: customer.milkRate > 0 ? () => addMilkCup() : null,
+                                      icon: const Icon(Icons.add_circle),
+                                      color: Colors.white,
+                                      iconSize: 24,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -683,53 +955,91 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                   
                   const SizedBox(height: 8),
                   
-                  // Tea cup button (renamed from Add Cup)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        int additionalCups = 1;
-                        setState(() {
-                          newlyAddedCups += additionalCups;
-                          customer.cups += additionalCups;
-                          customer.totalAmount += additionalCups * customer.teaRate;
-                        });
-                        
-                        // Update customer history
-                        customer.history.add(
-                          CustomerEntry(
-                            type: EntryType.tea,
-                            cups: additionalCups,
-                            amount: additionalCups * customer.teaRate,
-                            timestamp: DateTime.now(),
-                            beverageType: 'tea',
+                  // Tea cup button
+                  Card(
+                    color: Colors.teal,
+                    shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        );
-                        
-                        // Update last updated timestamp
-                        customer.lastUpdated = DateTime.now();
-                        
-                        this.setState(() {
-                          _updateTotals();
-                          _sortCustomers(); // Re-sort to put most recent at top
-                          _counterAnimationController.forward(from: 0);
-                        });
-                      },
-                      icon: const Icon(Icons.local_cafe),
-                      label: Text(
-                        'Add Tea Cup (₹${customer.teaRate.toStringAsFixed(1)})',
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        foregroundColor: Colors.white,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                            children: [
+                          // Label
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.local_cafe, color: Colors.white, size: 18),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Tea Cup (₹${customer.teaRate.toStringAsFixed(1)})',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          
+                          if (newTeaCups > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                '+$newTeaCups cups',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            
+                          const SizedBox(height: 8),
+                          
+                          // Controls
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              SizedBox(
+                                height: 32,
+                                width: 100,
+                                child: ElevatedButton.icon(
+                                  onPressed: newTeaCups > 0 ? () => removeTeaCup() : null,
+                                  icon: const Icon(Icons.remove, size: 16),
+                                  label: const Text('Remove', style: TextStyle(fontSize: 12)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: Colors.red,
+                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  ),
+                                ),
+                              ),
+                              
+                              SizedBox(
+                                height: 32,
+                                width: 100,
+                                child: ElevatedButton.icon(
+                                  onPressed: () => addTeaCup(),
+                                  icon: const Icon(Icons.add, size: 16),
+                                  label: const Text('Add', style: TextStyle(fontSize: 12)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: Colors.teal,
+                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
+                        ],
                       ),
                     ),
                   ),
                   
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   
-                  // Payment and Custom Entry buttons
+                  // Payment and Save buttons
                   Row(
                     children: [
                       Expanded(
@@ -748,13 +1058,11 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                       const SizedBox(width: 8),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            _addTeaEntry(customer);
-                          },
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Custom Entry'),
+                          onPressed: saveChanges,
+                          icon: const Icon(Icons.save),
+                          label: const Text('Save'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey[800],
+                            backgroundColor: Colors.green[700],
                             foregroundColor: Colors.white,
                           ),
                         ),
@@ -762,456 +1070,18 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     ],
                   ),
                   
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
                 ],
               ),
             );
-          },
+          }
         );
       },
     ).then((_) {
-      setState(() {
-        _updateTotals();
+                setState(() {
+                  _updateTotals();
       });
     });
-  }
-  
-  // Restore the add customer method that was accidentally removed
-  void _addCustomer() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (BuildContext context) {
-        String name = '';
-        String phoneNumber = '';
-        double teaRate = 10.0;
-        double coffeeRate = 15.0;
-        double milkRate = 8.0;
-        
-        // Calculate available height for the bottom sheet (80% of screen height)
-        final availableHeight = MediaQuery.of(context).size.height * 0.8;
-        
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-          height: availableHeight,
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 10,
-                spreadRadius: 0,
-                offset: Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header with decorative handle
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.teal.shade50,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Column(
-                    children: [
-                      // Handle bar
-                      Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        margin: const EdgeInsets.only(bottom: 16),
-                      ),
-                      const Text(
-                        'Add New Customer',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.teal,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Form content in scrollable area
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Customer info section
-                        TextField(
-                          autofocus: true,
-                          decoration: InputDecoration(
-                            labelText: 'Name',
-                            hintText: 'Enter customer name',
-                            prefixIcon: const Icon(Icons.person_outline, color: Colors.teal),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Colors.teal, width: 2),
-                            ),
-                          ),
-                          onChanged: (value) {
-                            name = value;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          decoration: InputDecoration(
-                            labelText: 'Phone Number (Optional)',
-                            hintText: 'Enter phone number',
-                            prefixIcon: const Icon(Icons.phone_outlined, color: Colors.teal),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Colors.teal, width: 2),
-                            ),
-                          ),
-                          keyboardType: TextInputType.phone,
-                          onChanged: (value) {
-                            phoneNumber = value;
-                          },
-                        ),
-                        
-                        // Beverage Prices section
-                        Container(
-                          margin: const EdgeInsets.only(top: 24, bottom: 12),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.teal.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.local_cafe_outlined, color: Colors.teal),
-                              const SizedBox(width: 10),
-                              const Text(
-                                'Beverage Prices',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.teal,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        
-                        // Tea price
-                        TextField(
-                          decoration: InputDecoration(
-                            labelText: 'Tea Cup Price',
-                            hintText: '10.0',
-                            prefixIcon: const Icon(Icons.emoji_food_beverage, color: Colors.brown),
-                            prefixText: '₹ ',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                          ),
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            teaRate = double.tryParse(value) ?? 10.0;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Coffee price
-                        TextField(
-                          decoration: InputDecoration(
-                            labelText: 'Coffee Cup Price',
-                            hintText: '15.0',
-                            prefixIcon: const Icon(Icons.coffee, color: Colors.brown),
-                            prefixText: '₹ ',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                          ),
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            coffeeRate = double.tryParse(value) ?? 15.0;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Milk price
-                        TextField(
-                          decoration: InputDecoration(
-                            labelText: 'Milk Cup Price',
-                            hintText: '8.0',
-                            prefixIcon: const Icon(Icons.water_drop_outlined, color: Colors.blue),
-                            prefixText: '₹ ',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                          ),
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            milkRate = double.tryParse(value) ?? 8.0;
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                
-                // Action buttons at the bottom
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 5,
-                        spreadRadius: 0,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: Colors.grey.shade300),
-                            ),
-                          ),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (name.isNotEmpty) {
-                              final newCustomer = Customer(
-                                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                                name: name,
-                                phoneNumber: phoneNumber,
-                                cups: 0,
-                                teaRate: teaRate,
-                                coffeeRate: coffeeRate,
-                                milkRate: milkRate,
-                                totalAmount: 0,
-                                paymentsMade: 0,
-                                date: _selectedDate,
-                                lastUpdated: DateTime.now(),
-                                history: [],
-                              );
-                              
-                              setState(() {
-                                // Add to both main list and filtered list
-                                _allCustomers.add(newCustomer);
-                                _customersForSelectedDate.add(newCustomer);
-                                _filteredCustomers = List.from(_customersForSelectedDate);
-                                _sortCustomers();
-                                _updateTotals();
-                              });
-                              
-                              Navigator.of(context).pop();
-                              _counterAnimationController.forward(from: 0);
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            'Add Customer',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-  
-  // Also update _addTeaEntry to update customer history and timestamps
-  void _addTeaEntry(Customer customer) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        int cups = 1;
-        
-        return AlertDialog(
-          title: const Text('Add Custom Tea Entry'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Number of Cups'),
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  cups = int.tryParse(value) ?? 1;
-                },
-              ),
-              const SizedBox(height: 8),
-              Text('Rate: ₹${customer.teaRate}/cup'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  customer.cups += cups;
-                  customer.totalAmount += cups * customer.teaRate;
-                  
-                  // Add to history
-                  customer.history.add(
-                    CustomerEntry(
-                      type: EntryType.tea,
-                      cups: cups,
-                      amount: cups * customer.teaRate,
-                      timestamp: DateTime.now(),
-                    ),
-                  );
-                  
-                  // Update timestamp
-                  customer.lastUpdated = DateTime.now();
-                  
-                  _updateTotals();
-                  _sortCustomers(); // Re-sort to put most recent at top
-                  _counterAnimationController.forward(from: 0);
-                });
-                Navigator.of(context).pop();
-                Navigator.of(context).pop();
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-  
-  // Also update _addPayment to update customer history and timestamps
-  void _addPayment(Customer customer) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        double amount = 0;
-        
-        return AlertDialog(
-          title: const Text('Add Payment'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Amount'),
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  amount = double.tryParse(value) ?? 0;
-                },
-              ),
-              const SizedBox(height: 8),
-              Text('Current Balance: ₹${(customer.totalAmount - customer.paymentsMade).toStringAsFixed(2)}'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  customer.paymentsMade += amount;
-                  
-                  // Add to history
-                  customer.history.add(
-                    CustomerEntry(
-                      type: EntryType.payment,
-                      amount: amount,
-                      timestamp: DateTime.now(),
-                    ),
-                  );
-                  
-                  // Update timestamp
-                  customer.lastUpdated = DateTime.now();
-                  
-                  _updateTotals();
-                  _sortCustomers(); // Re-sort to put most recent at top
-                });
-                Navigator.of(context).pop();
-                Navigator.of(context).pop();
-              },
-              child: const Text('Add Payment'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   Widget _buildCustomerCard(Customer customer) {
@@ -1359,8 +1229,8 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                             Text(
                               '${customer.cups} cups',
                               style: const TextStyle(
-                                fontWeight: FontWeight.w500,
                                 fontSize: 13,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -1429,6 +1299,9 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
   void _showReportOptions() {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 20),
@@ -1449,7 +1322,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
               ListTile(
                 leading: const Icon(Icons.calendar_today, color: Colors.teal),
                 title: const Text('One Day Report'),
-                subtitle: Text('Report for ${DateFormat('dd MMM yyyy').format(DateTime.now())}'),
+                subtitle: Text('Report for ${DateFormat('dd MMM yyyy').format(_selectedDate)}'),
                 onTap: () {
                   Navigator.pop(context);
                   _generateReport(isOneDay: true);
@@ -1458,7 +1331,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
               ListTile(
                 leading: const Icon(Icons.date_range, color: Colors.deepPurple),
                 title: const Text('7 Days Report'),
-                subtitle: Text('Report from ${DateFormat('dd MMM').format(DateTime.now().subtract(const Duration(days: 6)))} to ${DateFormat('dd MMM yyyy').format(DateTime.now())}'),
+                subtitle: Text('Report from ${DateFormat('dd MMM').format(_selectedDate.subtract(const Duration(days: 6)))} to ${DateFormat('dd MMM yyyy').format(_selectedDate)}'),
                 onTap: () {
                   Navigator.pop(context);
                   _generateReport(isOneDay: false);
@@ -1471,16 +1344,292 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     );
   }
 
-  void _generateReport({required bool isOneDay}) {
-    // Show a snackbar indicating report generation (placeholder for actual PDF generation)
+  void _generateReport({required bool isOneDay}) async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+      
+      // Get data for report
+      final List<Customer> reportCustomers = isOneDay 
+          ? _customersForSelectedDate 
+          : _getCustomersForLastSevenDays();
+      
+      // Create PDF document
+      final pdf = await _createPdf(
+        title: isOneDay 
+            ? 'Tea Diary Report - ${DateFormat('dd MMM yyyy').format(_selectedDate)}'
+            : 'Tea Diary Report - ${DateFormat('dd MMM').format(_selectedDate.subtract(const Duration(days: 6)))} to ${DateFormat('dd MMM yyyy').format(_selectedDate)}',
+        customers: reportCustomers,
+        isOneDay: isOneDay,
+      );
+      
+      // Get the app's documents directory
+      final directory = await getApplicationDocumentsDirectory();
+      final reportName = isOneDay 
+          ? 'tea_report_${DateFormat('dd_MM_yyyy').format(_selectedDate)}.pdf'
+          : 'tea_report_7days_${DateFormat('dd_MM_yyyy').format(_selectedDate)}.pdf';
+      final filePath = '${directory.path}/$reportName';
+      
+      // Save the PDF
+      final file = File(filePath);
+      await file.writeAsBytes(await pdf.save());
+      
+      // Close loading dialog
+      Navigator.pop(context);
+      
+      // Show success and open file
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(isOneDay ? 'Generating one day report...' : 'Generating 7-day report...'),
-        duration: const Duration(seconds: 2),
+          content: Text('Report saved: $reportName'),
+          action: SnackBarAction(
+            label: 'View',
+            onPressed: () => OpenFile.open(filePath),
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } catch (e) {
+      // Close loading dialog and show error
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error generating report: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  
+  List<Customer> _getCustomersForLastSevenDays() {
+    // Get the date range (last 7 days including today)
+    final DateTime startDate = _selectedDate.subtract(const Duration(days: 6));
+    
+    // Filter customers within the date range
+    return _allCustomers.where((customer) {
+      return !customer.date.isBefore(DateTime(startDate.year, startDate.month, startDate.day)) &&
+              !customer.date.isAfter(DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59));
+    }).toList();
+  }
+  
+  Future<pw.Document> _createPdf({required String title, required List<Customer> customers, required bool isOneDay}) async {
+    final pdf = pw.Document();
+    
+    double totalCups = 0;
+    double totalAmount = 0;
+    double collectedAmount = 0;
+    double remainingAmount = 0;
+    
+    // Calculate totals
+    for (var customer in customers) {
+      totalCups += customer.cups;
+      totalAmount += customer.totalAmount;
+      collectedAmount += customer.paymentsMade;
+    }
+    remainingAmount = totalAmount - collectedAmount;
+    
+    pdf.addPage(
+      pw.Page(
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                color: PdfColors.teal50,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Text(
+                      'My Byaj Book - Tea Diary',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 5),
+                    pw.Text(
+                      title,
+                      style: const pw.TextStyle(
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(height: 20),
+              
+              // Summary section
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey300),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    _pdfSummaryItem('Total Cups', totalCups.toInt().toString()),
+                    _pdfSummaryItem('Total Sales', '${totalAmount.toStringAsFixed(2)}'),
+                    _pdfSummaryItem('Collected', '${collectedAmount.toStringAsFixed(2)}'),
+                    _pdfSummaryItem('Remaining', '${remainingAmount.toStringAsFixed(2)}'),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(height: 20),
+              
+              // Table header
+              pw.Container(
+                color: PdfColors.teal100,
+                padding: const pw.EdgeInsets.all(5),
+                child: pw.Row(
+                  children: [
+                    pw.Expanded(
+                      flex: 3,
+                      child: pw.Text(
+                        'Customer Name',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
+                    ),
+                    pw.Expanded(
+                      flex: 1,
+                      child: pw.Text(
+                        'Cups',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ),
+                    pw.Expanded(
+                      flex: 2,
+                      child: pw.Text(
+                        'Rate',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ),
+                    pw.Expanded(
+                      flex: 2,
+                      child: pw.Text(
+                        'Total',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ),
+                    pw.Expanded(
+                      flex: 2,
+                      child: pw.Text(
+                        'Balance',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Table data
+              pw.ListView.builder(
+                itemCount: customers.length,
+                itemBuilder: (context, index) {
+                  final customer = customers[index];
+                  final pendingAmount = customer.totalAmount - customer.paymentsMade;
+                  
+                  return pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 5),
+                    color: index % 2 == 0 ? PdfColors.grey100 : PdfColors.white,
+                    child: pw.Row(
+                      children: [
+                        pw.Expanded(
+                          flex: 3,
+                          child: pw.Text(customer.name),
+                        ),
+                        pw.Expanded(
+                          flex: 1,
+                          child: pw.Text(
+                            '${customer.cups}',
+                            textAlign: pw.TextAlign.center,
+                          ),
+                        ),
+                        pw.Expanded(
+                          flex: 2,
+                          child: pw.Text(
+                            '${customer.teaRate.toStringAsFixed(1)}',
+                            textAlign: pw.TextAlign.center,
+                          ),
+                        ),
+                        pw.Expanded(
+                          flex: 2,
+                          child: pw.Text(
+                            '${customer.totalAmount.toStringAsFixed(2)}',
+                            textAlign: pw.TextAlign.center,
+                          ),
+                        ),
+                        pw.Expanded(
+                          flex: 2,
+                          child: pw.Text(
+                            '${pendingAmount.toStringAsFixed(2)}',
+                            style: pendingAmount > 0
+                                ? const pw.TextStyle(color: PdfColors.red)
+                                : const pw.TextStyle(color: PdfColors.green),
+                            textAlign: pw.TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              
+              pw.SizedBox(height: 20),
+              
+              // Footer
+              pw.Container(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Text(
+                  'Generated on ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey700,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
     
-    // Actual PDF generation would be implemented here
+    return pdf;
+  }
+  
+  pw.Widget _pdfSummaryItem(String title, String value) {
+    return pw.Column(
+      children: [
+        pw.Text(
+          title,
+          style: const pw.TextStyle(
+            fontSize: 10,
+            color: PdfColors.grey700,
+          ),
+        ),
+        pw.SizedBox(height: 2),
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            fontSize: 14,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -1489,11 +1638,12 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     final screenWidth = MediaQuery.of(context).size.width;
     
     return Scaffold(
-      body: Column(
+      body: SafeArea(
+        child: Column(
         children: [
           // Summary card with fixed width constraints
           Padding(
-            padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(12.0),
             child: Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -1501,7 +1651,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
               ),
               color: Colors.teal[50],
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1509,9 +1659,15 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Date picker - constrained width
+                          // Date picker with better constraints
                         GestureDetector(
                           onTap: () => _selectDate(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.teal.withOpacity(0.3)),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -1525,6 +1681,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                               const SizedBox(width: 4),
                               const Icon(Icons.calendar_today, size: 15),
                             ],
+                              ),
                           ),
                         ),
                         
@@ -1549,7 +1706,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                             const SizedBox(width: 4),
                             // More compact Add Customer button
                             SizedBox(
-                              height: 32,
+                                height: 36,
                               child: ElevatedButton.icon(
                                 onPressed: _addCustomer,
                                 icon: const Icon(Icons.person_add, size: 14),
@@ -1561,152 +1718,26 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                                   backgroundColor: Colors.teal,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
                                 ),
                               ),
+                            ),
+                              ),
+                            ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    // Fix for pixel overflow - using a better constrained layout with properly sized metrics
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Row of metric category labels with equal spacing
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Total Cups',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'Total Sales',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'Collected',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'Remaining',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ],
-                        ),
+                      const SizedBox(height: 16),
                         
-                        const SizedBox(height: 4),
-                        
-                        // Row of metric values with equal spacing and animated values
+                      // Statistics with 1x4 grid layout
                         Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(
-                              child: AnimatedBuilder(
-                                animation: _counterAnimationController,
-                                builder: (context, child) {
-                                  return Transform.scale(
-                                    scale: 1.0 + _counterAnimationController.value * 0.1,
-                                    child: Text(
-                                      '$_totalCups',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            Expanded(
-                              child: AnimatedBuilder(
-                                animation: _counterAnimationController,
-                                builder: (context, child) {
-                                  return Transform.scale(
-                                    scale: 1.0 + _counterAnimationController.value * 0.1,
-                                    child: Text(
-                                      '₹${_totalAmount.toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            Expanded(
-                              child: AnimatedBuilder(
-                                animation: _counterAnimationController,
-                                builder: (context, child) {
-                                  return Transform.scale(
-                                    scale: 1.0 + _counterAnimationController.value * 0.1,
-                                    child: Text(
-                                      '₹${_collectedAmount.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.green[700],
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            Expanded(
-                              child: AnimatedBuilder(
-                                animation: _counterAnimationController,
-                                builder: (context, child) {
-                                  return Transform.scale(
-                                    scale: 1.0 + _counterAnimationController.value * 0.1,
-                                    child: Text(
-                                      '₹${_remainingAmount.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.red[700],
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
+                          _buildStatCard('Total Cups', '$_totalCups', Icons.local_cafe, Colors.teal),
+                          _buildStatCard('Total Sales', '₹${_totalAmount.toStringAsFixed(2)}', Icons.monetization_on, Colors.blue),
+                          _buildStatCard('Collected', '₹${_collectedAmount.toStringAsFixed(2)}', Icons.payments, Colors.green),
+                          _buildStatCard('Remaining', '₹${_remainingAmount.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.orange),
                       ],
                     ),
                   ],
@@ -1715,11 +1746,12 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
             ),
           ),
 
+            // Total Market Pending button
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
             child: ElevatedButton.icon(
               onPressed: _showPendingBreakdown,
-              icon: const Icon(Icons.account_balance_wallet),
+                icon: const Icon(Icons.account_balance_wallet, size: 16),
               label: Row(
                 children: [
                   const Text('Total Market Pending: '),
@@ -1734,7 +1766,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange.shade100,
                 foregroundColor: Colors.deepOrange.shade800,
-                minimumSize: const Size(double.infinity, 44),
+                  minimumSize: const Size(double.infinity, 40),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -1742,8 +1774,9 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
             ),
           ),
           
+            // Search bar and Report button
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
             child: Row(
               children: [
                 Expanded(
@@ -1783,22 +1816,20 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
             ),
           ),
           
-          const SizedBox(height: 16),
-          
           // Updated Customer list heading with filter option
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.people, size: 20, color: Colors.grey),
-                    const SizedBox(width: 8),
+                      const Icon(Icons.people, size: 16, color: Colors.grey),
+                      const SizedBox(width: 4),
                     const Text(
                       'Customer List',
                       style: TextStyle(
-                        fontSize: 16,
+                          fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1809,7 +1840,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                   onTap: () => _showSortOptions(context),
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(20),
@@ -1819,10 +1850,10 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                       children: [
                         Icon(
                           _getSortIcon(),
-                          size: 16,
+                            size: 14,
                           color: Colors.grey.shade700,
                         ),
-                        const SizedBox(width: 4),
+                          const SizedBox(width: 2),
                         Text(
                           _getSortLabel(),
                           style: TextStyle(
@@ -1838,7 +1869,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
             ),
           ),
           
-          // Updated Customer list
+            // Updated Customer list with scrolling
           Expanded(
             child: _filteredCustomers.isEmpty 
                 ? Center(
@@ -1871,49 +1902,200 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                     itemCount: _filteredCustomers.length,
                     itemBuilder: (context, index) {
                       final customer = _filteredCustomers[index];
-                      return _buildDetailedCustomerItem(customer, index);
+                        return _buildCustomerItem(customer, index);
                     },
                   ),
           ),
         ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addCustomer,
+        backgroundColor: Colors.teal,
+        child: const Icon(Icons.person_add, color: Colors.white),
+        tooltip: 'Add Customer',
       ),
     );
   }
   
-  // Helper method to get sort icon
-  IconData _getSortIcon() {
-    switch (_sortBy) {
-      case 'recent':
-        return Icons.access_time;
-      case 'name':
-        return Icons.sort_by_alpha;
-      case 'amount':
-        return Icons.money;
-      case 'cups':
-        return Icons.local_cafe;
-      default:
-        return Icons.sort;
-    }
+  // Helper method to build stat cards
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 10,
+                color: color.withOpacity(0.8),
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 2),
+            Icon(icon, size: 14, color: color),
+            const SizedBox(height: 2),
+            AnimatedBuilder(
+              animation: _counterAnimationController,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: 1.0 + _counterAnimationController.value * 0.05,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
   
-  // Helper method to get sort label
-  String _getSortLabel() {
-    switch (_sortBy) {
-      case 'recent':
-        return 'Recent';
-      case 'name':
-        return 'Name';
-      case 'amount':
-        return 'Amount';
-      case 'cups':
-        return 'Cups';
-      default:
-        return 'Sort';
-    }
+  // More compact customer item
+  Widget _buildCustomerItem(Customer customer, int index) {
+    final pendingAmount = customer.totalAmount - customer.paymentsMade;
+    final String lastUpdatedTime = _getFormattedTime(customer.lastUpdated);
+    
+    return Card(
+      key: ValueKey(customer.id),
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () => _showCustomerActions(customer),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              // Avatar
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: Colors.primaries[index % Colors.primaries.length],
+                child: Text(
+                  customer.name[0].toUpperCase(),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                ),
+              ),
+              const SizedBox(width: 12),
+              
+              // Main content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Name
+                        Text(
+                          customer.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        
+                        // Cup count
+                        Text(
+                          '${customer.cups} cups',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Tea rate
+                        Text(
+                          'Tea: ₹${customer.teaRate.toStringAsFixed(1)}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 11,
+                          ),
+                        ),
+                        
+                        // Pending amount
+                        Text(
+                          '₹${pendingAmount.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: pendingAmount > 0 ? Colors.red[700] : Colors.green[700],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Last updated time
+                        Text(
+                          'Updated: $lastUpdatedTime',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 10,
+                          ),
+                        ),
+                        
+                        // Details button
+                        TextButton.icon(
+                          onPressed: () => _showCustomerHistory(customer),
+                          icon: Icon(
+                            Icons.history,
+                            size: 12,
+                            color: Colors.blue.shade700,
+                          ),
+                          label: Text(
+                            'Details',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
   
   // Show customer history dialog
@@ -2120,6 +2302,438 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
         ),
       ),
     );
+  }
+
+  void _showAddSellerDialog() {
+    // Implementation...
+  }
+  
+  // Add missing methods
+  void _addPayment(Customer customer) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        double amount = 0;
+        
+        return AlertDialog(
+          title: const Text('Add Payment'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Amount'),
+                keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  amount = double.tryParse(value) ?? 0;
+                },
+              ),
+              const SizedBox(height: 8),
+              Text('Current Balance: ₹${(customer.totalAmount - customer.paymentsMade).toStringAsFixed(2)}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  customer.paymentsMade += amount;
+                  
+                  // Add to history
+                  customer.history.add(
+                    CustomerEntry(
+                      type: EntryType.payment,
+                      amount: amount,
+                      timestamp: DateTime.now(),
+                    ),
+                  );
+                  
+                  // Update timestamp
+                  customer.lastUpdated = DateTime.now();
+                  
+                  _updateTotals();
+                  _sortCustomers(); // Re-sort to put most recent at top
+                  _saveCustomers(); // Save changes
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('Add Payment'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  void _addTeaEntry(Customer customer) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        int cups = 1;
+        
+        return AlertDialog(
+          title: const Text('Add Custom Tea Entry'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Number of Cups'),
+                keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  cups = int.tryParse(value) ?? 1;
+                },
+              ),
+              const SizedBox(height: 8),
+              Text('Rate: ₹${customer.teaRate}/cup'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  customer.cups += cups;
+                  customer.totalAmount += cups * customer.teaRate;
+                  
+                  // Add to history
+                  customer.history.add(
+                    CustomerEntry(
+                      type: EntryType.tea,
+                      cups: cups,
+                      amount: cups * customer.teaRate,
+                      timestamp: DateTime.now(),
+                      beverageType: 'tea',
+                    ),
+                  );
+                  
+                  // Update timestamp
+                  customer.lastUpdated = DateTime.now();
+                  
+                  _updateTotals();
+                  _sortCustomers(); // Re-sort to put most recent at top
+                  _counterAnimationController.forward(from: 0);
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  void _addCustomer() {
+    // Initial values
+    String name = '';
+    String phoneNumber = '';
+    double teaRate = 10.0;
+    double coffeeRate = 15.0;
+    double milkRate = 20.0;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Handle indicator
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        margin: const EdgeInsets.only(bottom: 20),
+                      ),
+                    ),
+                    
+                    // Title
+                    const Center(
+                      child: Text(
+                        'Add New Customer',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Name field
+                    Row(
+                      children: [
+                        const Icon(Icons.person, color: Colors.teal),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            autofocus: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Name',
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (value) {
+                              name = value;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Phone field
+                    Row(
+                      children: [
+                        const Icon(Icons.phone, color: Colors.teal),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            decoration: const InputDecoration(
+                              labelText: 'Phone Number (Optional)',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.phone,
+                            onChanged: (value) {
+                              phoneNumber = value;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Beverage section
+                    Row(
+                      children: [
+                        const Icon(Icons.local_cafe, color: Colors.teal),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Beverage Prices',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.teal,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Tea price
+                    Row(
+                      children: [
+                        const Icon(Icons.emoji_food_beverage, color: Colors.brown),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            decoration: const InputDecoration(
+                              labelText: 'Tea Cup Price',
+                              border: OutlineInputBorder(),
+                              prefixText: '₹ ',
+                            ),
+                            keyboardType: TextInputType.number,
+                            controller: TextEditingController(text: '10'),
+                            onChanged: (value) {
+                              teaRate = double.tryParse(value) ?? 10.0;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Coffee price
+                    Row(
+                      children: [
+                        const Icon(Icons.coffee, color: Colors.brown),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            decoration: const InputDecoration(
+                              labelText: 'Coffee Cup Price',
+                              border: OutlineInputBorder(),
+                              prefixText: '₹ ',
+                            ),
+                            keyboardType: TextInputType.number,
+                            controller: TextEditingController(text: '15'),
+                            onChanged: (value) {
+                              coffeeRate = double.tryParse(value) ?? 15.0;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Milk price
+                    Row(
+                      children: [
+                        const Icon(Icons.water_drop, color: Colors.blue),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            decoration: const InputDecoration(
+                              labelText: 'Milk Cup Price',
+                              border: OutlineInputBorder(),
+                              prefixText: '₹ ',
+                            ),
+                            keyboardType: TextInputType.number,
+                            controller: TextEditingController(text: '20'),
+                            onChanged: (value) {
+                              milkRate = double.tryParse(value) ?? 20.0;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                    
+                    // Action buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 15),
+                            ),
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              // Only add if name is not empty
+                              if (name.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please enter a name'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+                              
+                              // Create new customer
+                              final newCustomer = Customer(
+                                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                name: name.trim(),
+                                phoneNumber: phoneNumber.trim(),
+                                cups: 0,
+                                teaRate: teaRate,
+                                coffeeRate: coffeeRate,
+                                milkRate: milkRate,
+                                totalAmount: 0,
+                                paymentsMade: 0,
+                                date: _selectedDate,
+                                lastUpdated: DateTime.now(),
+                                history: [],
+                              );
+                              
+                              // Close the modal first
+                              Navigator.pop(context);
+                              
+                              // Update state in the main screen
+                              setModalState(() {
+                                _allCustomers.add(newCustomer);
+                                _customersForSelectedDate.add(newCustomer);
+                                _filteredCustomers = List.from(_customersForSelectedDate);
+                                _sortCustomers();
+                                _updateTotals();
+                                _counterAnimationController.forward(from: 0);
+                                _saveCustomers(); // Save the new customer
+                              });
+                              
+                              // Show success message
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${name.trim()} added successfully'),
+                                  backgroundColor: Colors.green,
+                                )
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 15),
+                            ),
+                            child: const Text('Add Customer'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ),
+              ),
+            );
+          }
+        );
+      },
+    );
+  }
+
+  // Helper method to get sort icon
+  IconData _getSortIcon() {
+    switch (_sortBy) {
+      case 'recent':
+        return Icons.access_time;
+      case 'name':
+        return Icons.sort_by_alpha;
+      case 'amount':
+        return Icons.money;
+      case 'cups':
+        return Icons.local_cafe;
+      default:
+        return Icons.sort;
+    }
+  }
+  
+  // Helper method to get sort label
+  String _getSortLabel() {
+    switch (_sortBy) {
+      case 'recent':
+        return 'Recent';
+      case 'name':
+        return 'Name';
+      case 'amount':
+        return 'Amount';
+      case 'cups':
+        return 'Cups';
+      default:
+        return 'Sort';
+    }
   }
 }
 

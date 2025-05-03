@@ -804,60 +804,6 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                     ],
                   ),
                 ),
-                
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Stack(
-                      children: [
-                        // Placeholder for a proper pie chart
-                        Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    color: Colors.blue,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${(investedPercent * 100).toStringAsFixed(0)}%',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    color: Colors.orange,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${(returnsPercent * 100).toStringAsFixed(0)}%',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 20),
