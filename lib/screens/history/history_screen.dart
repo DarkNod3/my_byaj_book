@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:my_byaj_book/constants/app_theme.dart';
 import 'package:my_byaj_book/widgets/header/app_header.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
+import 'package:my_byaj_book/services/pdf_service.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:cross_file/cross_file.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -563,7 +569,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   // Generate PDF report
-  void _generatePdfReport() {
+  Future<void> _generatePdfReport() async {
     // Get filtered transactions
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     final allTransactions = transactionProvider.getAllTransactions();
@@ -594,9 +600,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
       },
     );
     
-    // Simulate PDF creation with a short delay (you would typically call your PDF service here)
-    Future.delayed(const Duration(seconds: 1), () {
-      Navigator.pop(context); // Close loading dialog
+    try {
+      // Import necessary packages at the top of the file
+      // import 'dart:io';
+      // import 'package:path_provider/path_provider.dart';
+      // import 'package:open_file/open_file.dart';
+      // import 'package:my_byaj_book/services/pdf_service.dart';
+      
+      // Get application document directory for saving the PDF
+      final directory = await getApplicationDocumentsDirectory();
+      final filePath = '${directory.path}/transaction_history_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      
+      // Call PDF Service to generate the PDF
+      await PDFService.generateContactReport(
+        filePath,
+        'Transaction History',  // Title
+        'All Transactions',     // Subtitle
+        filteredTransactions,   // Transactions
+        0.0,                    // Balance (not relevant for all transactions)
+        0.0,                    // Interest rate (not relevant for all transactions)
+        '',                     // Relationship type (not relevant for all transactions)
+      );
+      
+      // Close loading dialog
+      Navigator.pop(context);
       
       // Show success message with options
       showDialog(
@@ -615,8 +642,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  // Call the function to share PDF
-                  _sharePdfReport();
+                  // Open the generated PDF
+                  OpenFile.open(filePath);
+                },
+                icon: const Icon(Icons.visibility),
+                label: const Text('View'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // Share the generated PDF
+                  Share.shareXFiles([XFile(filePath)], text: 'Transaction History Report');
                 },
                 icon: const Icon(Icons.share),
                 label: const Text('Share'),
@@ -628,16 +667,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
           );
         }
       );
-    });
+    } catch (e) {
+      // Close loading dialog
+      Navigator.pop(context);
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate PDF: $e'))
+      );
+    }
   }
   
-  void _sharePdfReport() {
-    // Implementation for sharing the PDF would go here
-    // This would typically use a plugin like share_plus
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Sharing PDF report...'))
-    );
-  }
+  // The sharing functionality has been integrated directly in the _generatePdfReport method
 }
 
 extension StringExtension on String {

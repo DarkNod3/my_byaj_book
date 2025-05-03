@@ -2485,18 +2485,37 @@ ${_getAppUserName()}
       (relationshipType == 'lender' && type == 'got')       // Lenders don't pay interest
     );
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        builder: (context, setState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom
+          ),
           child: SingleChildScrollView(
             child: Container(
-              padding: const EdgeInsets.all(16),
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Bottom sheet drag handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
                   // Header
                   Row(
                     children: [
@@ -2517,6 +2536,20 @@ ${_getAppUserName()}
                           fontWeight: FontWeight.bold,
                           color: type == 'gave' ? Colors.red : Colors.green,
                         ),
+                      ),
+                      const Spacer(),
+                      // Delete button
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                          size: 22,
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _confirmDeleteTransaction(tx, originalIndex);
+                        },
+                        tooltip: 'Delete transaction',
                       ),
                     ],
                   ),
@@ -2837,13 +2870,13 @@ ${_getAppUserName()}
                         child: TextButton(
                           onPressed: () => Navigator.pop(context),
                           style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             foregroundColor: Colors.grey[700],
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: const Text('Cancel'),
+                          child: const Text('Cancel', style: TextStyle(fontSize: 16)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -2926,7 +2959,7 @@ ${_getAppUserName()}
                           style: ElevatedButton.styleFrom(
                             backgroundColor: type == 'gave' ? Colors.red : Colors.green,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -2935,7 +2968,7 @@ ${_getAppUserName()}
                           child: const Text(
                             'Save Changes',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

@@ -966,9 +966,16 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       
       // Get interest rate from contact
       final double interestRate = contact['interestRate'] as double? ?? 12.0;
+      final String interestPeriod = contact['interestPeriod'] as String? ?? 'yearly';
       
-      // Calculate daily rate based on contact's interest rate (convert annual rate to daily)
-      contactInterestPerDay = interestRate / 365 / 100 * balance.abs();
+      // Calculate daily rate based on contact's interest rate
+      // If monthly interest rate, convert to yearly first (multiply by 12), then to daily
+      if (interestPeriod == 'monthly') {
+        contactInterestPerDay = (interestRate * 12) / 365 / 100 * balance.abs();
+      } else {
+        // If yearly interest rate, convert annual rate to daily
+        contactInterestPerDay = interestRate / 365 / 100 * balance.abs();
+      }
       
       // Add to total interest per day
       _interestPerDay += contactInterestPerDay;

@@ -26,7 +26,6 @@ class _EditContactScreenState extends State<EditContactScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  String _selectedCategory = 'Personal';
   bool _isWithInterest = false;
   final _interestRateController = TextEditingController();
   String _selectedType = 'borrower';
@@ -40,15 +39,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
   late TransactionProvider _transactionProvider;
   String get _contactId => widget.contact['phone'] ?? '';
 
-  final List<String> _categories = [
-    'Personal',
-    'Business',
-    'Family',
-    'Friend',
-    'Client',
-    'Supplier',
-    'Other'
-  ];
+  // Category list has been removed
 
   @override
   void initState() {
@@ -56,7 +47,6 @@ class _EditContactScreenState extends State<EditContactScreen> {
     // Initialize controllers with existing contact data
     _nameController.text = widget.contact['name'] ?? '';
     _phoneController.text = widget.contact['phone'] ?? '';
-    _selectedCategory = widget.contact['category'] ?? 'Personal';
     
     // Check if this is a with-interest contact
     _isWithInterest = widget.contact['type'] != null;
@@ -207,7 +197,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
       ...widget.contact,
       'name': _nameController.text.trim(),
       'phone': _phoneController.text.trim(),
-      'category': _selectedCategory,
+      // Category feature has been removed
       // Handle possible null profileImagePath
       'profileImagePath': _profileImage?.path,
     };
@@ -227,7 +217,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
     // Ensure all string values are non-null
     updatedContact.forEach((key, value) {
       // Replace null string values with empty strings
-      if (value == null && (key == 'name' || key == 'phone' || key == 'category' || 
+      if (value == null && (key == 'name' || key == 'phone' || 
           key == 'type' || key == 'interestPeriod')) {
         updatedContact[key] = '';
       }
@@ -399,50 +389,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Contact Summary (only show if has transactions)
-                    if (hasTransactions)
-                      Card(
-                        elevation: 2,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Current Balance',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      currencyFormat.format(balance.abs()),
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: balance >= 0 ? Colors.green : Colors.red,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                balance >= 0 ? 'You will get' : 'You will give',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: balance >= 0 ? Colors.green : Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                    // Balance information removed per request
 
                     // Name Field
                     const Text(
@@ -505,40 +452,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Category Dropdown
-                    const Text(
-                      'Category',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    DropdownButtonFormField<String>(
-                      value: _selectedCategory,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                      ),
-                      items: _categories.map((category) {
-                        return DropdownMenuItem(
-                          value: category,
-                          child: Text(category),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedCategory = value;
-                          });
-                        }
-                      },
-                    ),
+                    // Category has been removed
                     const SizedBox(height: 16),
 
                     // With Interest Toggle
@@ -789,10 +703,14 @@ class _EditContactScreenState extends State<EditContactScreen> {
                                             },
                                             activeColor: Colors.red,
                                           ),
-                                          const Text(
-                                            'Lene Wale',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
+                                          Flexible(
+                                            child: Text(
+                                              'Jisne Paise Liye Hai',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -852,10 +770,14 @@ class _EditContactScreenState extends State<EditContactScreen> {
                                             },
                                             activeColor: Colors.green,
                                           ),
-                                          const Text(
-                                            'Dene Wale',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
+                                          Flexible(
+                                            child: Text(
+                                              'Jisne Paise Diye Hai',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ),
                                           ),
                                         ],
