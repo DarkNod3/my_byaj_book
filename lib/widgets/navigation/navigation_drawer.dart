@@ -14,6 +14,7 @@ import '../../providers/user_provider.dart';
 import '../../resources/help_resources.dart';
 import 'dart:io';
 import '../../resources/privacy_policy.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AppNavigationDrawer extends StatefulWidget {
   const AppNavigationDrawer({super.key});
@@ -23,8 +24,6 @@ class AppNavigationDrawer extends StatefulWidget {
 }
 
 class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
-  bool _notificationsEnabled = true;
-
   @override
   Widget build(BuildContext context) {
     return Drawer(
@@ -38,7 +37,6 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
               children: [
                 const SizedBox(height: 4),
                 _buildSectionTitle(context, 'Settings & Support'),
-                _buildNotificationToggle(),
                 _buildMenuItem(
                   context,
                   title: 'Customize Navigation',
@@ -160,73 +158,88 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
     
     return Container(
       color: AppTheme.primaryColor,
-      padding: const EdgeInsets.only(top: 24, bottom: 12, left: 12, right: 12),
+      padding: const EdgeInsets.only(top: 24, bottom: 16, left: 12, right: 12),
+      width: double.infinity,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(2),
+              width: 60,
+              height: 60,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 1),
+                color: Colors.white,
+                border: Border.all(color: Colors.white, width: 2),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                    color: Colors.black.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
                   ),
                 ],
               ),
-              child: CircleAvatar(
-                radius: 22,
-                backgroundColor: Colors.white,
-                backgroundImage: user?.profileImagePath != null 
-                    ? FileImage(File(user!.profileImagePath!)) 
-                    : null,
-                child: user?.profileImagePath == null
-                    ? const Icon(
+              child: ClipOval(
+                child: user?.profileImagePath != null 
+                  ? Image.file(
+                      File(user!.profileImagePath!),
+                      fit: BoxFit.cover,
+                      width: 60,
+                      height: 60,
+                      errorBuilder: (context, error, stackTrace) => Icon(
                         Icons.person,
-                        size: 24,
+                        size: 28,
                         color: AppTheme.primaryColor,
-                      )
-                    : null,
+                      ),
+                    )
+                  : Icon(
+                      Icons.person,
+                      size: 28,
+                      color: AppTheme.primaryColor,
+                    ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               user?.name ?? 'User',
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppTheme.primaryColor,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                minimumSize: const Size(60, 24),
-                textStyle: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
+            SizedBox(
+              height: 30,
+              width: 80,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppTheme.primaryColor,
+                  elevation: 1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  padding: EdgeInsets.zero,
                 ),
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                child: const Text(
+                  'Edit',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
               ),
-              child: const Text('Edit'),
             ),
           ],
         ),
@@ -274,50 +287,6 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
       horizontalTitleGap: 8,
       minLeadingWidth: 20,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-    );
-  }
-
-  Widget _buildNotificationToggle() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Icon(
-            Icons.notifications_outlined,
-            size: 18,
-            color: AppTheme.primaryColor,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Notifications',
-              style: TextStyle(
-                color: Theme.of(context).textTheme.bodyLarge?.color,
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          Switch(
-            value: _notificationsEnabled,
-            onChanged: (value) {
-              setState(() {
-                _notificationsEnabled = value;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(value 
-                    ? 'Notifications enabled' 
-                    : 'Notifications disabled'
-                  ),
-                  duration: const Duration(seconds: 1),
-                ),
-              );
-            },
-            activeColor: AppTheme.primaryColor,
-          ),
-        ],
-      ),
     );
   }
 
@@ -485,16 +454,6 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                   _showReportBugDialog(context);
                 },
               ),
-              const SizedBox(height: 12),
-              _buildSupportOption(
-                'Video Tutorials', 
-                'Learn how to use My Byaj Book',
-                Icons.play_circle_outline,
-                () {
-                  Navigator.pop(context);
-                  _showVideoTutorialsDialog(context);
-                },
-              ),
             ],
           ),
         ),
@@ -553,7 +512,20 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
   }
   
   void _showContactSupportDialog(BuildContext context) {
-    final supportOptions = HelpResources.getSupportOptions();
+    final supportOptions = [
+      {
+        'icon': Icons.message,
+        'title': 'WhatsApp',
+        'description': '+91 8570051543',
+        'url': 'https://wa.me/918570051543'
+      },
+      {
+        'icon': Icons.email,
+        'title': 'Email',
+        'description': 'darknod3@gmail.com',
+        'url': 'mailto:darknod3@gmail.com'
+      },
+    ];
     
     showDialog(
       context: context,
@@ -571,12 +543,22 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
               const SizedBox(height: 16),
               ...supportOptions.map((option) {
                 return ListTile(
-                  leading: Icon(option['icon'], color: AppTheme.primaryColor),
-                  title: Text(option['title']),
-                  subtitle: Text(option['description']),
+                  leading: Icon(option['icon'] as IconData, color: AppTheme.primaryColor),
+                  title: Text(option['title'] as String),
+                  subtitle: Text(option['description'] as String),
                   onTap: () {
                     Navigator.pop(context);
-                    _showComingSoonSnackbar(context, '${option['title']} feature coming soon!');
+                    launchUrl(
+                      Uri.parse(option['url'] as String),
+                      mode: LaunchMode.externalApplication,
+                    ).catchError((error) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Could not open ${option['title']}. Please try again later.'),
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    });
                   },
                 );
               }).toList(),
@@ -600,26 +582,37 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Report a Bug'),
-        content: Container(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Please describe the issue you encountered:',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: bugDescriptionController,
-                decoration: const InputDecoration(
-                  hintText: 'Describe the bug here...',
-                  border: OutlineInputBorder(),
+        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+        content: SingleChildScrollView(
+          child: Container(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Please describe the issue you encountered:',
+                  style: TextStyle(fontSize: 14),
                 ),
-                maxLines: 5,
-              ),
-            ],
+                const SizedBox(height: 16),
+                Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.2,
+                  ),
+                  child: TextField(
+                    controller: bugDescriptionController,
+                    decoration: const InputDecoration(
+                      hintText: 'Describe the bug here...',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -629,68 +622,46 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
-              _showComingSoonSnackbar(context, 'Bug report submitted successfully!');
+              // Get the bug description
+              final bugDescription = bugDescriptionController.text.trim();
+              if (bugDescription.isNotEmpty) {
+                // Close the dialog
+                Navigator.pop(context);
+                
+                // Compose email with bug report
+                final Uri emailUri = Uri.parse(
+                  'mailto:darknod3@gmail.com?subject=Bug Report - My Byaj Book&body=${Uri.encodeComponent(bugDescription)}'
+                );
+                
+                // Launch email app
+                launchUrl(emailUri).then((_) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Bug report email prepared. Thank you for your feedback!'),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }).catchError((error) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Could not open email app. Please send your report to darknod3@gmail.com manually.'),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                });
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a description of the bug.'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
             ),
             child: const Text('Submit'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  void _showVideoTutorialsDialog(BuildContext context) {
-    final tutorials = HelpResources.getTutorialsList();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Video Tutorials'),
-        content: Container(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Watch these helpful tutorials to learn how to use My Byaj Book:',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              ...tutorials.map((tutorial) {
-                return ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(tutorial['icon'], color: AppTheme.primaryColor),
-                  ),
-                  title: Text(tutorial['title']),
-                  subtitle: Text(tutorial['description']),
-                  trailing: Text(
-                    tutorial['duration'],
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showComingSoonSnackbar(context, 'Video tutorials will be available soon!');
-                  },
-                );
-              }).toList(),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
           ),
         ],
       ),
@@ -735,57 +706,24 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
   }
   
   void _showRateAppDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rate My Byaj Book'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Enjoying My Byaj Book? Please take a moment to rate your experience and provide feedback.',
-              style: TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (index) {
-                return IconButton(
-                  icon: Icon(
-                    Icons.star,
-                    color: index < 3 ? Colors.amber : Colors.grey[300],
-                    size: 36,
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _showComingSoonSnackbar(
-                      context, 
-                      'Thanks for rating! Rating functionality coming soon.'
-                    );
-                  },
-                );
-              }),
-            ),
-          ],
+    // Define the Play Store URL for the app
+    final Uri playStoreUrl = Uri.parse('https://play.google.com/store/apps/details?id=com.example.mybyajbook');
+    
+    // Launch the URL to open Play Store
+    try {
+      launchUrl(
+        playStoreUrl,
+        mode: LaunchMode.externalApplication, // Open in external app (Play Store)
+      );
+    } catch (e) {
+      // Show error if unable to open Play Store
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open Play Store. Please rate us directly on the Play Store.'),
+          duration: const Duration(seconds: 3),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Maybe Later'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showComingSoonSnackbar(context, 'Rating functionality coming soon!');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-            ),
-            child: const Text('Submit'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
   
   void _showPrivacyPolicyDialog(BuildContext context) {

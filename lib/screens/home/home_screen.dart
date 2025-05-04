@@ -327,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         floatingActionButton: _currentIndex == 0 ? Container(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin: const EdgeInsets.only(bottom: 32),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -610,111 +610,158 @@ class _HomeScreenState extends State<HomeScreen> {
       interestRateController.text = '12';
     }
     
+    // Maximum amount error
+    String? amountError;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Enter Amount'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: 'Amount',
-                hintText: 'Enter amount',
-                prefixText: '₹ ',
-                border: OutlineInputBorder(),
-              ),
-              autofocus: true,
-            ),
-            if (withInterest) ...[
-              const SizedBox(height: 16),
-              TextField(
-                controller: interestRateController,
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: 'Interest Rate (% p.a.)',
-                  hintText: 'Enter interest rate',
-                  suffixText: '%',
-                  border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            title: const Text('Enter Amount'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: 'Amount',
+                    hintText: 'Enter amount',
+                    prefixText: '₹ ',
+                    border: OutlineInputBorder(),
+                    errorText: amountError,
+                  ),
+                  autofocus: true,
+                  inputFormatters: [
+                    // Use a special formatter that both limits the input and shows the error message
+                    TextInputFormatter.withFunction(
+                      (oldValue, newValue) {
+                        // Allow backspace/deletion
+                        if (oldValue.text.length > newValue.text.length) {
+                          setState(() {
+                            amountError = null;
+                          });
+                          return newValue;
+                        }
+                        
+                        // Don't allow non-numeric or multiple decimal points
+                        if (!RegExp(r'^\d*\.?\d*$').hasMatch(newValue.text)) {
+                          return oldValue;
+                        }
+                        
+                        // Check if new value exceeds 1 Crore
+                        if (newValue.text.isNotEmpty) {
+                          final value = double.tryParse(newValue.text);
+                          if (value == null) {
+                            return oldValue;
+                          }
+                          
+                          if (value > _HomeContentState.MAX_AMOUNT) {
+                            setState(() {
+                              amountError = 'Invalid amount. Maximum allowed is 1 crore.';
+                            });
+                            return oldValue;
+                          } else {
+                            setState(() {
+                              amountError = null;
+                            });
+                          }
+                        }
+                        return newValue;
+                      },
+                    ),
+                  ],
                 ),
+                if (withInterest) ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: interestRateController,
+                    keyboardType: TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Interest Rate (% p.a.)',
+                      hintText: 'Enter interest rate',
+                      suffixText: '%',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  // Validate amount
+                  if (amountController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter an amount'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                    return;
+                  }
+                  
+                  final amount = double.tryParse(amountController.text) ?? 0.0;
+                  if (amount <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a valid amount'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                    return;
+                  }
+                  
+                  // Check maximum amount validation again
+                  if (amount > _HomeContentState.MAX_AMOUNT) {
+                    setState(() {
+                      amountError = 'Invalid amount. Maximum allowed is 1 crore.';
+                    });
+                    return;
+                  }
+                  
+                  // Get interest rate if applicable
+                  double interestRate = 0;
+                  if (withInterest) {
+                    interestRate = double.tryParse(interestRateController.text) ?? 0;
+                    if (interestRate <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter a valid interest rate'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                      return;
+                    }
+                  }
+                  
+                  // Use the new method to ensure contact is added
+                  _ensureContactAdded(
+                    name,
+                    phone,
+                    amount,
+                    isGet,
+                    withInterest,
+                    interestRate,
+                    relationshipType
+                  );
+                  
+                  // Close all dialogs and navigate back to home
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                ),
+                child: const Text('Save'),
               ),
             ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // Validate amount
-              if (amountController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter an amount'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-                return;
-              }
-              
-              final amount = double.tryParse(amountController.text) ?? 0.0;
-              if (amount <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter a valid amount'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-                return;
-              }
-              
-              // Get interest rate if applicable
-              double interestRate = 0;
-              if (withInterest) {
-                interestRate = double.tryParse(interestRateController.text) ?? 0;
-                if (interestRate <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please enter a valid interest rate'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                  return;
-                }
-              }
-              
-              // Use the new method to ensure contact is added
-              _ensureContactAdded(
-                name,
-                phone,
-                amount,
-                isGet,
-                withInterest,
-                interestRate,
-                relationshipType
-              );
-              
-              // Close all dialogs and navigate back to home
-              Navigator.popUntil(context, (route) => route.isFirst);
-              
-              // Show success message
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Contact added ${withInterest ? "with" : "without"} interest'),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-            ),
-            child: const Text('Save'),
-          ),
-        ],
+          );
+        }
       ),
     );
   }
@@ -895,6 +942,38 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   String _filterMode = 'All'; // 'All', 'You received', 'You paid'
   String _sortMode = 'Recent'; // 'Recent', 'High to Low', 'Low to High', 'By Name'
   String? _qrCodePath; // Add this variable for QR code path
+  
+  // Maximum amount limit constant
+  static const double MAX_AMOUNT = 10000000.0; // 1 Crore = 1,00,00,000
+  
+  // Utility method to create a standard amount formatter with 1 crore limit
+  TextInputFormatter get amountFormatter => TextInputFormatter.withFunction(
+    (oldValue, newValue) {
+      // Allow backspace/deletion
+      if (oldValue.text.length > newValue.text.length) {
+        return newValue;
+      }
+      
+      // Don't allow non-numeric or multiple decimal points
+      if (newValue.text.isNotEmpty) {
+        // Check for valid numeric format (allow one decimal point)
+        if (!RegExp(r'^\d*\.?\d*$').hasMatch(newValue.text)) {
+          return oldValue;
+        }
+        
+        // Check if new value exceeds 1 Crore (10,000,000)
+        final value = double.tryParse(newValue.text);
+        if (value == null) {
+          return oldValue;
+        }
+        
+        if (value > MAX_AMOUNT) {
+          return oldValue;
+        }
+      }
+      return newValue;
+    },
+  );
   
   // Interest calculation variables
   double _totalPrincipal = 0.0;
@@ -1337,11 +1416,20 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       }
     }
     
-    // Apply search filtering
+    // Apply search filtering - enhanced to search by name or amount
     if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((contact) => 
-        contact['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
-      ).toList();
+      filtered = filtered.where((contact) {
+        // Search by name
+        final nameMatch = contact['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
+        
+        // Search by amount
+        final amount = contact['amount'] as double? ?? 0.0;
+        final amountStr = amount.toString();
+        final amountMatch = amountStr.contains(_searchQuery);
+        
+        // Return true if either name or amount matches
+        return nameMatch || amountMatch;
+      }).toList();
     }
     
     // Apply sorting
@@ -1419,33 +1507,36 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       children: [
         _buildTabBar(),
         Expanded(
-          child: GestureDetector(
-            // Add swipe gesture detection
-            onHorizontalDragEnd: (details) {
-              // Detect the direction of the swipe
-              if (details.primaryVelocity! > 0) {
-                // Swiping from left to right (go to previous tab)
-                if (_tabController.index > 0) {
-                  _tabController.animateTo(_tabController.index - 1);
+          child: SafeArea(
+            bottom: true,
+            child: GestureDetector(
+              // Add swipe gesture detection
+              onHorizontalDragEnd: (details) {
+                // Detect the direction of the swipe
+                if (details.primaryVelocity! > 0) {
+                  // Swiping from left to right (go to previous tab)
+                  if (_tabController.index > 0) {
+                    _tabController.animateTo(_tabController.index - 1);
+                  }
+                } else if (details.primaryVelocity! < 0) {
+                  // Swiping from right to left (go to next tab)
+                  if (_tabController.index < _tabController.length - 1) {
+                    _tabController.animateTo(_tabController.index + 1);
+                  }
                 }
-              } else if (details.primaryVelocity! < 0) {
-                // Swiping from right to left (go to next tab)
-                if (_tabController.index < _tabController.length - 1) {
-                  _tabController.animateTo(_tabController.index + 1);
-                }
-              }
-            },
-            child: Column(
-              children: [
-        _buildBalanceSummary(),
-        if (_isWithInterest) 
-          // Remove the interest type selector for With Interest tab
-          Container(),
-        _buildSearchBar(),
-        Expanded(
-          child: _buildContactsList(),
-                ),
-              ],
+              },
+              child: Column(
+                children: [
+                  _buildBalanceSummary(),
+                  if (_isWithInterest) 
+                    // Remove the interest type selector for With Interest tab
+                    Container(),
+                  _buildSearchBar(),
+                  Expanded(
+                    child: _buildContactsList(),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -2252,7 +2343,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
             )
           : ListView.builder(
               itemCount: _filteredContacts.length,
-              padding: const EdgeInsets.only(bottom: 100), // For FAB clearance
+              padding: const EdgeInsets.only(bottom: 120), // Increased padding for FAB clearance
               itemBuilder: (context, index) {
                 final contact = _filteredContacts[index];
                 return _buildContactItem(contact);
