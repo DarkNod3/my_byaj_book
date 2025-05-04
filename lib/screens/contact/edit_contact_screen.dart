@@ -361,10 +361,12 @@ class _EditContactScreenState extends State<EditContactScreen> {
                                 ? FileImage(_profileImage!) 
                                 : null,
                             child: _profileImage == null
-                                ? Icon(
-                                    Icons.person,
-                                    size: 50,
-                                    color: Colors.grey.shade400,
+                                ? Text(
+                                    _nameController.text.isNotEmpty ? _nameController.text[0].toUpperCase() : '',
+                                    style: TextStyle(
+                                      fontSize: 50,
+                                      color: Colors.grey.shade400,
+                                    ),
                                   )
                                 : null,
                           ),
@@ -577,7 +579,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
                                   child: Row(
                                     children: [
                                       Expanded(
-                                        child: GestureDetector(
+                                        child: InkWell(
                                           onTap: () {
                                             setState(() {
                                               _interestPeriod = 'monthly';
@@ -614,7 +616,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
                                         color: Colors.grey.shade400,
                                       ),
                                       Expanded(
-                                        child: GestureDetector(
+                                        child: InkWell(
                                           onTap: () {
                                             setState(() {
                                               _interestPeriod = 'yearly';
@@ -659,141 +661,242 @@ class _EditContactScreenState extends State<EditContactScreen> {
                         'Account Type',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: 16,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
+                      const SizedBox(height: 12),
+                      Column(
                         children: [
-                          Expanded(
-                            child: Card(
-                              elevation: _selectedType == 'borrower' ? 4 : 0,
+                          // Borrower Option
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
                               color: _selectedType == 'borrower' 
-                                  ? Colors.red.withOpacity(0.1) 
-                                  : Colors.grey.shade50,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                side: BorderSide(
-                                  color: _selectedType == 'borrower' 
-                                      ? Colors.red 
-                                      : Colors.grey.shade300,
-                                  width: 1,
-                                ),
+                                ? Colors.red.withOpacity(0.08)
+                                : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedType == 'borrower'
+                                  ? Colors.red
+                                  : Colors.grey.shade300,
+                                width: _selectedType == 'borrower' ? 2 : 1,
                               ),
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedType = 'borrower';
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(8),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Radio<String>(
-                                            value: 'borrower',
-                                            groupValue: _selectedType,
-                                            onChanged: (value) {
-                                              setState(() {
-                                                _selectedType = value!;
-                                              });
-                                            },
-                                            activeColor: Colors.red,
+                              boxShadow: _selectedType == 'borrower' 
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.red.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ]
+                                : null,
+                            ),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _selectedType = 'borrower';
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.withOpacity(0.1),
+                                            shape: BoxShape.circle,
                                           ),
-                                          Flexible(
-                                            child: Text(
-                                              'Jisne Paise Liye Hai',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const Padding(
-                                        padding: EdgeInsets.only(left: 32),
-                                        child: Text(
-                                          'This contact owes you money',
-                                          style: TextStyle(
-                                            fontSize: 11,
+                                          child: const Icon(
+                                            Icons.account_balance_wallet,
                                             color: Colors.red,
+                                            size: 20,
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: const Text(
+                                                      'Jisne Paise Liye Hai',
+                                                      style: TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 16,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Column(
+                                                    children: [
+                                                      Radio<String>(
+                                                        value: 'borrower',
+                                                        groupValue: _selectedType,
+                                                        onChanged: (value) {
+                                                          setState(() {
+                                                            _selectedType = value!;
+                                                          });
+                                                        },
+                                                        activeColor: Colors.red,
+                                                      ),
+                                                      Text(
+                                                        'Borrower',
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.w500,
+                                                          color: Colors.red,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              const Text(
+                                                'वह आपका पैसा लेकर देनदार है',
+                                                style: TextStyle(
+                                                  color: Colors.red,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              const Text(
+                                                'This contact owes you money',
+                                                style: TextStyle(
+                                                  color: Colors.red,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Card(
-                              elevation: _selectedType == 'lender' ? 4 : 0,
-                              color: _selectedType == 'lender' 
-                                  ? Colors.green.withOpacity(0.1) 
-                                  : Colors.grey.shade50,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                side: BorderSide(
-                                  color: _selectedType == 'lender' 
-                                      ? Colors.green 
-                                      : Colors.grey.shade300,
-                                  width: 1,
-                                ),
+                          
+                          // Lender Option
+                          Container(
+                            decoration: BoxDecoration(
+                              color: _selectedType == 'lender'
+                                ? Colors.green.withOpacity(0.08)
+                                : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedType == 'lender'
+                                  ? Colors.green
+                                  : Colors.grey.shade300,
+                                width: _selectedType == 'lender' ? 2 : 1,
                               ),
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedType = 'lender';
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(8),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Radio<String>(
-                                            value: 'lender',
-                                            groupValue: _selectedType,
-                                            onChanged: (value) {
-                                              setState(() {
-                                                _selectedType = value!;
-                                              });
-                                            },
-                                            activeColor: Colors.green,
+                              boxShadow: _selectedType == 'lender'
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.green.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ]
+                                : null,
+                            ),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _selectedType = 'lender';
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.green.withOpacity(0.1),
+                                            shape: BoxShape.circle,
                                           ),
-                                          Flexible(
-                                            child: Text(
-                                              'Jisne Paise Diye Hai',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const Padding(
-                                        padding: EdgeInsets.only(left: 32),
-                                        child: Text(
-                                          'You owe money to this contact',
-                                          style: TextStyle(
-                                            fontSize: 11,
+                                          child: const Icon(
+                                            Icons.account_balance,
                                             color: Colors.green,
+                                            size: 20,
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: const Text(
+                                                      'Jisne Paise Diye Hai',
+                                                      style: TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 16,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Column(
+                                                    children: [
+                                                      Radio<String>(
+                                                        value: 'lender',
+                                                        groupValue: _selectedType,
+                                                        onChanged: (value) {
+                                                          setState(() {
+                                                            _selectedType = value!;
+                                                          });
+                                                        },
+                                                        activeColor: Colors.green,
+                                                      ),
+                                                      Text(
+                                                        'Lender',
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.w500,
+                                                          color: Colors.green,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              const Text(
+                                                'आपने इनसे पैसे उधार लिए हैं',
+                                                style: TextStyle(
+                                                  color: Colors.green,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              const Text(
+                                                'You owe money to this contact',
+                                                style: TextStyle(
+                                                  color: Colors.green,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),

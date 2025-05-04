@@ -30,12 +30,14 @@ class ContactDetailScreen extends StatefulWidget {
   final Map<String, dynamic> contact;
   final bool showSetupPrompt;
   final bool showTransactionDialogOnLoad;
+  final String? dailyInterestNote; // Add this parameter but we won't use it
 
   const ContactDetailScreen({
     Key? key, 
-    required this.contact, 
+    required this.contact,
     this.showSetupPrompt = false,
     this.showTransactionDialogOnLoad = false,
+    this.dailyInterestNote,
   }) : super(key: key);
 
   @override
@@ -296,23 +298,41 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     IconData icon,
     String label,
     Color color,
-    {required Function onTap}
+    {required VoidCallback onTap}
   ) {
     return InkWell(
-      onTap: () => onTap(),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircleAvatar(
-            backgroundColor: color.withOpacity(0.1),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12),
-          ),
-        ],
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
+        width: 70,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: color,
+                size: 20,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1172,11 +1192,24 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         if (lastInterestCalculationDate != null && runningPrincipal > 0) {
           final daysSinceLastCalculation = txDate.difference(lastInterestCalculationDate!).inDays;
           if (daysSinceLastCalculation > 0) {
-            // Get interest rate
+            // Get interest rate and period
             final interestRate = (widget.contact['interestRate'] as double);
+            final isMonthly = widget.contact['interestPeriod'] == 'monthly';
             
-            // Calculate interest for the period
-            final interestForPeriod = runningPrincipal * interestRate / 100 / 365 * daysSinceLastCalculation;
+            // Calculate interest based on months instead of days
+            double interestForPeriod;
+            
+            if (isMonthly) {
+              // For monthly rate: Calculate based on completed months and partial months
+              double monthsElapsed = daysSinceLastCalculation / 30.0;
+              interestForPeriod = runningPrincipal * (interestRate / 100) * monthsElapsed;
+            } else {
+              // For yearly rate: Convert to monthly rate first (yearly rate / 12)
+              double monthlyRate = interestRate / 12;
+              double monthsElapsed = daysSinceLastCalculation / 30.0;
+              interestForPeriod = runningPrincipal * (monthlyRate / 100) * monthsElapsed;
+            }
+            
             accumulatedInterest += interestForPeriod;
           }
         }
@@ -1236,11 +1269,24 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     if (lastInterestCalculationDate != null && principal > 0) {
       final daysUntilNow = DateTime.now().difference(lastInterestCalculationDate!).inDays;
       
-      // Get interest rate
+      // Get interest rate and period
       final interestRate = (widget.contact['interestRate'] as double); 
+      final isMonthly = widget.contact['interestPeriod'] == 'monthly';
       
-      // Calculate interest from last transaction until now
-      final interestFromLastTx = principal * interestRate / 100 / 365 * daysUntilNow;
+      // Calculate interest based on months instead of days
+      double interestFromLastTx;
+      
+      if (isMonthly) {
+        // For monthly rate: Calculate based on completed months and partial months
+        double monthsElapsed = daysUntilNow / 30.0;
+        interestFromLastTx = principal * (interestRate / 100) * monthsElapsed;
+      } else {
+        // For yearly rate: Convert to monthly rate first (yearly rate / 12)
+        double monthlyRate = interestRate / 12;
+        double monthsElapsed = daysUntilNow / 30.0;
+        interestFromLastTx = principal * (monthlyRate / 100) * monthsElapsed;
+      }
+      
       interestDue += interestFromLastTx;
     }
     
@@ -1249,190 +1295,279 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     interestDue = (interestDue - interestPaid > 0) ? interestDue - interestPaid : 0;
     
     // Calculate interest per day based on current principal
-    final interestPerDay = principal * (widget.contact['interestRate'] as double) / 100 / 365;
+    double interestPerDay;
+    final interestRate = (widget.contact['interestRate'] as double);
+    final isMonthly = widget.contact['interestPeriod'] == 'monthly';
+    
+    // Calculate monthly interest first
+    double monthlyInterest;
+    if (isMonthly) {
+      // For monthly rates: use the rate directly
+      monthlyInterest = principal * (interestRate / 100);
+    } else {
+      // For yearly rates: Convert to monthly first
+      double monthlyRate = interestRate / 12;
+      monthlyInterest = principal * (monthlyRate / 100);
+    }
+    
+    // Calculate the actual number of days in the current month
+    final now = DateTime.now();
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day; // Last day of current month
+    
+    // Calculate daily interest based on actual days in month
+    interestPerDay = monthlyInterest / daysInMonth;
     
     // Calculate total amount (principal + interest)
     final totalAmount = principal + interestDue;
     
-    return Card(
+    final Color relationshipColor = relationshipType == 'borrower' ? 
+            Color(0xFF5D69E3) : // Blue-purple for borrower
+            Color(0xFF2E9E7A); // Teal for lender
+    
+    // Store current month info for display
+    final String currentMonthAbbr = _getMonthAbbreviation();
+    
+    return Container(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: Colors.amber.shade50,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            relationshipColor.withOpacity(0.9),
+            relationshipColor.withOpacity(0.7),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: relationshipColor.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // Header with interest rate badge
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 Row(
                   children: [
-                    Icon(Icons.calculate, size: 16, color: Colors.amber.shade800),
-                    const SizedBox(width: 6),
-            Text(
-                      'Interest Summary',
-              style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.amber.shade800,
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                      child: Icon(
+                        relationshipType == 'borrower' 
+                            ? Icons.account_balance_wallet 
+                            : Icons.account_balance,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Interest Summary',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Text(
+                              StringUtils.capitalizeFirstLetter(relationshipType),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.25),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.percent,
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '${widget.contact['interestRate']}% ${widget.contact['interestPeriod'] == 'monthly' ? 'p.m.' : 'p.a.'}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
                 GestureDetector(
                   onTap: _showContactInfo,
-                  child: const Icon(Icons.info_outline, size: 14),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-            
-            // Status and interest rate row
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.amber.shade100, width: 1),
-              ),
-              child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-                  Row(
-                    children: [
-                      Icon(
-                        relationshipType == 'borrower' ? Icons.person : Icons.account_balance,
-                        size: 14,
-                        color: relationshipType == 'borrower' ? Colors.red : Colors.green,
-                      ),
-                      const SizedBox(width: 4),
-            Text(
-                        StringUtils.capitalizeFirstLetter(relationshipType ?? ''),
-              style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: relationshipType == 'borrower' ? Colors.red : Colors.green,
-                        ),
-                      ),
-                    ],
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Colors.white,
+                    ),
                   ),
-                  Row(
-                    children: [
-                      Icon(Icons.percent, size: 14, color: Colors.amber.shade800),
-                      const SizedBox(width: 4),
-            Text(
-                        '${(widget.contact['interestRate'] as double).toStringAsFixed(1)}% p.a.',
-              style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.amber.shade800,
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-                ],
-              ),
-            ),
+            const SizedBox(height: 20),
             
-            const SizedBox(height: 10),
-            
-            // Summary details grid
+            // Three-column layout for principal, interest, per day
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildInterestSummaryItem(
+                _buildInterestDetailColumn(
                   title: 'Principal',
                   amount: principal,
-                  icon: Icons.money,
-                  color: Colors.blue,
+                  icon: Icons.attach_money_rounded,
                 ),
-                _buildInterestSummaryItem(
+                Container(
+                  height: 50,
+                  width: 1,
+                  color: Colors.white.withOpacity(0.3),
+                ),
+                _buildInterestDetailColumn(
                   title: 'Interest Due',
                   amount: interestDue,
-                  icon: Icons.savings,
-                  color: Colors.amber.shade800,
+                  icon: Icons.timeline,
                 ),
-                _buildInterestSummaryItem(
-                  title: 'Per Day',
+                Container(
+                  height: 50,
+                  width: 1,
+                  color: Colors.white.withOpacity(0.3),
+                ),
+                _buildInterestDetailColumn(
+                  title: 'Daily Interest',
                   amount: interestPerDay,
-                  icon: Icons.today,
-                  color: Colors.orange,
+                  icon: Icons.calendar_today_rounded,
+                  subtitle: '($currentMonthAbbr - $daysInMonth days)',
                 ),
               ],
             ),
             
-            const Divider(height: 16, color: Colors.amber),
+            const SizedBox(height: 16),
             
-            // Total row
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-                const Text(
-                  'Total Amount:',
-              style: TextStyle(
-                    fontSize: 14,
-                fontWeight: FontWeight.bold,
+            // Total amount
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
               ),
-            ),
-            Text(
-              currencyFormat.format(totalAmount),
-              style: TextStyle(
-                    fontSize: 16,
-                fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade900,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total Amount:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    currencyFormat.format(totalAmount),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-        ),
-      ],
         ),
       ),
     );
   }
   
-  Widget _buildInterestSummaryItem({
+  Widget _buildInterestDetailColumn({
     required String title,
     required double amount,
     required IconData icon,
-    required Color color,
+    String? subtitle,
   }) {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: Colors.white.withOpacity(0.2),
             shape: BoxShape.circle,
           ),
           child: Icon(
             icon,
             size: 18,
-            color: color,
+            color: Colors.white,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         Text(
           title,
           style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey.shade700,
+            fontSize: 12,
+            color: Colors.white.withOpacity(0.9),
+            fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 2),
+        if (subtitle != null)
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.white.withOpacity(0.8),
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        const SizedBox(height: 4),
         Text(
           currencyFormat.format(amount),
-          style: TextStyle(
-            fontSize: 12,
+          style: const TextStyle(
+            fontSize: 14,
             fontWeight: FontWeight.bold,
-            color: color,
+            color: Colors.white,
           ),
         ),
       ],
     );
   }
-  
+
   // Basic summary card for contacts without interest
   Widget _buildBasicSummaryCard() {
     final balance = _calculateBalance();
@@ -1798,7 +1933,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
             ),
             pw.SizedBox(height: 5),
             pw.Text(
-              'Interest Rate: ${widget.contact['interestRate']}% p.a.',
+              'Interest Rate: ${widget.contact['interestRate']}% ${widget.contact['interestPeriod'] == 'monthly' ? 'p.m.' : 'p.a.'}',
               style: const pw.TextStyle(fontSize: 12),
             ),
             pw.SizedBox(height: 5),
@@ -2268,7 +2403,7 @@ ${_getAppUserName()}
                     Icon(Icons.percent, size: 16, color: Colors.amber.shade800),
                     const SizedBox(width: 6),
                     Text(
-                      'Interest Rate: ${widget.contact['interestRate']}% p.a.',
+                      'Interest Rate: ${widget.contact['interestRate']}% ${widget.contact['interestPeriod'] == 'monthly' ? 'p.m.' : 'p.a.'}',
                       style: TextStyle(color: Colors.amber.shade800),
                     ),
                   ],
@@ -2983,5 +3118,12 @@ ${_getAppUserName()}
         ),
       ),
     );
+  }
+
+  // Add this helper method to get month abbreviation
+  String _getMonthAbbreviation() {
+    final now = DateTime.now();
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[now.month - 1]; // Month is 1-based, array is 0-based
   }
 } 

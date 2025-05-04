@@ -326,20 +326,64 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        floatingActionButton: _currentIndex == 0 ? FloatingActionButton.extended(
-          onPressed: () {
-            _showAddContactOptions(context);
-          },
-          backgroundColor: AppTheme.primaryColor,
-          foregroundColor: Colors.white,
-          elevation: 4,
-          icon: const Icon(Icons.person_add_alt_1_rounded),
-          label: const Text(
-            'Add Contact',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          shape: RoundedRectangleBorder(
+        floatingActionButton: _currentIndex == 0 ? Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.primaryColor,
+                Color.fromARGB(255, 124, 58, 237),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryColor.withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                _showAddContactOptions(context);
+              },
+              borderRadius: BorderRadius.circular(30),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.person_add,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Add New Person',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ) : null,
         bottomNavigationBar: BottomNavBar(
@@ -984,14 +1028,23 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       final double interestRate = contact['interestRate'] as double? ?? 12.0;
       final String interestPeriod = contact['interestPeriod'] as String? ?? 'yearly';
       
-      // Calculate daily rate based on contact's interest rate
-      // If monthly interest rate, convert to yearly first (multiply by 12), then to daily
+      // Calculate daily interest based on principal amount
+      double monthlyInterest;
       if (interestPeriod == 'monthly') {
-        contactInterestPerDay = (interestRate * 12) / 365 / 100 * balance.abs();
+        // Monthly rate: Calculate monthly interest 
+        monthlyInterest = balance.abs() * (interestRate / 100);
       } else {
-        // If yearly interest rate, convert annual rate to daily
-        contactInterestPerDay = interestRate / 365 / 100 * balance.abs();
+        // Yearly rate: Convert to monthly rate first (yearly / 12)
+        double monthlyRate = interestRate / 12;
+        monthlyInterest = balance.abs() * (monthlyRate / 100);
       }
+      
+      // Calculate the actual number of days in the current month
+      final now = DateTime.now();
+      final daysInMonth = DateTime(now.year, now.month + 1, 0).day; // Last day of current month
+      
+      // Calculate daily interest based on actual days in month
+      contactInterestPerDay = monthlyInterest / daysInMonth;
       
       // Add to total interest per day
       _interestPerDay += contactInterestPerDay;
@@ -1409,14 +1462,13 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         children: [
           Container(
             margin: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-            height: 36,
+            height: 42,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryColor.withOpacity(0.2),
+                  color: Colors.black.withOpacity(0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -1427,7 +1479,14 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               indicatorSize: TabBarIndicatorSize.tab,
               indicator: BoxDecoration(
                 color: AppTheme.primaryColor,
-                borderRadius: BorderRadius.circular(7),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withOpacity(0.4),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               indicatorColor: Colors.transparent,
               indicatorWeight: 0,
@@ -1435,22 +1494,22 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               indicatorPadding: EdgeInsets.zero,
               labelPadding: EdgeInsets.zero,
               labelColor: Colors.white,
-              unselectedLabelColor: AppTheme.primaryColor,
+              unselectedLabelColor: Colors.grey.shade700,
               labelStyle: const TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 13,
+                fontSize: 14,
               ),
               unselectedLabelStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w500,
                 fontSize: 13,
               ),
               tabs: const [
                 Tab(
-                  text: 'Without Interest',
+                  text: 'Standard Entries',
                   height: 36,
                 ),
                 Tab(
-                  text: 'With Interest',
+                  text: 'Interest Entries',
                   height: 36,
                 ),
               ],
@@ -1465,140 +1524,160 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-      padding: const EdgeInsets.all(14),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: AppTheme.accentColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Icon(
-                            Icons.arrow_upward_rounded,
-                            color: AppTheme.accentColor,
-                            size: 14,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'You will give',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.secondaryTextColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '₹${_totalToGive.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.accentColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                height: 40,
-                width: 1,
-                color: Colors.grey.shade200,
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: AppTheme.secondaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Icon(
-                            Icons.arrow_downward_rounded,
-                            color: AppTheme.secondaryColor,
-                            size: 14,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'You will get',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.secondaryTextColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '₹${_totalToGet.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.secondaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          
-          // Add interest details section when on With Interest tab
-          if (_isWithInterest) ...[
-            // Interest summary card removed as requested
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryColor.withOpacity(0.9),
+            AppTheme.primaryColor.withOpacity(0.7),
           ],
-          
-          const SizedBox(height: 8),
-          if (_totalToGet > 0 || _totalToGive > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.info_outline,
-                    color: AppTheme.infoColor,
-                    size: 14,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withOpacity(0.25),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.arrow_upward_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Outgoing',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '₹${_totalToGive.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      _totalToGet > _totalToGive 
-                          ? 'You will get net ₹${(_totalToGet - _totalToGive).abs().toStringAsFixed(2)}'
-                          : 'You will give net ₹${(_totalToGive - _totalToGet).abs().toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.secondaryTextColor,
+                ),
+                Container(
+                  height: 50,
+                  width: 1,
+                  color: Colors.white.withOpacity(0.3),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.arrow_downward_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Incoming',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '₹${_totalToGet.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            
+            // Add interest details section when on With Interest tab
+            if (_isWithInterest) ...[
+              // Interest summary card removed as requested
+            ],
+            
+            const SizedBox(height: 10),
+            if (_totalToGet > 0 || _totalToGive > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.account_balance_wallet,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _totalToGet > _totalToGive 
+                            ? 'Net Balance: +₹${(_totalToGet - _totalToGive).abs().toStringAsFixed(2)}'
+                            : 'Net Balance: -₹${(_totalToGive - _totalToGet).abs().toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1646,33 +1725,39 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Container(
-        height: 46,
+        height: 50,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(15),
           border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 6,
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 8,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Row(
           children: [
+            const SizedBox(width: 12),
+            Icon(
+              Icons.search,
+              color: Colors.grey.shade600,
+              size: 20,
+            ),
             Expanded(
               child: TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Search Customer',
+                decoration: InputDecoration(
+                  hintText: 'Find person by name or amount',
                   hintStyle: TextStyle(
-                    color: AppTheme.secondaryTextColor,
+                    color: Colors.grey.shade500,
                     fontSize: 14,
                   ),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                 ),
                 style: const TextStyle(fontSize: 14),
                 onChanged: (value) {
@@ -1688,25 +1773,40 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               width: 1,
               color: Colors.grey.shade200,
             ),
-            IconButton(
-              icon: const Icon(Icons.filter_list, color: AppTheme.secondaryTextColor, size: 18),
-              tooltip: 'Filter',
-              padding: const EdgeInsets.all(8),
-              constraints: const BoxConstraints(),
-              onPressed: () {
-                _showFilterOptions(context);
-              },
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(15),
+                onTap: () {
+                  _showFilterOptions(context);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  child: Icon(
+                    Icons.tune,
+                    color: AppTheme.primaryColor,
+                    size: 22,
+                  ),
+                ),
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.qr_code_scanner, color: AppTheme.primaryColor, size: 18),
-              tooltip: 'Payment QR',
-              padding: const EdgeInsets.all(8),
-              constraints: const BoxConstraints(),
-              onPressed: () {
-                _showQRCodeOptions(context);
-              },
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(15),
+                onTap: () {
+                  _showQRCodeOptions(context);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  child: Icon(
+                    Icons.qr_code_scanner,
+                    color: AppTheme.primaryColor,
+                    size: 22,
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(width: 4),
           ],
         ),
       ),
@@ -2096,7 +2196,21 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         if (lastInterestDate != null && runningPrincipal > 0) {
           final daysSinceLastCalculation = txDate.difference(lastInterestDate).inDays;
           if (daysSinceLastCalculation > 0) {
-            final interestForPeriod = runningPrincipal * interestRate / 100 / 365 * daysSinceLastCalculation;
+            // Get interest rate and period
+            final String interestPeriod = contact['interestPeriod'] as String? ?? 'yearly';
+            
+            double interestForPeriod;
+            if (interestPeriod == 'monthly') {
+              // Monthly rate: Calculate based on months elapsed
+              double monthsElapsed = daysSinceLastCalculation / 30.0;
+              interestForPeriod = runningPrincipal * (interestRate / 100) * monthsElapsed;
+            } else {
+              // Yearly rate: Convert to monthly rate first
+              double monthlyRate = interestRate / 12;
+              double monthsElapsed = daysSinceLastCalculation / 30.0;
+              interestForPeriod = runningPrincipal * (monthlyRate / 100) * monthsElapsed;
+            }
+            
             accumulatedInterest += interestForPeriod;
           }
         }
@@ -2145,14 +2259,49 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       // Calculate interest from last transaction to now
       if (lastInterestDate != null && runningPrincipal > 0) {
         final daysUntilNow = DateTime.now().difference(lastInterestDate).inDays;
-        final interestFromLastTx = runningPrincipal * interestRate / 100 / 365 * daysUntilNow;
+        
+        // Get interest period type
+        final String interestPeriod = contact['interestPeriod'] as String? ?? 'yearly';
+        
+        double interestFromLastTx;
+        if (interestPeriod == 'monthly') {
+          // Monthly rate: Calculate based on months elapsed
+          double monthsElapsed = daysUntilNow / 30.0;
+          interestFromLastTx = runningPrincipal * (interestRate / 100) * monthsElapsed;
+        } else {
+          // Yearly rate: Convert to monthly rate first
+          double monthlyRate = interestRate / 12;
+          double monthsElapsed = daysUntilNow / 30.0;
+          interestFromLastTx = runningPrincipal * (monthlyRate / 100) * monthsElapsed;
+        }
+        
         accumulatedInterest += interestFromLastTx;
       }
       
       // Update display values
       principalAmount = runningPrincipal;
       totalInterestDue = accumulatedInterest > interestPaid ? accumulatedInterest - interestPaid : 0;
-      interestPerDay = runningPrincipal * interestRate / 100 / 365;
+      
+      // Calculate daily interest based on rate type
+      final String interestPeriod = contact['interestPeriod'] as String? ?? 'yearly';
+      
+      // Calculate monthly interest first
+      double monthlyInterest;
+      if (interestPeriod == 'monthly') {
+        // Monthly rate: Calculate monthly interest
+        monthlyInterest = runningPrincipal * (interestRate / 100);
+      } else {
+        // Yearly rate: Convert to monthly rate first
+        double monthlyRate = interestRate / 12;
+        monthlyInterest = runningPrincipal * (monthlyRate / 100);
+      }
+      
+      // Calculate the actual number of days in the current month
+      final now = DateTime.now();
+      final daysInMonth = DateTime(now.year, now.month + 1, 0).day; // Last day of current month
+      
+      // Calculate daily interest based on actual days in month
+      interestPerDay = monthlyInterest / daysInMonth;
       
       // Update the display amount to include interest if appropriate
       if (contactType == 'lender' || contactType == 'borrower') {
@@ -2162,230 +2311,249 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     
     final amountText = '₹${displayAmount.toStringAsFixed(2)}';
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      elevation: 2,
-      shadowColor: AppTheme.primaryColor.withOpacity(0.3),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.1)),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ContactDetailScreen(contact: contact),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.white,
+              showYouWillGet 
+                  ? Colors.green.shade50.withOpacity(0.5) 
+                  : Colors.red.shade50.withOpacity(0.5),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          ).then((_) {
-            // Force refresh when returning from contact detail
-            setState(() {});
-          });
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Column(
-            children: [
-              Row(
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ContactDetailScreen(
+                    contact: contact,
+                    // Pass the info that daily interest is based on current month
+                    dailyInterestNote: '(${_getMonthAbbreviation()} - ${DateTime(DateTime.now().year, DateTime.now().month + 1, 0).day} days)',
+                  ),
+                ),
+              ).then((_) {
+                // Force refresh when returning from contact detail
+                setState(() {});
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Column(
                 children: [
-                  Stack(
+                  Row(
                     children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: contact['color'],
-                        child: Text(
-                          contact['initials'],
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                      Hero(
+                        tag: 'avatar_${contact['phone']}',
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: contact['color'].withOpacity(0.3),
+                                spreadRadius: 1,
+                                blurRadius: 3,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: contact['color'],
+                            child: Text(
+                              contact['initials'],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                      if (_isWithInterest && contactType != null)
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: contactType == 'borrower' ? AppTheme.secondaryColor : AppTheme.accentColor,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 1.5),
-                            ),
-                            child: Icon(
-                              contactType == 'borrower' ? Icons.person_outline : Icons.account_balance,
-                              color: Colors.white,
-                              size: 8,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          contact['name'],
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: AppTheme.textColor,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 10,
-                              color: Colors.grey.shade600,
-                            ),
-                            const SizedBox(width: 2),
                             Text(
-                              timeText,
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
+                              contact['name'],
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: AppTheme.textColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.history,
+                                  size: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  timeText,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                if (_isWithInterest) ...[
+                                  const SizedBox(width: 10),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.shade50,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: Colors.amber.shade200, width: 0.5),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.percent,
+                                          size: 10,
+                                          color: Colors.amber.shade800,
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '${contact['interestRate']}%',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.amber.shade800,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            amountText,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: showYouWillGet ? Colors.green.shade700 : Colors.red.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: showYouWillGet 
+                                  ? Colors.green.shade100 
+                                  : Colors.red.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: showYouWillGet 
+                                    ? Colors.green.shade300 
+                                    : Colors.red.shade300,
+                                width: 0.5,
                               ),
                             ),
-                            if (_isWithInterest) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.shade50,
-                                  borderRadius: BorderRadius.circular(8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  showYouWillGet ? Icons.arrow_downward : Icons.arrow_upward,
+                                  size: 12,
+                                  color: showYouWillGet ? Colors.green.shade700 : Colors.red.shade700,
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.percent,
-                                      size: 8,
-                                      color: Colors.amber.shade800,
-                                    ),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      '${contact['interestRate']}% p.a.',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        color: Colors.amber.shade800,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (contactType != null) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: contactType == 'borrower' 
-                                        ? AppTheme.secondaryColor.withOpacity(0.1)
-                                        : AppTheme.accentColor.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    StringUtils.capitalizeFirstLetter(contactType),
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      color: contactType == 'borrower' ? AppTheme.secondaryColor : AppTheme.accentColor,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  showYouWillGet ? 'Receive' : 'Pay',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: showYouWillGet ? Colors.green.shade700 : Colors.red.shade700,
                                   ),
                                 ),
                               ],
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        amountText,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: showYouWillGet ? AppTheme.secondaryColor : AppTheme.accentColor,
-                        ),
-                      ),
-                      Container(
-                        margin: const EdgeInsets.only(top: 2),
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: showYouWillGet ? AppTheme.secondaryColor.withOpacity(0.1) : AppTheme.accentColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          showYouWillGet ? 'You\'ll Get' : 'You\'ll Give',
-                          style: TextStyle(
-                            color: showYouWillGet ? AppTheme.secondaryColor : AppTheme.accentColor,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
+                  
+                  // Add interest breakdown for with interest contacts
+                  if (_isWithInterest && totalInterestDue > 0) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildInterestBreakdownItem(
+                            label: 'Principal',
+                            amount: principalAmount,
+                            iconData: Icons.attach_money_rounded,
+                            color: Colors.indigo,
+                          ),
+                          Container(
+                            height: 24,
+                            width: 1,
+                            color: Colors.grey.shade300,
+                          ),
+                          _buildInterestBreakdownItem(
+                            label: 'Interest Due',
+                            amount: totalInterestDue,
+                            iconData: Icons.timeline,
+                            color: Colors.orange.shade700,
+                          ),
+                          Container(
+                            height: 24,
+                            width: 1,
+                            color: Colors.grey.shade300,
+                          ),
+                          _buildInterestBreakdownItem(
+                            label: 'Daily Interest',
+                            amount: interestPerDay,
+                            iconData: Icons.calendar_today_rounded,
+                            color: Colors.teal,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
-              
-              // Add interest breakdown for with interest contacts
-              if (_isWithInterest && totalInterestDue > 0) ...[
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.amber.shade100),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildInterestBreakdownItem(
-                        label: 'Principal',
-                        amount: principalAmount,
-                        iconData: Icons.money,
-                        color: AppTheme.primaryColor,
-                      ),
-                      Container(
-                        height: 20,
-                        width: 1,
-                        color: Colors.amber.shade200,
-                      ),
-                      _buildInterestBreakdownItem(
-                        label: 'Interest Due',
-                        amount: totalInterestDue,
-                        iconData: Icons.savings,
-                        color: Colors.orange,
-                      ),
-                      Container(
-                        height: 20,
-                        width: 1,
-                        color: Colors.amber.shade200,
-                      ),
-                      _buildInterestBreakdownItem(
-                        label: 'Per Day',
-                        amount: interestPerDay,
-                        iconData: Icons.today,
-                        color: Colors.amber.shade800,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
@@ -2920,6 +3088,13 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         builder: (context) => ContactDetailScreen(contact: contact),
       ),
     );
+  }
+
+  // Helper method to get month abbreviation
+  String _getMonthAbbreviation() {
+    final now = DateTime.now();
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[now.month - 1]; // Month is 1-based, array is 0-based
   }
 }
 
