@@ -370,6 +370,24 @@ class TransactionProvider extends ChangeNotifier {
     // Add to start of the list (newest first)
     _contactTransactions[contactId]!.insert(0, transaction);
     
+    // Update lastEditedAt timestamp in the associated contact
+    final contactIndex = _contacts.indexWhere((contact) => contact['phone'] == contactId);
+    if (contactIndex != -1) {
+      final contact = _contacts[contactIndex];
+      
+      // Get the transaction date or use current time
+      final DateTime txDate = transaction['date'] is DateTime ? 
+                             transaction['date'] as DateTime : 
+                             DateTime.now();
+      
+      // Update lastEditedAt timestamp
+      contact['lastEditedAt'] = txDate;
+      
+      // Save the updated contact
+      _contacts[contactIndex] = contact;
+      await _saveContacts();
+    }
+    
     // Save to preferences
     await _saveTransactions();
     
@@ -419,6 +437,19 @@ class TransactionProvider extends ChangeNotifier {
         index >= 0 && 
         index < _contactTransactions[contactId]!.length) {
       _contactTransactions[contactId]![index] = updatedTransaction;
+      
+      // Update lastEditedAt timestamp in the associated contact
+      final contactIndex = _contacts.indexWhere((contact) => contact['phone'] == contactId);
+      if (contactIndex != -1) {
+        final contact = _contacts[contactIndex];
+        
+        // Update lastEditedAt to current time (edited just now)
+        contact['lastEditedAt'] = DateTime.now();
+        
+        // Save the updated contact
+        _contacts[contactIndex] = contact;
+        await _saveContacts();
+      }
       
       // Save to preferences
       await _saveTransactions();

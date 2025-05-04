@@ -339,6 +339,73 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     ),
                     SizedBox(height: 24),
                     
+                    // Error message container
+                    StatefulBuilder(
+                      builder: (context, setErrorState) {
+                        // Validate entry and show error message if needed
+                        String errorMessage = '';
+                        
+                        // Get entries for the selected date
+                        final sameDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+                        
+                        // Count full day entries for the selected date
+                        final fullDayEntries = _client.workEntries.where((entry) => 
+                          entry.durationType == 'Full Day' && 
+                          DateFormat('yyyy-MM-dd').format(entry.date) == sameDate
+                        ).length;
+                        
+                        // Count half day entries for the selected date
+                        final halfDayEntries = _client.workEntries.where((entry) => 
+                          entry.durationType == 'Half Day' && 
+                          DateFormat('yyyy-MM-dd').format(entry.date) == sameDate
+                        ).length;
+                        
+                        // Sum total hours for the selected date
+                        final totalHours = _client.workEntries
+                          .where((entry) => DateFormat('yyyy-MM-dd').format(entry.date) == sameDate && entry.durationType == 'Hourly')
+                          .fold(0.0, (sum, entry) => sum + (entry.hours ?? 0));
+                        
+                        // Add potential new entry hours
+                        double potentialNewHours = 0;
+                        if (selectedDurationType == 'Hourly') {
+                          potentialNewHours = double.tryParse(hoursController.text) ?? 0;
+                        }
+                        
+                        // Check validation rules
+                        if (selectedDurationType == 'Full Day' && fullDayEntries > 0) {
+                          errorMessage = 'Only 1 full day entry allowed per day';
+                        } else if (selectedDurationType == 'Half Day' && halfDayEntries >= 2) {
+                          errorMessage = 'Maximum 2 half day entries allowed per day';
+                        } else if (selectedDurationType == 'Hourly' && (totalHours + potentialNewHours) > 10) {
+                          errorMessage = 'Maximum 10 hours allowed per day (${10 - totalHours} hours left)';
+                        }
+                        
+                        return errorMessage.isNotEmpty 
+                          ? Container(
+                              padding: EdgeInsets.all(8),
+                              margin: EdgeInsets.only(bottom: 16),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.error_outline, color: Colors.red),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      errorMessage,
+                                      style: TextStyle(color: Colors.red.shade800),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : SizedBox.shrink();
+                      },
+                    ),
+                    
                     // Action buttons
                     Row(
                       children: [
@@ -363,20 +430,61 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                 return;
                               }
                               
-                              // Check for duplicate full day entries on the same day
+                              // Get the selected date in YYYY-MM-DD format for comparison
+                              final sameDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+                              
+                              // Validate against business rules
+                              String? validationError;
+                              
+                              // Rule 1: Only 1 full day entry per day
                               if (selectedDurationType == 'Full Day') {
-                                final sameDate = DateFormat('yyyy-MM-dd').format(selectedDate);
                                 final existingFullDayEntries = _client.workEntries.where((entry) => 
                                   entry.durationType == 'Full Day' && 
                                   DateFormat('yyyy-MM-dd').format(entry.date) == sameDate
                                 ).toList();
                                 
                                 if (existingFullDayEntries.isNotEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('A full day entry already exists for this date')),
-                                  );
-                                  return;
+                                  validationError = 'Only 1 full day entry allowed per day';
                                 }
+                              }
+                              
+                              // Rule 2: Maximum 2 half day entries per day
+                              else if (selectedDurationType == 'Half Day') {
+                                final existingHalfDayEntries = _client.workEntries.where((entry) => 
+                                  entry.durationType == 'Half Day' && 
+                                  DateFormat('yyyy-MM-dd').format(entry.date) == sameDate
+                                ).toList();
+                                
+                                if (existingHalfDayEntries.length >= 2) {
+                                  validationError = 'Maximum 2 half day entries allowed per day';
+                                }
+                              }
+                              
+                              // Rule 3: Maximum 10 hours per day
+                              else if (selectedDurationType == 'Hourly') {
+                                final hours = double.tryParse(hoursController.text) ?? 0.0;
+                                final existingHours = _client.workEntries
+                                  .where((entry) => 
+                                    entry.durationType == 'Hourly' && 
+                                    DateFormat('yyyy-MM-dd').format(entry.date) == sameDate
+                                  )
+                                  .fold(0.0, (sum, entry) => sum + (entry.hours ?? 0));
+                                
+                                if (existingHours + hours > 10) {
+                                  final hoursLeft = 10 - existingHours;
+                                  validationError = 'Maximum 10 hours allowed per day (${hoursLeft.toStringAsFixed(1)} hours left)';
+                                }
+                              }
+                              
+                              // Display validation error if any
+                              if (validationError != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(validationError),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
                               }
                               
                               Navigator.of(context).pop({

@@ -895,11 +895,19 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
           final today = DateTime.now();
           final difference = today.difference(transactionDate).inDays;
           contact['daysAgo'] = difference;
+          
+          // Add or update lastEditedAt timestamp for proper sorting
+          contact['lastEditedAt'] = transactionDate;
         }
         
         // Update the contact's amount and isGet property
         contact['amount'] = balance.abs();
         contact['isGet'] = balance >= 0;
+      } else {
+        // If no transactions, ensure there's a lastEditedAt value (use current time if not present)
+        if (!contact.containsKey('lastEditedAt')) {
+          contact['lastEditedAt'] = DateTime.now();
+        }
       }
     }
     
@@ -920,11 +928,19 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
           final today = DateTime.now();
           final difference = today.difference(transactionDate).inDays;
           contact['daysAgo'] = difference;
+          
+          // Add or update lastEditedAt timestamp for proper sorting
+          contact['lastEditedAt'] = transactionDate;
         }
         
         // Update the contact's amount and isGet property
         contact['amount'] = balance.abs();
         contact['isGet'] = balance >= 0;
+      } else {
+        // If no transactions, ensure there's a lastEditedAt value (use current time if not present)
+        if (!contact.containsKey('lastEditedAt')) {
+          contact['lastEditedAt'] = DateTime.now();
+        }
       }
     }
     
@@ -1125,7 +1141,12 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   void _applySorting(List<Map<String, dynamic>> contacts) {
     switch (_sortMode) {
       case 'Recent':
-        contacts.sort((a, b) => (a['daysAgo'] as int).compareTo(b['daysAgo'] as int));
+        // Sort by lastEditedAt timestamp (most recent first)
+        contacts.sort((a, b) {
+          final DateTime aTime = a['lastEditedAt'] ?? DateTime.now().subtract(const Duration(days: 1000));
+          final DateTime bTime = b['lastEditedAt'] ?? DateTime.now().subtract(const Duration(days: 1000));
+          return bTime.compareTo(aTime); // Descending order (newest first)
+        });
         break;
       case 'High to Low':
         contacts.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
@@ -1136,6 +1157,37 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       case 'By Name':
         contacts.sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
         break;
+    }
+  }
+  
+  // Format a timestamp into a relative time string (e.g. "5 minutes ago", "1 hour ago", "2 days ago")
+  String formatRelativeTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    // Less than a minute
+    if (difference.inMinutes < 1) {
+      return "Just now";
+    }
+    // Less than an hour
+    else if (difference.inHours < 1) {
+      final minutes = difference.inMinutes;
+      return "$minutes ${minutes == 1 ? 'minute' : 'minutes'} ago";
+    }
+    // Less than a day
+    else if (difference.inDays < 1) {
+      final hours = difference.inHours;
+      return "$hours ${hours == 1 ? 'hour' : 'hours'} ago";
+    }
+    // Less than a month
+    else if (difference.inDays < 30) {
+      final days = difference.inDays;
+      return "$days ${days == 1 ? 'day' : 'days'} ago";
+    }
+    // Months
+    else {
+      final months = (difference.inDays / 30).floor();
+      return "$months ${months == 1 ? 'month' : 'months'} ago";
     }
   }
 
@@ -1946,6 +1998,14 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     final phone = contact['phone'] ?? '';
     final name = contact['name'] ?? '';
     
+    // Get last edited time and format it
+    String timeText;
+    if (contact.containsKey('lastEditedAt') && contact['lastEditedAt'] is DateTime) {
+      timeText = formatRelativeTime(contact['lastEditedAt']);
+    } else {
+      timeText = daysText; // Fallback to the original format if lastEditedAt is missing
+    }
+    
     // Get transaction provider
     final transactionProvider = Provider.of<TransactionProvider>(context);
     
@@ -2163,7 +2223,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                             ),
                             const SizedBox(width: 2),
                             Text(
-                              daysText,
+                              timeText,
                               style: TextStyle(
                                 color: Colors.grey.shade600,
                                 fontSize: 10,
