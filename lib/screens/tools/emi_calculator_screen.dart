@@ -45,6 +45,73 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
   double _totalAmount = 0;
   bool _showResult = true; // Always show results
   
+  // Custom input formatters
+  TextInputFormatter get _loanAmountFormatter => TextInputFormatter.withFunction(
+    (oldValue, newValue) {
+      // Allow backspace/deletion
+      if (oldValue.text.length > newValue.text.length) {
+        return newValue;
+      }
+      
+      // Check if new value exceeds 10 Crore
+      if (newValue.text.isNotEmpty) {
+        final value = double.tryParse(newValue.text) ?? 0;
+        if (value > 100000000) { // 10 Crore = 10,00,00,000
+          return oldValue;
+        }
+      }
+      return newValue;
+    },
+  );
+  
+  TextInputFormatter get _interestRateFormatter => TextInputFormatter.withFunction(
+    (oldValue, newValue) {
+      // Allow backspace/deletion
+      if (oldValue.text.length > newValue.text.length) {
+        return newValue;
+      }
+      
+      // Check if new value exceeds 60%
+      if (newValue.text.isNotEmpty) {
+        final value = double.tryParse(newValue.text) ?? 0;
+        if (value > 60) {
+          return oldValue;
+        }
+      }
+      
+      // Allow only valid decimal format (up to 2 decimal places)
+      if (newValue.text.isEmpty) {
+        return newValue;
+      }
+      
+      if (RegExp(r'^\d+\.?\d{0,2}$').hasMatch(newValue.text)) {
+        return newValue;
+      }
+      
+      return oldValue;
+    },
+  );
+  
+  TextInputFormatter get _loanTenureFormatter => TextInputFormatter.withFunction(
+    (oldValue, newValue) {
+      // Allow backspace/deletion
+      if (oldValue.text.length > newValue.text.length) {
+        return newValue;
+      }
+      
+      // Check if new value exceeds max tenure based on type
+      if (newValue.text.isNotEmpty) {
+        final value = int.tryParse(newValue.text) ?? 0;
+        if (_selectedTenureType == 0 && value > 50) { // Years
+          return oldValue;
+        } else if (_selectedTenureType == 1 && value > 600) { // Months
+          return oldValue;
+        }
+      }
+      return newValue;
+    },
+  );
+  
   // Format currency in Indian Rupees
   final _currencyFormat = NumberFormat.currency(
     locale: 'en_IN',
@@ -228,6 +295,17 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
   }
 
   void _calculateEMI() {
+    // Check validations first
+    String? loanAmountError = _validateLoanAmount();
+    String? interestRateError = _validateInterestRate();
+    String? loanTenureError = _validateLoanTenure();
+    
+    // If validation fails, don't proceed with calculation but keep existing values
+    if (loanAmountError != null || interestRateError != null || loanTenureError != null) {
+      setState(() {}); // Just update the UI to show error messages
+      return;
+    }
+    
     // Calculate even if validation fails to give immediate feedback
     double principal = 0;
     double rate = 0;
@@ -271,8 +349,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         tenure = tenure * 12;
       }
 
-      // Ensure tenure is at least 1 month
-      tenure = tenure.clamp(1, 1000);
+      // Ensure tenure is at least 1 month and at most 600 months (50 years)
+      tenure = tenure.clamp(1, 600);
 
       // EMI calculation formula: P * r * (1 + r)^n / ((1 + r)^n - 1)
       double emi = 0;
@@ -754,23 +832,29 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                 // Loan Amount (80%)
                 Expanded(
                   flex: 80,
-                  child: TextField(
-                    controller: _loanAmountController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
-                      labelText: 'Loan Amount (₹)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.currency_rupee),
-                      contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                    ),
-                    onChanged: (value) {
-                      // Allow any value, just prevent "0" as the only digit
-                      if (value == "0") {
-                        _loanAmountController.text = '1';
-                      }
-                      _calculateEMI();
-                    },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _loanAmountController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [_loanAmountFormatter],
+                        decoration: InputDecoration(
+                          labelText: 'Loan Amount (₹)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.currency_rupee),
+                          contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                          errorText: _validateLoanAmount(),
+                        ),
+                        onChanged: (value) {
+                          // Allow any value, just prevent "0" as the only digit
+                          if (value == "0") {
+                            _loanAmountController.text = '1';
+                          }
+                          _calculateEMI();
+                        },
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -796,14 +880,13 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
             TextField(
               controller: _interestRateController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-              ],
-              decoration: const InputDecoration(
+              inputFormatters: [_interestRateFormatter],
+              decoration: InputDecoration(
                 labelText: 'Interest Rate (% p.a.)',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.percent),
                 contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                errorText: _validateInterestRate(),
               ),
               onChanged: (_) => _calculateEMI(),
             ),
@@ -816,12 +899,13 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                   child: TextField(
                     controller: _loanTenureController,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
+                    inputFormatters: [_loanTenureFormatter],
+                    decoration: InputDecoration(
                       labelText: 'Loan Tenure',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.calendar_today),
                       contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      errorText: _validateLoanTenure(),
                     ),
                     onChanged: (value) {
                       // Allow any value, just prevent "0" as the only digit
@@ -853,8 +937,10 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                           if (value != null) {
                             setState(() {
                               _selectedTenureType = value;
-                              _calculateEMI();
+                              // Force validation check when tenure type changes
+                              // (e.g., if user switches from months to years with value > 50)
                             });
+                            _calculateEMI(); // This will check validation and update UI
                           }
                         },
                       ),
@@ -1352,7 +1438,25 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                     TextField(
                       controller: _reverseLoanAmountController,
                       keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: [
+                        TextInputFormatter.withFunction(
+                          (oldValue, newValue) {
+                            // Allow backspace/deletion
+                            if (oldValue.text.length > newValue.text.length) {
+                              return newValue;
+                            }
+                            
+                            // Check if new value exceeds 10 Crore
+                            if (newValue.text.isNotEmpty) {
+                              final value = double.tryParse(newValue.text) ?? 0;
+                              if (value > 100000000) { // 10 Crore = 10,00,00,000
+                                return oldValue;
+                              }
+                            }
+                            return newValue;
+                          },
+                        )
+                      ],
                       decoration: const InputDecoration(
                         labelText: 'Loan Amount (₹)',
                         border: OutlineInputBorder(),
@@ -1373,7 +1477,25 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                     TextField(
                       controller: _reverseEmiAmountController,
                       keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: [
+                        TextInputFormatter.withFunction(
+                          (oldValue, newValue) {
+                            // Allow backspace/deletion
+                            if (oldValue.text.length > newValue.text.length) {
+                              return newValue;
+                            }
+                            
+                            // Check if new value exceeds 10 Crore (as a reasonable max EMI)
+                            if (newValue.text.isNotEmpty) {
+                              final value = double.tryParse(newValue.text) ?? 0;
+                              if (value > 100000000) { // 10 Crore
+                                return oldValue;
+                              }
+                            }
+                            return newValue;
+                          },
+                        )
+                      ],
                       decoration: const InputDecoration(
                         labelText: 'Monthly EMI (₹)',
                         border: OutlineInputBorder(),
@@ -1397,7 +1519,27 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                           child: TextField(
                             controller: _reverseTenureController,
                             keyboardType: TextInputType.number,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            inputFormatters: [
+                              TextInputFormatter.withFunction(
+                                (oldValue, newValue) {
+                                  // Allow backspace/deletion
+                                  if (oldValue.text.length > newValue.text.length) {
+                                    return newValue;
+                                  }
+                                  
+                                  // Check if new value exceeds max tenure based on type
+                                  if (newValue.text.isNotEmpty) {
+                                    final value = int.tryParse(newValue.text) ?? 0;
+                                    if (_reverseTenureType == 0 && value > 50) { // Years
+                                      return oldValue;
+                                    } else if (_reverseTenureType == 1 && value > 600) { // Months
+                                      return oldValue;
+                                    }
+                                  }
+                                  return newValue;
+                                },
+                              )
+                            ],
                             decoration: const InputDecoration(
                               labelText: 'Loan Tenure',
                               border: OutlineInputBorder(),
@@ -1689,5 +1831,40 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         ),
       ],
     );
+  }
+
+  String? _validateLoanAmount() {
+    try {
+      double? amount = double.tryParse(_loanAmountController.text);
+      if (amount != null && amount > 100000000) { // 10 Crore = 10,00,00,000
+        return 'Amount cannot exceed 10 Crore (₹10,00,00,000)';
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  String? _validateInterestRate() {
+    try {
+      double? rate = double.tryParse(_interestRateController.text);
+      if (rate != null && rate > 60) {
+        return 'Interest rate cannot exceed 60% per annum';
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  String? _validateLoanTenure() {
+    try {
+      int? tenure = int.tryParse(_loanTenureController.text);
+      if (tenure != null) {
+        // Convert to months if in years
+        if (_selectedTenureType == 0 && tenure > 50) {
+          return 'Loan period cannot exceed 50 years';
+        } else if (_selectedTenureType == 1 && tenure > 600) {
+          return 'Loan period cannot exceed 600 months';
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 } 

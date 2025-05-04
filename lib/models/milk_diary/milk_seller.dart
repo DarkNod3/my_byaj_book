@@ -15,6 +15,8 @@ class MilkSeller {
   final String? address;
   final double defaultRate;
   final bool isActive;
+  final PriceSystem priceSystem;
+  final Map<double, double>? fatRates;
 
   MilkSeller({
     required this.id,
@@ -23,6 +25,8 @@ class MilkSeller {
     this.address,
     this.defaultRate = 0.0,
     this.isActive = true,
+    this.priceSystem = PriceSystem.defaultRate,
+    this.fatRates,
   });
 
   MilkSeller copyWith({
@@ -32,6 +36,8 @@ class MilkSeller {
     String? address,
     double? defaultRate,
     bool? isActive,
+    PriceSystem? priceSystem,
+    Map<double, double>? fatRates,
   }) {
     return MilkSeller(
       id: id ?? this.id,
@@ -40,6 +46,8 @@ class MilkSeller {
       address: address ?? this.address,
       defaultRate: defaultRate ?? this.defaultRate,
       isActive: isActive ?? this.isActive,
+      priceSystem: priceSystem ?? this.priceSystem,
+      fatRates: fatRates ?? this.fatRates,
     );
   }
 
@@ -51,10 +59,23 @@ class MilkSeller {
       'address': address,
       'defaultRate': defaultRate,
       'isActive': isActive,
+      'priceSystem': priceSystem.toString().split('.').last,
+      'fatRates': fatRates != null ? Map<String, dynamic>.fromEntries(
+        fatRates!.entries.map((e) => MapEntry(e.key.toString(), e.value))
+      ) : null,
     };
   }
 
   factory MilkSeller.fromMap(Map<String, dynamic> map) {
+    Map<double, double>? fatRatesMap;
+    if (map['fatRates'] != null) {
+      fatRatesMap = Map<double, double>.fromEntries(
+        (map['fatRates'] as Map<String, dynamic>).entries.map(
+          (e) => MapEntry(double.parse(e.key), e.value.toDouble())
+        )
+      );
+    }
+    
     return MilkSeller(
       id: map['id'],
       name: map['name'],
@@ -62,12 +83,18 @@ class MilkSeller {
       address: map['address'],
       defaultRate: map['defaultRate'] ?? 0.0,
       isActive: map['isActive'] ?? true,
+      priceSystem: map['priceSystem'] != null 
+        ? PriceSystem.values.firstWhere(
+            (e) => e.toString().split('.').last == map['priceSystem'],
+            orElse: () => PriceSystem.defaultRate)
+        : PriceSystem.defaultRate,
+      fatRates: fatRatesMap,
     );
   }
 
   @override
   String toString() {
-    return 'MilkSeller(id: $id, name: $name, mobile: $mobile, defaultRate: $defaultRate, isActive: $isActive)';
+    return 'MilkSeller(id: $id, name: $name, mobile: $mobile, defaultRate: $defaultRate, isActive: $isActive, priceSystem: $priceSystem)';
   }
 
   @override
@@ -80,7 +107,8 @@ class MilkSeller {
       other.mobile == mobile &&
       other.address == address &&
       other.defaultRate == defaultRate &&
-      other.isActive == isActive;
+      other.isActive == isActive &&
+      other.priceSystem == priceSystem;
   }
 
   @override
@@ -90,54 +118,7 @@ class MilkSeller {
       mobile.hashCode ^
       address.hashCode ^
       defaultRate.hashCode ^
-      isActive.hashCode;
-  }
-}
-
-class MilkEntry {
-  final int id;
-  final int sellerId;
-  final DateTime date;
-  final String time; // Morning or Evening
-  final double quantity;
-  final double rate;
-  final double? fat;
-  final double amount;
-  
-  MilkEntry({
-    required this.id,
-    required this.sellerId,
-    required this.date,
-    required this.time,
-    required this.quantity,
-    required this.rate,
-    this.fat,
-    required this.amount,
-  });
-  
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'sellerId': sellerId,
-      'date': date.toIso8601String(),
-      'time': time,
-      'quantity': quantity,
-      'rate': rate,
-      'fat': fat,
-      'amount': amount,
-    };
-  }
-  
-  factory MilkEntry.fromJson(Map<String, dynamic> json) {
-    return MilkEntry(
-      id: json['id'],
-      sellerId: json['sellerId'],
-      date: DateTime.parse(json['date']),
-      time: json['time'],
-      quantity: json['quantity'] ?? 0.0,
-      rate: json['rate'] ?? 0.0,
-      fat: json['fat'],
-      amount: json['amount'] ?? 0.0,
-    );
+      isActive.hashCode ^
+      priceSystem.hashCode;
   }
 } 

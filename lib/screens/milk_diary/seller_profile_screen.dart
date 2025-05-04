@@ -6,6 +6,7 @@ import '../../models/milk_diary/daily_entry.dart';
 import '../../providers/milk_diary/daily_entry_provider.dart';
 import '../../constants/app_theme.dart';
 import 'add_entry_screen.dart';
+import 'add_entry_bottom_sheet.dart';
 
 class SellerProfileScreen extends StatefulWidget {
   final MilkSeller seller;
@@ -71,57 +72,23 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                   ),
                   const SizedBox(height: 8),
                   
-                  // Entries for selected date
-                  Consumer<DailyEntryProvider>(
-                    builder: (context, entryProvider, child) {
-                      // Filter entries for this seller and date
-                      final allSellerEntries = entryProvider.getEntriesForSeller(widget.seller.id);
-                      final entries = allSellerEntries.where((entry) => 
-                        entry.date.year == _selectedDate.year && 
-                        entry.date.month == _selectedDate.month && 
-                        entry.date.day == _selectedDate.day
-                      ).toList();
-                      
-                      if (entries.isEmpty) {
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Column(
-                              children: [
-                                const Icon(Icons.water_drop_outlined, size: 48, color: Colors.grey),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No milk entries for ${DateFormat('dd MMM yyyy').format(_selectedDate)}',
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
-                      
-                      // Sort entries by shift
-                      entries.sort((a, b) => a.shift.index.compareTo(b.shift.index));
-                      
-                      return Column(
-                        children: entries.map((entry) => _buildEntryCard(entry)).toList(),
-                      );
-                    },
-                  ),
+                  // Entries for selected date using the new method
+                  _buildEntriesByDate(),
                 ],
               ),
             ),
-            
-            // Monthly summary section
-            _buildMonthlySummary(),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _navigateToAddEntry(),
-        backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.add),
-        tooltip: 'Add Milk Entry',
+        backgroundColor: Colors.blue,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Entry'),
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
       ),
     );
   }
@@ -153,12 +120,31 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.seller.name,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.seller.name,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          // Add Payment button
+                          ElevatedButton.icon(
+                            onPressed: () => _showAddPaymentDialog(),
+                            icon: const Icon(Icons.add_card, size: 18),
+                            label: const Text('Add Payment'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade100,
+                              foregroundColor: Colors.blue.shade800,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              textStyle: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
                       ),
                       if (widget.seller.mobile != null && widget.seller.mobile!.isNotEmpty)
                         Padding(
@@ -175,21 +161,6 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                           ),
                         ),
                     ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: widget.seller.isActive ? Colors.green.shade100 : Colors.red.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    widget.seller.isActive ? 'Active' : 'Inactive',
-                    style: TextStyle(
-                      color: widget.seller.isActive ? Colors.green.shade800 : Colors.red.shade800,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
                   ),
                 ),
               ],
@@ -211,13 +182,9 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                 ),
               ),
             const Divider(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildInfoItem('Default Rate', '₹${widget.seller.defaultRate.toStringAsFixed(2)}/L'),
-                _buildInfoItem('Status', widget.seller.isActive ? 'Active' : 'Inactive'),
-              ],
-            ),
+            
+            // Summary section - right below the divider
+            _buildQuickSummary(),
           ],
         ),
       ),
@@ -247,109 +214,275 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
     );
   }
 
-  Widget _buildEntryCard(DailyEntry entry) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
+  Widget _buildQuickSummary() {
+    return Consumer<DailyEntryProvider>(
+      builder: (context, entryProvider, child) {
+        // Get all entries for this seller
+        final allEntries = entryProvider.getEntriesForSeller(widget.seller.id);
+        
+        // Today's entries
+        final today = DateTime.now();
+        final todayEntries = allEntries.where((e) => 
+          e.date.year == today.year && 
+          e.date.month == today.month && 
+          e.date.day == today.day
+        ).toList();
+        
+        // Calculate summary statistics with proper precision
+        double totalQuantity = 0.0;
+        double totalAmount = 0.0;
+        
+        // Sum with proper rounding to prevent floating point errors
+        for (var entry in allEntries) {
+          totalQuantity += entry.quantity;
+          totalAmount += entry.amount;
+        }
+        
+        // Ensure proper rounding
+        totalQuantity = double.parse(totalQuantity.toStringAsFixed(2));
+        totalAmount = double.parse(totalAmount.toStringAsFixed(2));
+        
+        // Calculate active days (days with at least one entry)
+        final activeDaysSet = allEntries.map((e) => 
+          '${e.date.year}-${e.date.month}-${e.date.day}'
+        ).toSet();
+        
+        final activeDays = activeDaysSet.length;
+        
+        // Get payments data from provider
+        // TODO: In a real implementation, this would come from a payment provider
+        final paidAmount = 0.0;  
+        final dueAmount = totalAmount - paidAmount;
+        
+        // Calculate today's totals with proper precision
+        double todayQuantity = 0.0;
+        double todayAmount = 0.0;
+        
+        // Sum with proper rounding
+        for (var entry in todayEntries) {
+          todayQuantity += entry.quantity;
+          todayAmount += entry.amount;
+        }
+        
+        // Ensure proper rounding
+        todayQuantity = double.parse(todayQuantity.toStringAsFixed(2));
+        todayAmount = double.parse(todayAmount.toStringAsFixed(2));
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Summary',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildCompactSummaryTile(
+                    icon: Icons.water_drop,
+                    iconColor: Colors.blue,
+                    label: 'Total Milk',
+                    value: '${totalQuantity.toStringAsFixed(1)} L',
+                  ),
+                  _buildCompactSummaryTile(
+                    icon: Icons.currency_rupee,
+                    iconColor: Colors.green,
+                    label: 'Total Amount',
+                    value: '₹${totalAmount.toStringAsFixed(0)}',
+                  ),
+                  _buildCompactSummaryTile(
+                    icon: Icons.account_balance_wallet,
+                    iconColor: Colors.red,
+                    label: 'Due Amount',
+                    value: '₹${dueAmount.toStringAsFixed(0)}',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildCompactSummaryTile(
+                    icon: Icons.calendar_today,
+                    iconColor: Colors.purple,
+                    label: 'Active Days',
+                    value: '$activeDays days',
+                  ),
+                  _buildCompactSummaryTile(
+                    icon: Icons.price_change,
+                    iconColor: Colors.amber,
+                    label: 'Price/Unit',
+                    value: '₹${widget.seller.defaultRate}/L',
+                  ),
+                  _buildCompactSummaryTile(
+                    icon: Icons.payments,
+                    iconColor: Colors.teal,
+                    label: 'Today',
+                    value: '₹${todayAmount.toStringAsFixed(0)}',
+                    tooltip: '${todayQuantity.toStringAsFixed(1)}L today',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildCompactSummaryTile({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    String? tooltip,
+  }) {
+    return Expanded(
+      child: Tooltip(
+        message: tooltip ?? label,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+          child: Row(
+            children: [
+              Icon(icon, color: iconColor, size: 18),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      entry.shift == EntryShift.morning 
-                          ? Icons.wb_sunny_outlined 
-                          : Icons.nightlight_outlined,
-                      size: 16,
-                      color: entry.shift == EntryShift.morning 
-                          ? Colors.orange 
-                          : Colors.indigo,
-                    ),
-                    const SizedBox(width: 8),
                     Text(
-                      entry.shift == EntryShift.morning ? 'Morning' : 'Evening',
+                      value,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      label,
                       style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        color: entry.shift == EntryShift.morning 
-                            ? Colors.orange.shade700 
-                            : Colors.indigo,
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
                       ),
                     ),
                   ],
                 ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit, size: 18),
-                      onPressed: () => _navigateToAddEntry(entry: entry),
-                      tooltip: 'Edit Entry',
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                    const SizedBox(width: 16),
-                    IconButton(
-                      icon: const Icon(Icons.delete, size: 18),
-                      onPressed: () => _confirmDeleteEntry(entry),
-                      tooltip: 'Delete Entry',
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const Divider(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildEntryDetail('Quantity', '${entry.quantity} L'),
-                    _buildEntryDetail('Fat', '${entry.fat}%'),
-                    _buildEntryDetail('Rate', '₹${entry.rate}/L'),
-                  ],
-                ),
-                Text(
-                  '₹${entry.amount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildEntryDetail(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey[600],
+  Widget _buildEntryCard(DailyEntry entry) {
+    // Get shift icon and color
+    final shiftIcon = entry.shift == EntryShift.morning ? Icons.wb_sunny_outlined : Icons.nightlight_outlined;
+    final shiftColor = entry.shift == EntryShift.morning ? Colors.orange : Colors.indigo;
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            // Shift icon
+            Icon(shiftIcon, size: 16, color: shiftColor),
+            const SizedBox(width: 8),
+            
+            // Time and shift
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    DateFormat('hh:mm a').format(entry.date),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    entry.shift == EntryShift.morning ? 'Morning' : 'Evening',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+            
+            // Quantity
+            Expanded(
+              flex: 2,
+              child: Row(
+                children: [
+                  const Icon(Icons.water_drop, size: 14, color: Colors.blue),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${entry.quantity} L',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            
+            // Amount
+            Expanded(
+              flex: 2,
+              child: Text(
+                '₹${entry.amount.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ),
+            
+            // Menu button
+            PopupMenuButton<String>(
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.more_vert, size: 18),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit, size: 18),
+                      SizedBox(width: 8),
+                      Text('Edit'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, size: 18),
+                      SizedBox(width: 8),
+                      Text('Delete'),
+                    ],
+                  ),
+                ),
+              ],
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _navigateToAddEntry(entry: entry);
+                } else if (value == 'delete') {
+                  _confirmDeleteEntry(entry);
+                }
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -479,11 +612,11 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
   }
 
   void _navigateToAddEntry({DailyEntry? entry}) {
-    Navigator.push(
+    AddEntryBottomSheet.show(
       context,
-      MaterialPageRoute(
-        builder: (context) => AddEntryScreen(entry: entry),
-      ),
+      entry: entry,
+      sellerId: widget.seller.id,
+      initialDate: entry != null ? entry.date : _selectedDate,
     );
   }
 
@@ -506,6 +639,243 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
         setState(() {
           _selectedDate = picked;
         });
+      }
+    });
+  }
+
+  // Update the entries section to organize entries more compactly
+  Widget _buildEntriesByDate() {
+    return Consumer<DailyEntryProvider>(
+      builder: (context, entryProvider, child) {
+        // Filter entries for this seller and selected date
+        final allSellerEntries = entryProvider.getEntriesForSeller(widget.seller.id);
+        final entriesForDate = allSellerEntries.where((entry) => 
+          entry.date.year == _selectedDate.year && 
+          entry.date.month == _selectedDate.month && 
+          entry.date.day == _selectedDate.day
+        ).toList();
+        
+        if (entriesForDate.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  const Icon(Icons.water_drop_outlined, size: 48, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No milk entries for ${DateFormat('dd MMM yyyy').format(_selectedDate)}',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  // Check if we already have both morning and evening entries
+                  if(_canAddMoreEntries(entryProvider))
+                    ElevatedButton.icon(
+                      onPressed: () => _navigateToAddEntry(),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Add Entry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        }
+        
+        // Sort entries by time
+        entriesForDate.sort((a, b) => a.date.compareTo(b.date));
+        
+        // Calculate daily total with proper rounding
+        final dailyTotalQuantity = entriesForDate.isEmpty ? 0.0 : 
+          double.parse(entriesForDate.fold(0.0, (sum, e) => sum + e.quantity).toStringAsFixed(2));
+        
+        final dailyTotalAmount = entriesForDate.isEmpty ? 0.0 : 
+          double.parse(entriesForDate.fold(0.0, (sum, e) => sum + e.amount).toStringAsFixed(2));
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // List all entries
+            ...entriesForDate.map((entry) => _buildEntryCard(entry)).toList(),
+            
+            // Add button if we don't have both morning and evening entries yet
+            if(_canAddMoreEntries(entryProvider))
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: ElevatedButton.icon(
+                  onPressed: () => _navigateToAddEntry(),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add Entry'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            
+            // Daily total
+            if (entriesForDate.isNotEmpty)
+              Card(
+                margin: const EdgeInsets.only(top: 8, bottom: 16),
+                color: Colors.blue.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Daily Total:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            '${dailyTotalQuantity.toStringAsFixed(1)} L  ',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Text(
+                            '₹${dailyTotalAmount.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.green.shade800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+  
+  // Check if we can add more entries for the selected date
+  bool _canAddMoreEntries(DailyEntryProvider provider) {
+    final entriesForDate = provider.getEntriesForSeller(widget.seller.id).where((entry) => 
+      entry.date.year == _selectedDate.year && 
+      entry.date.month == _selectedDate.month && 
+      entry.date.day == _selectedDate.day
+    ).toList();
+    
+    final hasMorningEntry = entriesForDate.any((e) => e.shift == EntryShift.morning);
+    final hasEveningEntry = entriesForDate.any((e) => e.shift == EntryShift.evening);
+    
+    // Allow adding entries if either morning or evening is missing
+    return !(hasMorningEntry && hasEveningEntry);
+  }
+
+  void _showAddPaymentDialog() {
+    final paymentAmountController = TextEditingController();
+    final remarksController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Add Payment for ${widget.seller.name}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Payment amount
+              const Text('Payment Amount', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: paymentAmountController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  prefixIcon: const Icon(Icons.currency_rupee),
+                  hintText: 'Enter amount',
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Remarks
+              const Text('Remarks (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: remarksController,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  hintText: 'Add notes about this payment',
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Dispose controllers before closing dialog
+              paymentAmountController.dispose();
+              remarksController.dispose();
+              Navigator.pop(context);
+            },
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Validate and save payment
+              if (paymentAmountController.text.isNotEmpty) {
+                try {
+                  final amount = double.parse(paymentAmountController.text);
+                  // Here you would save the payment to your payment provider
+                  // This is a placeholder - implement actual payment saving
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Payment of ₹$amount added for ${widget.seller.name}'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  // Dispose controllers before closing dialog
+                  paymentAmountController.dispose();
+                  remarksController.dispose();
+                  Navigator.pop(context);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a valid amount')),
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter an amount')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+            ),
+            child: const Text('ADD PAYMENT'),
+          ),
+        ],
+      ),
+    ).then((_) {
+      // Ensure controllers are disposed if dialog is dismissed in other ways
+      if (paymentAmountController.hasListeners) {
+        paymentAmountController.dispose();
+      }
+      if (remarksController.hasListeners) {
+        remarksController.dispose();
       }
     });
   }

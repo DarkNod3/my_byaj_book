@@ -5,9 +5,13 @@ import '../../models/milk_diary/daily_entry.dart';
 
 class DailyEntryProvider with ChangeNotifier {
   List<DailyEntry> _entries = [];
+  List<DailyEntry> _filteredEntries = [];
+  bool Function(DailyEntry)? _filterFunction;
+  bool _isFiltered = false;
   static const String _storageKey = 'daily_entries';
 
-  List<DailyEntry> get entries => List.unmodifiable(_entries);
+  List<DailyEntry> get entries => 
+    _isFiltered ? List.unmodifiable(_filteredEntries) : List.unmodifiable(_entries);
 
   DailyEntryProvider() {
     _loadEntries();
@@ -58,7 +62,32 @@ class DailyEntryProvider with ChangeNotifier {
         e.sellerId == entry.sellerId);
     
     if (existingEntryIndex != -1) {
-      throw Exception('An entry for this seller, date, and shift already exists');
+      // Instead of throwing an exception, try to update the existing entry
+      final existingEntry = _entries[existingEntryIndex];
+      
+      // Create updated entry with new values but keep the existing ID
+      final updatedEntry = DailyEntry(
+        id: existingEntry.id,
+        sellerId: entry.sellerId,
+        date: entry.date,
+        shift: entry.shift,
+        quantity: entry.quantity,
+        fat: entry.fat,
+        snf: entry.snf,
+        rate: entry.rate,
+        amount: entry.amount,
+        remarks: entry.remarks,
+        status: entry.status,
+        milkType: entry.milkType,
+      );
+      
+      // Replace the existing entry
+      _entries[existingEntryIndex] = updatedEntry;
+      _sortEntries();
+      
+      notifyListeners();
+      await _saveEntries();
+      return;
     }
     
     _entries.add(entry);
@@ -85,6 +114,10 @@ class DailyEntryProvider with ChangeNotifier {
         e.sellerId == updatedEntry.sellerId);
     
     if (duplicateIndex != -1) {
+      // Get the existing duplicate entry
+      final existingEntry = _entries[duplicateIndex];
+      
+      // Throw a more user-friendly exception
       throw Exception('An entry for this seller, date, and shift already exists');
     }
     
@@ -110,8 +143,40 @@ class DailyEntryProvider with ChangeNotifier {
     });
   }
 
+  void setFilter(bool Function(DailyEntry) filterFunction) {
+    _filterFunction = filterFunction;
+    _applyFilter();
+    _isFiltered = true;
+    notifyListeners();
+  }
+
+  void clearFilter() {
+    _filterFunction = null;
+    _filteredEntries = [];
+    _isFiltered = false;
+    notifyListeners();
+  }
+
+  void _applyFilter() {
+    if (_filterFunction != null) {
+      _filteredEntries = _entries.where(_filterFunction!).toList();
+      _sortFilteredEntries();
+    } else {
+      _filteredEntries = [];
+    }
+  }
+
+  void _sortFilteredEntries() {
+    _filteredEntries.sort((a, b) {
+      final dateComparison = b.date.compareTo(a.date);
+      if (dateComparison != 0) return dateComparison;
+      return a.shift.index.compareTo(b.shift.index);
+    });
+  }
+
   List<DailyEntry> getEntriesForDate(DateTime date) {
-    return _entries.where((entry) => 
+    final entriesList = _isFiltered ? _filteredEntries : _entries;
+    return entriesList.where((entry) => 
       entry.date.year == date.year && 
       entry.date.month == date.month && 
       entry.date.day == date.day
@@ -119,7 +184,8 @@ class DailyEntryProvider with ChangeNotifier {
   }
 
   List<DailyEntry> getEntriesForSeller(String sellerId) {
-    return _entries.where((entry) => entry.sellerId == sellerId).toList();
+    final entriesList = _isFiltered ? _filteredEntries : _entries;
+    return entriesList.where((entry) => entry.sellerId == sellerId).toList();
   }
   
   List<DailyEntry> getEntriesForSellerInRange(String sellerId, DateTime startDate, DateTime endDate) {
@@ -127,12 +193,13 @@ class DailyEntryProvider with ChangeNotifier {
     final normalizedStartDate = DateTime(startDate.year, startDate.month, startDate.day);
     final normalizedEndDate = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
     
-    return _entries.where((entry) => 
+    final entriesList = _isFiltered ? _filteredEntries : _entries;
+    return entriesList.where((entry) => 
       entry.sellerId == sellerId &&
-      entry.date.isAtSameMomentAs(normalizedStartDate) || 
-      entry.date.isAfter(normalizedStartDate) &&
-      entry.date.isAtSameMomentAs(normalizedEndDate) || 
-      entry.date.isBefore(normalizedEndDate)
+      ((entry.date.isAtSameMomentAs(normalizedStartDate) || 
+      entry.date.isAfter(normalizedStartDate)) &&
+      (entry.date.isAtSameMomentAs(normalizedEndDate) || 
+      entry.date.isBefore(normalizedEndDate)))
     ).toList();
   }
 

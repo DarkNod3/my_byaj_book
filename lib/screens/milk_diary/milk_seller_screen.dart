@@ -7,6 +7,7 @@ import '../../constants/app_theme.dart';
 import 'milk_seller_dialog.dart';
 import '../../widgets/dialogs/confirm_dialog.dart';
 import 'seller_profile_screen.dart';
+import 'milk_seller_bottom_sheet.dart';
 
 class MilkSellerScreen extends StatefulWidget {
   const MilkSellerScreen({Key? key}) : super(key: key);
@@ -64,10 +65,21 @@ class _MilkSellerScreenState extends State<MilkSellerScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddEditSellerDialog(),
-        child: const Icon(Icons.add),
-        tooltip: 'Add New Seller',
+      floatingActionButton: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        child: FloatingActionButton.extended(
+          onPressed: () => _showAddEditSellerDialog(),
+          icon: const Icon(Icons.person_add, color: Colors.white),
+          label: const Text(
+            'Add Seller',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.deepPurple,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          elevation: 4,
+        ),
       ),
     );
   }
@@ -183,9 +195,11 @@ class _MilkSellerScreenState extends State<MilkSellerScreen> {
   }
 
   Future<void> _showAddEditSellerDialog({MilkSeller? seller}) async {
-    final result = await showDialog<MilkSeller>(
+    final result = await showModalBottomSheet<MilkSeller>(
       context: context,
-      builder: (context) => MilkSellerDialog(seller: seller),
+      isScrollControlled: true, // This allows the sheet to expand to its content
+      backgroundColor: Colors.transparent,
+      builder: (context) => MilkSellerBottomSheet(seller: seller),
     );
     
     if (result != null) {

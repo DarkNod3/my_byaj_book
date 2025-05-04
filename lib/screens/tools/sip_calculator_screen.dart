@@ -69,6 +69,16 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
 
   void _calculateSIP() {
     try {
+      // Check validations first
+      String? monthlyInvestmentError = _validateMonthlyInvestment();
+      String? investmentPeriodError = _validateInvestmentPeriod();
+      
+      // If validation fails, don't proceed with calculation but keep existing values
+      if (monthlyInvestmentError != null || investmentPeriodError != null) {
+        setState(() {}); // Just update the UI to show error messages
+        return;
+      }
+      
       // Safe parsing of values with defaults
       double monthlyInvestment = _monthlyInvestmentController.text.isEmpty 
           ? 10000 : double.tryParse(_monthlyInvestmentController.text) ?? 10000;
@@ -165,12 +175,15 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   }
 
   Future<void> _generatePDF() async {
+    // Ensure we have the most up-to-date calculations
+    _calculateSIP();
+    
     final pdf = pw.Document();
     
     // Create a currency format without the rupee symbol for the PDF report
     final pdfCurrencyFormat = NumberFormat.currency(
       locale: 'en_IN',
-      symbol: '',  // Empty symbol
+      symbol: 'Rs. ',  // Use "Rs. " as prefix instead of rupee symbol
       decimalDigits: 0,
     );
     
@@ -185,26 +198,78 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
         pageFormat: PdfPageFormat.a4,
         header: (pw.Context context) {
           return pw.Container(
-            alignment: pw.Alignment.center,
-            margin: const pw.EdgeInsets.only(bottom: 20),
-            child: pw.Text(
-              'SIP Investment Report',
-              style: pw.TextStyle(
-                fontSize: 24,
-                fontWeight: pw.FontWeight.bold,
-              ),
+            padding: const pw.EdgeInsets.only(bottom: 20),
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(width: 1, color: PdfColors.grey300)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'My Byaj Book',
+                      style: pw.TextStyle(
+                        fontSize: 24,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.indigo600,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'SIP Investment Report',
+                      style: const pw.TextStyle(
+                        fontSize: 14,
+                        color: PdfColors.grey700,
+                      ),
+                    ),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'Generated on',
+                      style: const pw.TextStyle(
+                        fontSize: 12,
+                        color: PdfColors.grey700,
+                      ),
+                    ),
+                    pw.Text(
+                      DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now()),
+                      style: const pw.TextStyle(
+                        fontSize: 12,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           );
         },
         footer: (pw.Context context) {
           return pw.Container(
-            alignment: pw.Alignment.centerRight,
             margin: const pw.EdgeInsets.only(top: 10),
-            child: pw.Text(
-              'Page ${context.pageNumber} of ${context.pagesCount}',
-              style: const pw.TextStyle(
-                fontSize: 10,
-              ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'Generated using My Byaj Book App',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey600,
+                  ),
+                ),
+                pw.Text(
+                  'Page ${context.pageNumber} of ${context.pagesCount}',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey600,
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -228,12 +293,12 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                     ),
                   ),
                   pw.SizedBox(height: 15),
-                  _buildPdfSummaryRow('Monthly Investment', pdfCurrencyFormat.format(monthlyInvestment)),
+                  _buildPdfSummaryRow('Monthly Investment', '${pdfCurrencyFormat.format(monthlyInvestment)}'),
                   _buildPdfSummaryRow('Expected Return Rate', '$expectedReturn% per annum'),
                   _buildPdfSummaryRow('Investment Period', '$years Years'),
-                  _buildPdfSummaryRow('Total Investment', pdfCurrencyFormat.format(_totalInvestment)),
-                  _buildPdfSummaryRow('Total Returns', pdfCurrencyFormat.format(_totalReturns)),
-                  _buildPdfSummaryRow('Maturity Value', pdfCurrencyFormat.format(_maturityValue)),
+                  _buildPdfSummaryRow('Total Investment', '${pdfCurrencyFormat.format(_totalInvestment)}'),
+                  _buildPdfSummaryRow('Total Returns', '${pdfCurrencyFormat.format(_totalReturns)}'),
+                  _buildPdfSummaryRow('Maturity Value', '${pdfCurrencyFormat.format(_maturityValue)}'),
                 ],
               ),
             ),
@@ -276,9 +341,9 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                   return pw.TableRow(
                     children: [
                       _buildPdfTableCell('${investment['year']}'),
-                      _buildPdfTableCell(pdfCurrencyFormat.format(investment['investedAmount'])),
-                      _buildPdfTableCell(pdfCurrencyFormat.format(investment['estimatedReturns'])),
-                      _buildPdfTableCell(pdfCurrencyFormat.format(investment['estimatedValue'])),
+                      _buildPdfTableCell('${pdfCurrencyFormat.format(investment['investedAmount'])}'),
+                      _buildPdfTableCell('${pdfCurrencyFormat.format(investment['estimatedReturns'])}'),
+                      _buildPdfTableCell('${pdfCurrencyFormat.format(investment['estimatedValue'])}'),
                     ],
                   );
                 }).toList(),
@@ -307,9 +372,10 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
     );
     
     try {
-      // Save the PDF
-      final output = await getTemporaryDirectory();
-      final file = File('${output.path}/sip_investment_report.pdf');
+      // Save the PDF with a unique timestamp
+      final output = await getApplicationDocumentsDirectory(); // Use app documents directory instead of temp
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final file = File('${output.path}/sip_investment_report_$timestamp.pdf');
       await file.writeAsBytes(await pdf.save());
       
       // Open the PDF
@@ -548,17 +614,23 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                 // Monthly Investment (80%)
                 Expanded(
                   flex: 80,
-                  child: TextField(
-                    controller: _monthlyInvestmentController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
-                      labelText: 'Monthly Investment (₹)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.currency_rupee),
-                      contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                    ),
-                    onChanged: (_) => _calculateSIP(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _monthlyInvestmentController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        decoration: InputDecoration(
+                          labelText: 'Monthly Investment (₹)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.currency_rupee),
+                          contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                          errorText: _validateMonthlyInvestment(),
+                        ),
+                        onChanged: (_) => _calculateSIP(),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -602,11 +674,12 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
               controller: _investmentPeriodController,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Investment Period (Years)',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.calendar_today),
                 contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                errorText: _validateInvestmentPeriod(),
               ),
               onChanged: (_) => _calculateSIP(),
             ),
@@ -891,5 +964,25 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
         ),
       ],
     );
+  }
+
+  String? _validateMonthlyInvestment() {
+    try {
+      double? amount = double.tryParse(_monthlyInvestmentController.text);
+      if (amount != null && amount > 10000000) { // 1 Crore = 10,000,000
+        return 'Amount cannot exceed 1 Crore (₹1,00,00,000)';
+      }
+    } catch (_) {}
+    return null; // Return null if validation passes
+  }
+
+  String? _validateInvestmentPeriod() {
+    try {
+      int? years = int.tryParse(_investmentPeriodController.text);
+      if (years != null && years > 100) {
+        return 'Investment period cannot exceed 100 years';
+      }
+    } catch (_) {}
+    return null; // Return null if validation passes
   }
 } 

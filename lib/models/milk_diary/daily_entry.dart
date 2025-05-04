@@ -1,6 +1,8 @@
 import 'package:uuid/uuid.dart';
 
 enum EntryShift { morning, evening }
+enum EntryStatus { pending, paid }
+enum MilkType { cow, buffalo }
 
 class DailyEntry {
   final String id;
@@ -9,8 +11,12 @@ class DailyEntry {
   final EntryShift shift;
   final double quantity;
   final double? fat;
+  final double? snf;  // Solids-Not-Fat percentage
   final double rate;
   final double amount;
+  final String? remarks;
+  final EntryStatus status;
+  final MilkType milkType;
 
   DailyEntry({
     String? id,
@@ -19,8 +25,12 @@ class DailyEntry {
     required this.shift,
     required this.quantity,
     this.fat,
+    this.snf,
     required this.rate,
     required this.amount,
+    this.remarks,
+    this.status = EntryStatus.pending,
+    this.milkType = MilkType.cow,
   }) : id = id ?? const Uuid().v4();
 
   // Create a copy with modified fields
@@ -31,8 +41,12 @@ class DailyEntry {
     EntryShift? shift,
     double? quantity,
     double? fat,
+    double? snf,
     double? rate,
     double? amount,
+    String? remarks,
+    EntryStatus? status,
+    MilkType? milkType,
   }) {
     return DailyEntry(
       id: id ?? this.id,
@@ -41,8 +55,12 @@ class DailyEntry {
       shift: shift ?? this.shift,
       quantity: quantity ?? this.quantity,
       fat: fat ?? this.fat,
+      snf: snf ?? this.snf,
       rate: rate ?? this.rate,
       amount: amount ?? this.amount,
+      remarks: remarks ?? this.remarks,
+      status: status ?? this.status,
+      milkType: milkType ?? this.milkType,
     );
   }
 
@@ -55,8 +73,12 @@ class DailyEntry {
       'shift': shift.toString().split('.').last,
       'quantity': quantity,
       'fat': fat,
+      'snf': snf,
       'rate': rate,
       'amount': amount,
+      'remarks': remarks,
+      'status': status.toString().split('.').last,
+      'milkType': milkType.toString().split('.').last,
     };
   }
 
@@ -68,16 +90,29 @@ class DailyEntry {
       date: DateTime.parse(map['date']),
       shift: EntryShift.values.firstWhere(
         (e) => e.toString().split('.').last == map['shift'],
+        orElse: () => EntryShift.morning,
       ),
       quantity: map['quantity'].toDouble(),
       fat: map['fat'] != null ? map['fat'].toDouble() : null,
+      snf: map['snf'] != null ? map['snf'].toDouble() : null,
       rate: map['rate'].toDouble(),
       amount: map['amount'].toDouble(),
+      remarks: map['remarks'],
+      status: map['status'] != null
+          ? EntryStatus.values.firstWhere(
+              (e) => e.toString().split('.').last == map['status'],
+              orElse: () => EntryStatus.pending)
+          : EntryStatus.pending,
+      milkType: map['milkType'] != null
+          ? MilkType.values.firstWhere(
+              (e) => e.toString().split('.').last == map['milkType'],
+              orElse: () => MilkType.cow)
+          : MilkType.cow,
     );
   }
 
   @override
   String toString() {
-    return 'DailyEntry(id: $id, sellerId: $sellerId, date: $date, shift: $shift, quantity: $quantity, fat: $fat, rate: $rate, amount: $amount)';
+    return 'DailyEntry(id: $id, sellerId: $sellerId, date: $date, shift: $shift, quantity: $quantity, fat: $fat, snf: $snf, rate: $rate, amount: $amount, status: $status, milkType: $milkType)';
   }
 } 

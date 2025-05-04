@@ -38,6 +38,92 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
   double _totalTaxLiability = 0;
   double _effectiveTaxRate = 0;
   
+  // Custom input formatters
+  TextInputFormatter get _incomeFormatter => TextInputFormatter.withFunction(
+    (oldValue, newValue) {
+      // Allow backspace/deletion
+      if (oldValue.text.length > newValue.text.length) {
+        return newValue;
+      }
+      
+      // Check if new value exceeds 200 Crore (20,000,000,000)
+      if (newValue.text.isNotEmpty) {
+        final value = double.tryParse(newValue.text) ?? 0;
+        if (value > 20000000000) { // 200 Crore
+          return oldValue;
+        }
+      }
+      return newValue;
+    },
+  );
+  
+  TextInputFormatter get _investmentsFormatter => TextInputFormatter.withFunction(
+    (oldValue, newValue) {
+      // Allow backspace/deletion
+      if (oldValue.text.length > newValue.text.length) {
+        return newValue;
+      }
+      
+      // Check if new value exceeds 150000 (limit for 80C)
+      if (newValue.text.isNotEmpty) {
+        final value = double.tryParse(newValue.text) ?? 0;
+        if (value > 150000) { // 1.5 Lakh
+          return oldValue;
+        }
+      }
+      return newValue;
+    },
+  );
+  
+  TextInputFormatter get _deductionsFormatter => TextInputFormatter.withFunction(
+    (oldValue, newValue) {
+      // Allow backspace/deletion
+      if (oldValue.text.length > newValue.text.length) {
+        return newValue;
+      }
+      
+      // Check if new value exceeds 1 Crore (100,000,000)
+      if (newValue.text.isNotEmpty) {
+        final value = double.tryParse(newValue.text) ?? 0;
+        if (value > 100000000) { // 1 Crore
+          return oldValue;
+        }
+      }
+      return newValue;
+    },
+  );
+  
+  // Validation methods
+  String? _validateIncome() {
+    try {
+      double? amount = double.tryParse(_incomeController.text);
+      if (amount != null && amount > 20000000000) { // 200 Crore
+        return 'Amount cannot exceed 200 Crore (₹200,00,00,000)';
+      }
+    } catch (_) {}
+    return null;
+  }
+  
+  String? _validateInvestments() {
+    try {
+      double? amount = double.tryParse(_investmentsController.text);
+      if (amount != null && amount > 150000) { // 1.5 Lakh
+        return 'Investments under 80C cannot exceed ₹1,50,000';
+      }
+    } catch (_) {}
+    return null;
+  }
+  
+  String? _validateDeductions() {
+    try {
+      double? amount = double.tryParse(_deductionsController.text);
+      if (amount != null && amount > 100000000) { // 1 Crore
+        return 'Deductions cannot exceed 1 Crore (₹1,00,00,000)';
+      }
+    } catch (_) {}
+    return null;
+  }
+  
   // Format currency in Indian Rupees
   final _currencyFormat = NumberFormat.currency(
     locale: 'en_IN',
@@ -75,6 +161,17 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
 
   void _calculateTax() {
     try {
+      // Check validations first
+      String? incomeError = _validateIncome();
+      String? investmentsError = _validateInvestments();
+      String? deductionsError = _validateDeductions();
+      
+      // If validation fails, don't proceed with calculation but keep existing values
+      if (incomeError != null || investmentsError != null || deductionsError != null) {
+        setState(() {}); // Just update the UI to show error messages
+        return;
+      }
+      
       // Parse input values
       double income = double.tryParse(_incomeController.text) ?? 500000;
       double investments = double.tryParse(_investmentsController.text) ?? 50000;
@@ -676,17 +773,23 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
                 // Total Income (80%)
                 Expanded(
                   flex: 80,
-                  child: TextField(
-                    controller: _incomeController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
-                      labelText: 'Total Income (₹)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.currency_rupee),
-                      contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                    ),
-                    onChanged: (_) => _calculateTax(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _incomeController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [_incomeFormatter],
+                        decoration: InputDecoration(
+                          labelText: 'Total Income (₹)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.currency_rupee),
+                          contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                          errorText: _validateIncome(),
+                        ),
+                        onChanged: (_) => _calculateTax(),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -712,13 +815,14 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
             TextField(
               controller: _investmentsController,
               keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
+              inputFormatters: [_investmentsFormatter],
+              decoration: InputDecoration(
                 labelText: 'Investments (80C) (₹)',
                 helperText: 'PF, PPF, LIC, ELSS, etc. Max: ₹1,50,000',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.savings),
                 contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                errorText: _validateInvestments(),
               ),
               onChanged: (_) => _calculateTax(),
             ),
@@ -728,13 +832,14 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
             TextField(
               controller: _deductionsController,
               keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
+              inputFormatters: [_deductionsFormatter],
+              decoration: InputDecoration(
                 labelText: 'Other Deductions (₹)',
                 helperText: 'HRA, Medical Insurance, NPS, etc.',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.money_off),
                 contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                errorText: _validateDeductions(),
               ),
               onChanged: (_) => _calculateTax(),
             ),
