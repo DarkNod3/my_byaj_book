@@ -1206,13 +1206,36 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     return Column(
       children: [
         _buildTabBar(),
-        _buildBalanceSummary(),
-        if (_isWithInterest) 
-          // Remove the interest type selector for With Interest tab
-          Container(),
-        _buildSearchBar(),
         Expanded(
-          child: _buildContactsList(),
+          child: GestureDetector(
+            // Add swipe gesture detection
+            onHorizontalDragEnd: (details) {
+              // Detect the direction of the swipe
+              if (details.primaryVelocity! > 0) {
+                // Swiping from left to right (go to previous tab)
+                if (_tabController.index > 0) {
+                  _tabController.animateTo(_tabController.index - 1);
+                }
+              } else if (details.primaryVelocity! < 0) {
+                // Swiping from right to left (go to next tab)
+                if (_tabController.index < _tabController.length - 1) {
+                  _tabController.animateTo(_tabController.index + 1);
+                }
+              }
+            },
+            child: Column(
+              children: [
+                _buildBalanceSummary(),
+                if (_isWithInterest) 
+                  // Remove the interest type selector for With Interest tab
+                  Container(),
+                _buildSearchBar(),
+                Expanded(
+                  child: _buildContactsList(),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
