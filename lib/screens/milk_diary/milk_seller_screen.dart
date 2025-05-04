@@ -68,7 +68,7 @@ class _MilkSellerScreenState extends State<MilkSellerScreen> {
       floatingActionButton: Container(
         margin: const EdgeInsets.only(bottom: 16),
         child: FloatingActionButton.extended(
-          onPressed: () => _showAddEditSellerDialog(),
+        onPressed: () => _showAddEditSellerDialog(),
           icon: const Icon(Icons.person_add, color: Colors.white),
           label: const Text(
             'Add Seller',

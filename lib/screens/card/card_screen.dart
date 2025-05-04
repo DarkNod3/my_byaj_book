@@ -157,9 +157,9 @@ class _CardScreenState extends State<CardScreen> {
                   icon: Icons.account_balance_wallet,
                 ),
                 _buildSummaryCardItem(
-                  title: 'Available',
+                  title: 'Remaining',
                   value: '₹${summaryData['availableCredit'].toStringAsFixed(0)}',
-                  icon: Icons.check_circle_outline,
+                  icon: Icons.savings,
                 ),
                 _buildSummaryCardItem(
                   title: 'Amount Due',
@@ -551,7 +551,6 @@ class _CardScreenState extends State<CardScreen> {
     final TextEditingController holderNameController = TextEditingController();
     final TextEditingController expiryController = TextEditingController();
     final TextEditingController cvvController = TextEditingController();
-    final TextEditingController balanceController = TextEditingController();
     final TextEditingController limitController = TextEditingController();
     final TextEditingController dueDateController = TextEditingController();
     
@@ -746,33 +745,8 @@ class _CardScreenState extends State<CardScreen> {
                         ),
                         const SizedBox(height: 8),
                         
-                        // Two fields in a row: Balance and Limit
-                Row(
-        children: [
-                            // Current Balance
-                            Expanded(
-                              child: TextField(
-                  controller: balanceController,
-                                decoration: InputDecoration(
-                    labelText: 'Current Balance',
-                                  hintText: 'e.g. 10000',
-                                  prefixText: '₹ ',
-                                  prefixIcon: Icon(Icons.account_balance_wallet, color: selectedColor),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: selectedColor, width: 2),
-                                  ),
-                  ),
-                  keyboardType: TextInputType.number,
-            ),
-          ),
-                    const SizedBox(width: 12),
-                            // Credit Limit
-                    Expanded(
-                              child: TextField(
+                        // Credit Limit field (removed Current Balance)
+                        TextField(
                   controller: limitController,
                   decoration: InputDecoration(
                     labelText: 'Credit Limit',
@@ -788,13 +762,10 @@ class _CardScreenState extends State<CardScreen> {
                                   ),
                   ),
                   keyboardType: TextInputType.number,
-      ),
-                    ),
-                  ],
                 ),
                         const SizedBox(height: 16),
                         
-                        // Due Date (always show for credit cards)
+                        // Due Date
                 TextField(
                     controller: dueDateController,
                             decoration: InputDecoration(
@@ -929,9 +900,9 @@ class _CardScreenState extends State<CardScreen> {
                               'cvv': cvvController.text,
                               'color': selectedColor,
                               'logo': 'assets/bank_logo.png', // Default logo
-                              'balance': balanceController.text.isEmpty 
+                              'balance': limitController.text.isEmpty 
                                   ? '₹0' 
-                                  : '₹${balanceController.text}',
+                                  : '₹${limitController.text}', // Set balance equal to limit for full credit
                               'limit': limitController.text.isEmpty 
                                   ? '₹0' 
                                   : '₹${limitController.text}',

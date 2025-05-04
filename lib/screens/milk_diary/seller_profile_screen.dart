@@ -125,11 +125,11 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              widget.seller.name,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        widget.seller.name,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                             ),
                           ),
                           // Add Payment button
@@ -270,9 +270,9 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
         
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
               const Text(
                 'Summary',
                 style: TextStyle(
@@ -281,9 +281,9 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                   _buildCompactSummaryTile(
                     icon: Icons.water_drop,
                     iconColor: Colors.blue,
@@ -361,7 +361,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
-                      ),
+                    ),
                     ),
                     Text(
                       label,
@@ -400,7 +400,7 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
               flex: 2,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                  children: [
                   Text(
                     DateFormat('hh:mm a').format(entry.date),
                     style: const TextStyle(
@@ -414,35 +414,35 @@ class _SellerProfileScreenState extends State<SellerProfileScreen> {
                       fontSize: 11,
                       color: Colors.grey.shade600,
                     ),
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
             ),
             
             // Quantity
             Expanded(
               flex: 2,
               child: Row(
-                children: [
+              children: [
                   const Icon(Icons.water_drop, size: 14, color: Colors.blue),
                   const SizedBox(width: 4),
                   Text(
                     '${entry.quantity} L',
                     style: const TextStyle(fontSize: 13),
                   ),
-                ],
-              ),
+                  ],
+                ),
             ),
             
             // Amount
             Expanded(
               flex: 2,
               child: Text(
-                '₹${entry.amount.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
+                  '₹${entry.amount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
                   fontSize: 14,
-                  color: AppTheme.primaryColor,
+                    color: AppTheme.primaryColor,
                 ),
               ),
             ),

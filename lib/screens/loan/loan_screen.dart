@@ -451,7 +451,7 @@ class _LoanScreenState extends State<LoanScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Remaining: ₹${_calculateRemainingAmount(loan)}',
+                    'Remaining: ${_calculateRemainingAmount(loan)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
@@ -468,6 +468,10 @@ class _LoanScreenState extends State<LoanScreen> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: loanColor,
                       side: BorderSide(color: loanColor),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      minimumSize: const Size(100, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      textStyle: const TextStyle(fontSize: 12),
                     ),
                     child: const Text('View Details'),
                   ),

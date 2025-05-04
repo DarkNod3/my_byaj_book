@@ -210,9 +210,9 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                   children: [
                     pw.Text(
                       'My Byaj Book',
-                      style: pw.TextStyle(
-                        fontSize: 24,
-                        fontWeight: pw.FontWeight.bold,
+              style: pw.TextStyle(
+                fontSize: 24,
+                fontWeight: pw.FontWeight.bold,
                         color: PdfColors.indigo600,
                       ),
                     ),
@@ -244,7 +244,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                       ),
                     ),
                   ],
-                ),
+              ),
               ],
             ),
           );
@@ -263,11 +263,11 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                   ),
                 ),
                 pw.Text(
-                  'Page ${context.pageNumber} of ${context.pagesCount}',
-                  style: const pw.TextStyle(
-                    fontSize: 10,
+              'Page ${context.pageNumber} of ${context.pagesCount}',
+              style: const pw.TextStyle(
+                fontSize: 10,
                     color: PdfColors.grey600,
-                  ),
+              ),
                 ),
               ],
             ),
@@ -618,17 +618,17 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       TextField(
-                        controller: _monthlyInvestmentController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    controller: _monthlyInvestmentController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         decoration: InputDecoration(
-                          labelText: 'Monthly Investment (₹)',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.currency_rupee),
-                          contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      labelText: 'Monthly Investment (₹)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.currency_rupee),
+                      contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                           errorText: _validateMonthlyInvestment(),
-                        ),
-                        onChanged: (_) => _calculateSIP(),
+                    ),
+                    onChanged: (_) => _calculateSIP(),
                       ),
                     ],
                   ),

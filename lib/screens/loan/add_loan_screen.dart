@@ -32,6 +32,10 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   final _helplineNumberController = TextEditingController();
   final _managerNumberController = TextEditingController();
 
+  // Maximum loan amount: 9 Crore = 90,000,000
+  static const int _maxLoanAmount = 90000000;
+  String? _loanAmountError;
+
   String _selectedLoanType = 'Home Loan';
   String _selectedInterestType = 'Fixed';
   String _selectedPeriodType = 'Years';
@@ -206,6 +210,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                 const SizedBox(height: 16),
                 
                 // Loan Amount
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                 _buildTextField(
                   controller: _loanAmountController,
                   label: 'Loan Amount',
@@ -213,7 +220,21 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   icon: Icons.currency_rupee,
                   keyboardType: TextInputType.number,
                   inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
+                        _loanAmountFormatter,
+                      ],
+                      validator: _validateLoanAmount,
+                    ),
+                    if (_loanAmountError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8, top: 4),
+                        child: Text(
+                          _loanAmountError!,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -460,6 +481,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     List<TextInputFormatter>? inputFormatters,
     String? helper,
     bool isRequired = true,
+    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -503,7 +525,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                 fontSize: 14,
               ),
             ),
-            validator: (value) {
+            validator: validator ?? (value) {
               if (isRequired && (value == null || value.isEmpty)) {
                 return 'Please enter $label';
               }
@@ -740,7 +762,20 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
         loanData['status'] = widget.loanData!['status'] ?? 'Active';
         loanData['progress'] = widget.loanData!['progress'] ?? 0.0;
         loanData['createdDate'] = widget.loanData!['createdDate'] ?? DateTime.now();
+        
+        // Check if loan amount, interest rate, or term has changed
+        bool shouldRegenerateInstallments = 
+            loanData['loanAmount'] != widget.loanData!['loanAmount'] ||
+            loanData['interestRate'] != widget.loanData!['interestRate'] ||
+            loanData['loanTerm'] != widget.loanData!['loanTerm'];
+            
+        // Only keep existing installments if loan parameters haven't changed
+        if (!shouldRegenerateInstallments) {
         loanData['installments'] = widget.loanData!['installments']; // Preserve existing installments
+        } else {
+          // Clear installments to force regeneration
+          loanData['installments'] = null;
+        }
       } else {
         // Add new loan specific fields
         loanData['id'] = DateTime.now().millisecondsSinceEpoch.toString();
@@ -784,4 +819,53 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
       }
     }
   }
+
+  // Validate loan amount
+  String? _validateLoanAmount(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter loan amount';
+    }
+    
+    try {
+      int amount = int.parse(value);
+      if (amount > _maxLoanAmount) {
+        return 'Amount cannot exceed 9 Crore (₹9,00,00,000)';
+      }
+    } catch (e) {
+      return 'Invalid amount';
+    }
+    
+    return null;
+  }
+
+  // Check if amount exceeds max before allowing input
+  TextInputFormatter get _loanAmountFormatter => TextInputFormatter.withFunction(
+    (oldValue, newValue) {
+      // Allow backspace/deletion
+      if (oldValue.text.length > newValue.text.length) {
+        setState(() {
+          _loanAmountError = _validateLoanAmount(newValue.text);
+        });
+        return newValue;
+      }
+      
+      // Check if new value exceeds max
+      if (newValue.text.isNotEmpty) {
+        try {
+          int value = int.parse(newValue.text);
+          if (value > _maxLoanAmount) {
+            setState(() {
+              _loanAmountError = 'Amount cannot exceed 9 Crore (₹9,00,00,000)';
+            });
+            return oldValue; // Don't allow the new digit
+          }
+        } catch (_) {}
+      }
+      
+      setState(() {
+        _loanAmountError = null;
+      });
+      return newValue;
+    },
+  );
 } 

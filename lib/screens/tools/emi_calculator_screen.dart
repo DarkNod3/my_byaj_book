@@ -836,23 +836,23 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       TextField(
-                        controller: _loanAmountController,
-                        keyboardType: TextInputType.number,
+                    controller: _loanAmountController,
+                    keyboardType: TextInputType.number,
                         inputFormatters: [_loanAmountFormatter],
                         decoration: InputDecoration(
-                          labelText: 'Loan Amount (₹)',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.currency_rupee),
-                          contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      labelText: 'Loan Amount (₹)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.currency_rupee),
+                      contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                           errorText: _validateLoanAmount(),
-                        ),
-                        onChanged: (value) {
-                          // Allow any value, just prevent "0" as the only digit
-                          if (value == "0") {
-                            _loanAmountController.text = '1';
-                          }
-                          _calculateEMI();
-                        },
+                    ),
+                    onChanged: (value) {
+                      // Allow any value, just prevent "0" as the only digit
+                      if (value == "0") {
+                        _loanAmountController.text = '1';
+                      }
+                      _calculateEMI();
+                    },
                       ),
                     ],
                   ),

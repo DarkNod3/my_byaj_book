@@ -250,9 +250,8 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
   // Filter customers by the selected date
   void _filterDataBySelectedDate() {
     setState(() {
-      // Instead of checking exact date match, now we just show all customers on all dates
-      // This change makes customers persistent across all dates
-      _customersForSelectedDate = _allCustomers;
+      // Show all customers for all dates - don't filter by date anymore
+      _customersForSelectedDate = _allCustomers.toList();
       
       // Also update the filtered customers for search
       _filteredCustomers = List.from(_customersForSelectedDate);
@@ -282,10 +281,20 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     double collected = 0;
     double remaining = 0;
     
-    for (var customer in _customersForSelectedDate) {
-      cups += customer.cups;
-      amount += customer.totalAmount;
-      collected += customer.paymentsMade;
+    // Calculate daily totals for the selected date only
+    for (var customer in _allCustomers) {
+      // Only include in summary if the customer's date matches the selected date
+      if (customer.date.year == _selectedDate.year &&
+          customer.date.month == _selectedDate.month &&
+          customer.date.day == _selectedDate.day) {
+        cups += customer.cups;
+        amount += customer.totalAmount;
+        collected += customer.paymentsMade;
+      }
+    }
+    
+    // Calculate overall remaining/pending amount across all dates
+    for (var customer in _allCustomers) {
       remaining += (customer.totalAmount - customer.paymentsMade);
     }
     
@@ -327,24 +336,31 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
   // Modify total market pending calculation to ensure it captures all dates
   double get _totalMarketPending {
     double pending = 0;
-    // Group all customers by name to avoid duplicates
-    final Map<String, double> customerPendingMap = {};
-    
+    // Sum up all pending amounts across all customers and all dates
     for (var customer in _allCustomers) {
       final pendingAmount = customer.totalAmount - customer.paymentsMade;
       if (pendingAmount > 0) {
-        if (customerPendingMap.containsKey(customer.name)) {
-          customerPendingMap[customer.name] = customerPendingMap[customer.name]! + pendingAmount;
-        } else {
-          customerPendingMap[customer.name] = pendingAmount;
-        }
+        pending += pendingAmount;
       }
     }
     
-    // Sum up all pending amounts
-    customerPendingMap.forEach((name, amount) {
-      pending += amount;
-    });
+    return pending;
+  }
+  
+  // Calculate today's pending amount only
+  double get _todayPending {
+    double pending = 0;
+    // Sum up pending amounts for today's customers only (matching selected date)
+    for (var customer in _allCustomers) {
+      if (customer.date.year == _selectedDate.year &&
+          customer.date.month == _selectedDate.month &&
+          customer.date.day == _selectedDate.day) {
+        final pendingAmount = customer.totalAmount - customer.paymentsMade;
+        if (pendingAmount > 0) {
+          pending += pendingAmount;
+        }
+      }
+    }
     
     return pending;
   }
@@ -415,6 +431,28 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.red[700],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Today\'s Pending:',
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    '₹${_todayPending.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: Colors.red[600],
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -1272,7 +1310,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                'Details',
+                                'View History',
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.blue.shade700,
@@ -1791,18 +1829,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                                      // Replace refresh icon with PDF icon
-                            IconButton(
-                                        icon: const Icon(Icons.picture_as_pdf, size: 18),
-                                        onPressed: _showReportOptions,
-                                        tooltip: 'Generate PDF report',
-                              constraints: const BoxConstraints(
-                                minWidth: 32,
-                                minHeight: 32,
-                              ),
-                              padding: EdgeInsets.zero,
-                            ),
-                            const SizedBox(width: 4),
+                                      // Remove the PDF icon button
                             // More compact Add Customer button
                             SizedBox(
                                         height: 36,
@@ -1856,14 +1883,32 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                             child: ElevatedButton.icon(
                               onPressed: _showPendingBreakdown,
                               icon: const Icon(Icons.account_balance_wallet, size: 16),
-                              label: Row(
+                              label: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Text('Total Pending: '),
+                                  const Text('Pending: '),
+                                  Row(
+                                    children: [
                                   Text(
-                                    '₹${_totalMarketPending.toStringAsFixed(2)}',
+                                        'Today: ₹${_todayPending.toStringAsFixed(2)}',
                                     style: const TextStyle(
+                                          fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                     ),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Total: ₹${_totalMarketPending.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -2258,7 +2303,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                             color: Colors.blue.shade700,
                           ),
                           label: Text(
-                            'View Details',
+                            'View History',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.blue.shade700,
@@ -2967,15 +3012,14 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
       // Close loading dialog
       Navigator.pop(context);
       
-      // Show success and open file
+      // Automatically open the PDF file
+      await OpenFile.open(filePath);
+      
+      // Show a simple snackbar notification that PDF was saved
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Report saved: $reportName'),
-          action: SnackBarAction(
-            label: 'View',
-            onPressed: () => OpenFile.open(filePath),
-          ),
-          duration: const Duration(seconds: 5),
+          content: Text('PDF report saved and opened: $reportName'),
+          duration: const Duration(seconds: 3),
         ),
       );
     } catch (e) {
