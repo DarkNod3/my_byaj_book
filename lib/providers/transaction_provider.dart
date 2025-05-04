@@ -507,6 +507,13 @@ class TransactionProvider extends ChangeNotifier {
           
           return txMap;
         }).toList();
+        
+        // Sort transactions by date (newest first)
+        _contactTransactions[contactId]!.sort((a, b) {
+          final dateA = a['date'] as DateTime;
+          final dateB = b['date'] as DateTime;
+          return dateB.compareTo(dateA); // Descending order (newest first)
+        });
       }
       
       // Notify listeners

@@ -250,16 +250,13 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
   // Filter customers by the selected date
   void _filterDataBySelectedDate() {
     setState(() {
-      _customersForSelectedDate = _allCustomers.where((customer) {
-        // Compare year, month, and day only
-        return customer.date.year == _selectedDate.year &&
-               customer.date.month == _selectedDate.month &&
-               customer.date.day == _selectedDate.day;
-      }).toList();
+      // Instead of checking exact date match, now we just show all customers on all dates
+      // This change makes customers persistent across all dates
+      _customersForSelectedDate = _allCustomers;
       
       // Also update the filtered customers for search
       _filteredCustomers = List.from(_customersForSelectedDate);
-      _searchController.text = ""; // Clear search when changing date
+      
       _sortCustomers(); // Apply sorting
     });
   }
@@ -2034,7 +2031,13 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
         padding: const EdgeInsets.only(left: 20),
         child: const Icon(Icons.delete, color: Colors.white),
       ),
-      direction: DismissDirection.startToEnd,
+      secondaryBackground: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      direction: DismissDirection.horizontal, // Allow both left and right swipe
       confirmDismiss: (direction) async {
         return await showDialog(
           context: context,
@@ -2250,21 +2253,21 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                         TextButton.icon(
                           onPressed: () => _showCustomerHistory(customer),
                           icon: Icon(
-                            Icons.history,
-                            size: 12,
+                            Icons.visibility,
+                            size: 14,
                             color: Colors.blue.shade700,
                           ),
                           label: Text(
-                            'Details',
+                            'View Details',
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 12,
                               color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                           style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            minimumSize: const Size(0, 0),
                           ),
                         ),
                       ],
@@ -2307,15 +2310,23 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  CircleAvatar(
-                    backgroundColor: Colors.primaries[customer.name.length % Colors.primaries.length],
-                    child: Text(
-                      customer.name[0].toUpperCase(),
-                      style: const TextStyle(color: Colors.white),
+                  // Add PDF export button
+                  ElevatedButton.icon(
+                    onPressed: () => _generateCustomerPdf(customer),
+                    icon: const Icon(Icons.picture_as_pdf, size: 18),
+                    label: const Text('Export PDF'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade700,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ],
               ),
+              
               if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4.0),
@@ -2685,11 +2696,24 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                             ),
                             onChanged: (value) {
                               name = value;
+                              // Show warning if customer already exists
+                              if (_customerExists(value)) {
+                                setModalState(() {});
+                              }
                             },
                           ),
                         ),
                       ],
                     ),
+                    // Warning message if customer exists
+                    if (name.isNotEmpty && _customerExists(name))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'This customer already exists!',
+                          style: TextStyle(color: Colors.red, fontSize: 12),
+                        ),
+                      ),
                     const SizedBox(height: 16),
                     
                     // Phone field
@@ -2814,62 +2838,56 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                         const SizedBox(width: 16),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
-                              // Only add if name is not empty
-                              if (name.trim().isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Please enter a name'),
-                                    backgroundColor: Colors.red,
-                                  ),
+                            onPressed: name.isEmpty || _customerExists(name) 
+                              ? null 
+                              : () {
+                                // Create a unique customer ID
+                                final customerId = DateTime.now().millisecondsSinceEpoch.toString();
+                                
+                                // Create a new customer
+                                final newCustomer = Customer(
+                                  id: customerId,
+                                  name: name,
+                                  phoneNumber: phoneNumber,
+                                  cups: 0,
+                                  teaRate: teaRate,
+                                  coffeeRate: coffeeRate,
+                                  milkRate: milkRate,
+                                  totalAmount: 0,
+                                  paymentsMade: 0,
+                                  date: _selectedDate, // Use the selected date
+                                  lastUpdated: DateTime.now(),
+                                  history: [],
                                 );
-                                return;
-                              }
-                              
-                              // Create new customer
-                              final newCustomer = Customer(
-                                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                                name: name.trim(),
-                                phoneNumber: phoneNumber.trim(),
-                                cups: 0,
-                                teaRate: teaRate,
-                                coffeeRate: coffeeRate,
-                                milkRate: milkRate,
-                                totalAmount: 0,
-                                paymentsMade: 0,
-                                date: _selectedDate,
-                                lastUpdated: DateTime.now(),
-                                history: [],
-                              );
-                              
-                              // Close the modal first
-                              Navigator.pop(context);
-                              
-                              // Update state in the main screen
-                              setModalState(() {
-                                _allCustomers.add(newCustomer);
-                                _customersForSelectedDate.add(newCustomer);
-                                _filteredCustomers = List.from(_customersForSelectedDate);
-                                _sortCustomers();
-                                _updateTotals();
-                                _counterAnimationController.forward(from: 0);
-                                _saveCustomers(); // Save the new customer
-                              });
-                              
-                              // Show success message
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${name.trim()} added successfully'),
-                                  backgroundColor: Colors.green,
-                                )
-                              );
-                            },
+                                
+                                // Add customer to the list
+                                setState(() {
+                                  _allCustomers.add(newCustomer);
+                                  _customersForSelectedDate = List.from(_allCustomers);
+                                  _filteredCustomers = List.from(_customersForSelectedDate);
+                                  _sortCustomers();
+                                  _updateTotals();
+                                  
+                                  // Save to shared preferences
+                                  _saveCustomers();
+                                });
+                                
+                                // Close the modal
+                                Navigator.of(context).pop();
+                              },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.teal,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 15),
+                              disabledBackgroundColor: Colors.grey,
+                              minimumSize: const Size(double.infinity, 50),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
-                            child: const Text('Add Customer'),
+                            child: const Text(
+                              'Add Customer',
+                              style: TextStyle(fontSize: 16),
+                            ),
                           ),
                         ),
                       ],
@@ -2915,6 +2933,322 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
       default:
         return 'Sort';
     }
+  }
+
+  // Add this new method to check if a customer already exists by name
+  bool _customerExists(String name) {
+    return _allCustomers.any((customer) => customer.name.toLowerCase() == name.toLowerCase());
+  }
+
+  // Add the new method to generate PDF for a single customer
+  Future<void> _generateCustomerPdf(Customer customer) async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+      
+      // Create PDF document
+      final pdf = await _createCustomerPdf(customer);
+      
+      // Get the app's documents directory
+      final directory = await getApplicationDocumentsDirectory();
+      final reportName = 'customer_${customer.name.replaceAll(' ', '_')}_${DateFormat('dd_MM_yyyy').format(DateTime.now())}.pdf';
+      final filePath = '${directory.path}/$reportName';
+      
+      // Save the PDF
+      final file = File(filePath);
+      await file.writeAsBytes(await pdf.save());
+      
+      // Close loading dialog
+      Navigator.pop(context);
+      
+      // Show success and open file
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Report saved: $reportName'),
+          action: SnackBarAction(
+            label: 'View',
+            onPressed: () => OpenFile.open(filePath),
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } catch (e) {
+      // Close loading dialog and show error
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error generating report: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Create PDF for a single customer with detailed transaction history
+  Future<pw.Document> _createCustomerPdf(Customer customer) async {
+    final pdf = pw.Document();
+    final pendingAmount = customer.totalAmount - customer.paymentsMade;
+    
+    pdf.addPage(
+      pw.Page(
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header with app name
+              pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                color: PdfColors.teal50,
+                width: double.infinity,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Text(
+                      'My Byaj Book - Tea Diary',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.teal800,
+                      ),
+                    ),
+                    pw.SizedBox(height: 5),
+                    pw.Text(
+                      'Customer Report',
+                      style: const pw.TextStyle(
+                        fontSize: 14,
+                        color: PdfColors.teal700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(height: 20),
+              
+              // Customer Details
+              pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.teal200),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Customer: ${customer.name}',
+                      style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    
+                    if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
+                      pw.Text('Phone: ${customer.phoneNumber}'),
+                    
+                    pw.SizedBox(height: 10),
+                    
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text('Tea Rate: Rs. ${customer.teaRate.toStringAsFixed(2)}/cup'),
+                            if (customer.coffeeRate > 0)
+                              pw.Text('Coffee Rate: Rs. ${customer.coffeeRate.toStringAsFixed(2)}/cup'),
+                            if (customer.milkRate > 0)
+                              pw.Text('Milk Rate: Rs. ${customer.milkRate.toStringAsFixed(2)}/cup'),
+                          ],
+                        ),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.end,
+                          children: [
+                            pw.Text('Total Cups: ${customer.cups}'),
+                            pw.Text('Total Amount: Rs. ${customer.totalAmount.toStringAsFixed(2)}'),
+                            pw.Text('Amount Paid: Rs. ${customer.paymentsMade.toStringAsFixed(2)}'),
+                            pw.Text(
+                              'Balance Due: Rs. ${pendingAmount.toStringAsFixed(2)}',
+                              style: pw.TextStyle(
+                                fontWeight: pw.FontWeight.bold,
+                                color: pendingAmount > 0 ? PdfColors.red : PdfColors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(height: 20),
+              
+              // Transaction History
+              pw.Text(
+                'Transaction History',
+                style: pw.TextStyle(
+                  fontSize: 16, 
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.teal800,
+                ),
+              ),
+              
+              pw.SizedBox(height: 10),
+              
+              // Transaction table
+              customer.history.isEmpty
+                ? pw.Center(
+                    child: pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(vertical: 30),
+                      child: pw.Text(
+                        'No transaction history available',
+                        style: const pw.TextStyle(
+                          color: PdfColors.grey600, 
+                          fontStyle: pw.FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  )
+                : pw.Table(
+                    border: pw.TableBorder.all(color: PdfColors.grey300),
+                    children: [
+                      // Table header
+                      pw.TableRow(
+                        decoration: const pw.BoxDecoration(color: PdfColors.teal100),
+                        children: [
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              'Date & Time',
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                            ),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              'Type',
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                            ),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              'Details',
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                            ),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              'Amount',
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                              textAlign: pw.TextAlign.right,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      // Table data
+                      ...customer.history.asMap().entries.map((entry) {
+                        int index = entry.key;
+                        CustomerEntry historyItem = entry.value;
+                        bool isPayment = historyItem.type == EntryType.payment;
+                        
+                        return pw.TableRow(
+                          decoration: index % 2 == 0 
+                              ? const pw.BoxDecoration(color: PdfColors.grey100)
+                              : const pw.BoxDecoration(color: PdfColors.white),
+                          children: [
+                            // Date column
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                DateFormat('dd MMM yyyy, hh:mm a').format(historyItem.timestamp),
+                                style: const pw.TextStyle(fontSize: 9),
+                              ),
+                            ),
+                            
+                            // Type column
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                isPayment ? 'Payment' : 'Purchase',
+                                style: pw.TextStyle(
+                                  color: isPayment ? PdfColors.green700 : PdfColors.red700,
+                                ),
+                              ),
+                            ),
+                            
+                            // Details column
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                isPayment 
+                                  ? 'Payment received'
+                                  : '${historyItem.cups} cups of ${historyItem.beverageType ?? 'tea'}',
+                              ),
+                            ),
+                            
+                            // Amount column
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                isPayment 
+                                  ? '+ Rs. ${historyItem.amount.toStringAsFixed(2)}'
+                                  : '- Rs. ${historyItem.amount.toStringAsFixed(2)}',
+                                style: pw.TextStyle(
+                                  color: isPayment ? PdfColors.green700 : PdfColors.red700,
+                                ),
+                                textAlign: pw.TextAlign.right,
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ],
+                  ),
+              
+              pw.Spacer(),
+              
+              // Footer
+              pw.Container(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'Generated on ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
+                      style: const pw.TextStyle(
+                        fontSize: 10,
+                        color: PdfColors.grey600,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'My Byaj Book App',
+                      style: const pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.teal900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    
+    return pdf;
   }
 }
 

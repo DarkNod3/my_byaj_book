@@ -149,106 +149,276 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   ),
                   const SizedBox(height: 16),
                   
-                  // Header
+                  // Header with icon
+                  Container(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.person_add, color: Colors.blue),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Add New Client',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Client Name
+                  Container(
+                    margin: EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        labelText: 'Client Name *',
+                        labelStyle: TextStyle(fontWeight: FontWeight.w500),
+                        hintText: 'Enter client name',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.blue, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        prefixIcon: Icon(Icons.person, color: Colors.blue),
+                      ),
+                      textCapitalization: TextCapitalization.words,
+                    ),
+                  ),
+                  
+                  // Phone Number
+                  Container(
+                    margin: EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: phoneController,
+                      decoration: InputDecoration(
+                        labelText: 'Phone Number',
+                        labelStyle: TextStyle(fontWeight: FontWeight.w500),
+                        hintText: 'Enter phone number (optional)',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.blue, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        prefixIcon: Icon(Icons.phone, color: Colors.blue),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                  ),
+                  
+                  // Rate Information header
+                  Container(
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.currency_rupee, color: Colors.blue, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Rate Information',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.blue.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Hourly Rate and Half Day Rate in one row
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Add New Client',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                      // Hourly Rate
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: TextField(
+                            controller: hourlyRateController,
+                            decoration: InputDecoration(
+                              labelText: 'Hourly Rate',
+                              hintText: '₹ 0',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: Colors.grey.shade300),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: Colors.blue, width: 2),
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                              prefixIcon: Icon(Icons.access_time, color: Colors.blue.shade700),
+                              contentPadding: EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      
+                      // Half Day Rate
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: TextField(
+                            controller: halfDayRateController,
+                            decoration: InputDecoration(
+                              labelText: 'Half Day Rate',
+                              hintText: '₹ 0',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: Colors.grey.shade300),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: Colors.blue, width: 2),
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                              prefixIcon: Icon(Icons.more_time, color: Colors.orange.shade700),
+                              contentPadding: EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  
-                  // Client Name
-                  TextField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      labelText: 'Client Name *',
-                      hintText: 'Enter client name',
-                      border: OutlineInputBorder(),
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Phone Number
-                  TextField(
-                    controller: phoneController,
-                    decoration: InputDecoration(
-                      labelText: 'Phone Number',
-                      hintText: 'Enter phone number (optional)',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Rate Information header
-                  Text(
-                    'Rate Information',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  // Hourly Rate
-                  TextField(
-                    controller: hourlyRateController,
-                    decoration: InputDecoration(
-                      labelText: 'Hourly Rate (₹)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.currency_rupee),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Half Day Rate
-                  TextField(
-                    controller: halfDayRateController,
-                    decoration: InputDecoration(
-                      labelText: 'Half Day Rate (₹)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.currency_rupee),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
                   const SizedBox(height: 16),
                   
                   // Full Day Rate
-                  TextField(
-                    controller: fullDayRateController,
-                    decoration: InputDecoration(
-                      labelText: 'Full Day Rate (₹)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.currency_rupee),
+                  Container(
+                    margin: EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    keyboardType: TextInputType.number,
+                    child: TextField(
+                      controller: fullDayRateController,
+                      decoration: InputDecoration(
+                        labelText: 'Full Day Rate',
+                        hintText: '₹ 0',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.blue, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        prefixIcon: Icon(Icons.today, color: Colors.green.shade700),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
                   ),
-                  const SizedBox(height: 24),
                   
                   // Action Buttons
                   Row(
                     children: [
+                      // Cancel Button
                       Expanded(
-                        child: OutlinedButton(
+                        child: ElevatedButton.icon(
                           onPressed: () => Navigator.of(context).pop(false),
-                          style: OutlinedButton.styleFrom(
+                          icon: Icon(Icons.close),
+                          label: Text('Cancel'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.grey[700],
+                            elevation: 0,
+                            side: BorderSide(color: Colors.grey.shade300),
                             padding: EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
-                          child: Text('Cancel'),
                         ),
                       ),
                       SizedBox(width: 16),
+                      
+                      // Add Button
                       Expanded(
-                        child: ElevatedButton(
+                        child: ElevatedButton.icon(
                           onPressed: () {
                             final name = nameController.text.trim();
                             if (name.isEmpty) {
@@ -259,16 +429,22 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                             }
                             Navigator.of(context).pop(true);
                           },
+                          icon: Icon(Icons.check),
+                          label: Text('Add'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            elevation: 2,
                             padding: EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
-                          child: Text('Add'),
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 16),
+                  SizedBox(height: 8),
                 ],
               ),
             ),
@@ -441,17 +617,25 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
 
   Widget _buildSummaryCard() {
     final totalClients = _clients.length;
-    final totalEarnings = _clients.fold(
-      0.0, 
-      (total, client) => total + client.totalEarnings
-    );
+    
+    // Calculate total work amount (excluding payment entries)
+    final totalWorkAmount = _clients.fold(0.0, (total, client) {
+      return total + client.workEntries
+          .where((entry) => 
+            !entry.description.toLowerCase().contains('received') && 
+            !entry.description.toLowerCase().contains('payment'))
+          .fold(0.0, (sum, entry) => sum + entry.amount);
+    });
 
-    final todayEarnings = _clients.fold(0.0, (total, client) {
+    // Calculate today's work amount (excluding payment entries)
+    final todaysWorkAmount = _clients.fold(0.0, (total, client) {
       return total + client.workEntries
           .where((entry) => 
             entry.date.year == _selectedDate.year && 
             entry.date.month == _selectedDate.month && 
-            entry.date.day == _selectedDate.day)
+            entry.date.day == _selectedDate.day &&
+            !entry.description.toLowerCase().contains('received') && 
+            !entry.description.toLowerCase().contains('payment'))
           .fold(0.0, (sum, entry) => sum + entry.amount);
     });
 
@@ -536,8 +720,8 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                       child: _buildNewMetricItem(
                         icon: Icons.today,
                         iconColor: Colors.green,
-                        label: "Today's Earnings",
-                        value: currencyFormat.format(todayEarnings),
+                        label: "Today's Work",
+                        value: currencyFormat.format(todaysWorkAmount),
                         backgroundColor: Colors.green.withOpacity(0.1),
                       ),
                     ),
@@ -550,8 +734,8 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                       child: _buildNewMetricItem(
                         icon: Icons.account_balance_wallet,
                         iconColor: Colors.purple,
-                        label: 'Total Earnings',
-                        value: currencyFormat.format(totalEarnings),
+                        label: 'Total Work Amount',
+                        value: currencyFormat.format(totalWorkAmount),
                         backgroundColor: Colors.purple.withOpacity(0.1),
                       ),
                     ),
@@ -636,23 +820,54 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
   
   // New filter options widget
   Widget _buildFilterOptions() {
-    return SizedBox(
-      height: 36,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          _showPendingAmountsFilter();
-        },
-        icon: Icon(Icons.filter_list, size: 16),
-        label: Text('Show Clients with Pending Amounts', style: TextStyle(fontSize: 13)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.orange,
-          foregroundColor: Colors.white,
-          padding: EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+    return Row(
+      children: [
+        // Show Clients with Pending Amounts button
+        Expanded(
+          flex: 3,
+          child: SizedBox(
+            height: 36,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                _showPendingAmountsFilter();
+              },
+              icon: Icon(Icons.filter_list, size: 16),
+              label: Text('Show Pending Amounts', style: TextStyle(fontSize: 12)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
           ),
         ),
-      ),
+        SizedBox(width: 8),
+        // Add Payment button
+        Expanded(
+          flex: 2,
+          child: SizedBox(
+            height: 36,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                _addPayment();
+              },
+              icon: Icon(Icons.payments, size: 16),
+              label: Text('Add Payment', style: TextStyle(fontSize: 12)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -777,77 +992,120 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                               totalWork - paymentsReceived : 0;
                           
                           return Card(
-                            margin: EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: client.avatarColor,
-                                child: Text(
-                                  client.initials,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              title: Text(client.name),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'Work: ',
-                                        style: TextStyle(fontSize: 12),
-                                      ),
-                                      Text(
-                                        currencyFormat.format(totalWork),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        '  |  Paid: ',
-                                        style: TextStyle(fontSize: 12),
-                                      ),
-                                      Text(
-                                        currencyFormat.format(paymentsReceived),
-                                        style: TextStyle(
-                                          fontSize: 12, 
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              trailing: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    'Pending',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                  Text(
-                                    currencyFormat.format(pendingAmount),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.orange,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            margin: EdgeInsets.only(bottom: 12),
+                            child: InkWell(
                               onTap: () {
                                 Navigator.pop(context);
                                 _openClientDetails(client);
                               },
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Avatar
+                                        CircleAvatar(
+                                          backgroundColor: client.avatarColor,
+                                          radius: 24,
+                                          child: Text(
+                                            client.initials,
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        
+                                        // Client info - expanded to take available width
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              // Client name
+                                              Text(
+                                                client.name,
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              
+                                              // Work amount
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    'Work: ',
+                                                    style: TextStyle(fontSize: 13),
+                                                  ),
+                                                  Text(
+                                                    currencyFormat.format(totalWork),
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.blue[700],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              
+                                              // Paid amount
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    'Paid: ',
+                                                    style: TextStyle(fontSize: 13),
+                                                  ),
+                                                  Text(
+                                                    currencyFormat.format(paymentsReceived),
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.green,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        
+                                        // Pending amount - fixed width column on right
+                                        Container(
+                                          width: 120,
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              Text(
+                                                'Pending',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                currencyFormat.format(pendingAmount),
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.orange,
+                                                  fontSize: 18,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           );
                         },
@@ -952,11 +1210,12 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                             color: Colors.grey[600],
                             fontSize: 14,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     SizedBox(height: 4),
                     Text(
-                      'Last entry: ${client.workEntries.isNotEmpty ? DateFormat('dd MMM yyyy').format(client.workEntries.first.date) : 'No entries'}',
+                      'Last entry: ${client.workEntries.isNotEmpty ? DateFormat('dd MMM yyyy').format(_getLatestEntryDate(client.workEntries)) : 'No entries'}',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
@@ -965,33 +1224,41 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Row(
-                    children: [
-                      if (pendingBalance > 0)
-                        Icon(Icons.warning, size: 14, color: Colors.orange),
-                      SizedBox(width: pendingBalance > 0 ? 4 : 0),
-                      Text(
-                        currencyFormat.format(pendingBalance > 0 ? pendingBalance : totalWork),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: pendingBalance > 0 ? Colors.orange : AppColors.primary,
+              SizedBox(width: 8), // Add spacing before the amount column
+              ConstrainedBox(
+                constraints: BoxConstraints(minWidth: 80, maxWidth: 120),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (pendingBalance > 0)
+                          Icon(Icons.warning, size: 14, color: Colors.orange),
+                        SizedBox(width: pendingBalance > 0 ? 4 : 0),
+                        Flexible(
+                          child: Text(
+                            currencyFormat.format(pendingBalance > 0 ? pendingBalance : totalWork),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: pendingBalance > 0 ? Colors.orange : AppColors.primary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    pendingBalance > 0 ? 'Pending' : '${client.workEntries.length} entries',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: pendingBalance > 0 ? Colors.orange : Colors.grey[600],
+                      ],
                     ),
-                  ),
-                ],
+                    SizedBox(height: 4),
+                    Text(
+                      pendingBalance > 0 ? 'Pending' : '${client.workEntries.length} entries',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: pendingBalance > 0 ? Colors.orange : Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -1255,8 +1522,17 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                       labelText: 'Description',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.note),
+                      helperText: 'Limited to 50 characters',
+                      helperStyle: TextStyle(fontSize: 12),
                     ),
                     maxLines: 2,
+                    maxLength: 50, // Add character limit
+                    buildCounter: (context, {required currentLength, required isFocused, maxLength}) {
+                      return Text(
+                        '$currentLength/$maxLength',
+                        style: TextStyle(fontSize: 12, color: currentLength >= 50 ? Colors.red : Colors.grey),
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
                   
@@ -1320,7 +1596,9 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
         description = "Payment received";
       } else if (!description.toLowerCase().contains("payment") && 
                 !description.toLowerCase().contains("received")) {
-        description = "Payment: $description";
+        // Limit description length to prevent overflow
+        String truncatedDesc = description.length > 50 ? description.substring(0, 50) + "..." : description;
+        description = "Payment: $truncatedDesc";
       }
       
       final newEntry = WorkEntry(
@@ -1396,7 +1674,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
       
       // Format currency for PDF
       String formatCurrencyForPdf(double amount) {
-        return NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0).format(amount);
+        return NumberFormat.currency(locale: 'en_IN', symbol: '', decimalDigits: 0).format(amount);
       }
 
       // Generate PDF
@@ -1415,29 +1693,43 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   padding: pw.EdgeInsets.all(16),
                   color: PdfColors.blue700,
                   child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Container(
-                        width: 50,
-                        height: 50,
-                        decoration: pw.BoxDecoration(
-                          color: PdfColors.white,
-                          shape: pw.BoxShape.circle,
-                        ),
-                        alignment: pw.Alignment.center,
-                        child: pw.Text(
-                          client.initials,
-                          style: pw.TextStyle(
-                            fontSize: 20,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blue700,
+                      pw.Row(
+                        children: [
+                          pw.Container(
+                            width: 50,
+                            height: 50,
+                            decoration: pw.BoxDecoration(
+                              color: PdfColors.white,
+                              shape: pw.BoxShape.circle,
+                            ),
+                            alignment: pw.Alignment.center,
+                            child: pw.Text(
+                              client.initials,
+                              style: pw.TextStyle(
+                                fontSize: 20,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.blue700,
+                              ),
+                            ),
                           ),
-                        ),
+                          pw.SizedBox(width: 16),
+                          pw.Text(
+                            client.name,
+                            style: pw.TextStyle(
+                              fontSize: 20,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                            ),
+                          ),
+                        ],
                       ),
-                      pw.SizedBox(width: 16),
+                      // App name in header
                       pw.Text(
-                        client.name,
+                        'My Byaj Book',
                         style: pw.TextStyle(
-                          fontSize: 20,
+                          fontSize: 16,
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColors.white,
                         ),
@@ -1549,6 +1841,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   child: pw.Row(
                     children: [
                       pw.Expanded(flex: 2, child: pw.Text('Date')),
+                      pw.Expanded(flex: 1, child: pw.Text('Time')),
                       pw.Expanded(flex: 2, child: pw.Text('Type')),
                       pw.Expanded(flex: 3, child: pw.Text('Description')),
                       pw.Expanded(flex: 2, child: pw.Text('Amount')),
@@ -1556,8 +1849,12 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   ),
                 ),
                 
-                // List of entries (limited to avoid overflow)
-                ...client.workEntries.take(20).map((entry) {
+                // Sort entries by date (newest first) before displaying
+                ...((){
+                  final sortedEntries = List<WorkEntry>.from(client.workEntries);
+                  sortedEntries.sort((a, b) => b.date.compareTo(a.date)); // Sort newest first
+                  return sortedEntries;
+                })().take(20).map((entry) {
                   final isPayment = entry.description.toLowerCase().contains('received') || 
                                    entry.description.toLowerCase().contains('payment');
                   
@@ -1573,6 +1870,10 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         pw.Expanded(
                           flex: 2, 
                           child: pw.Text(DateFormat('dd/MM/yyyy').format(entry.date))
+                        ),
+                        pw.Expanded(
+                          flex: 1, 
+                          child: pw.Text(DateFormat('hh:mm a').format(entry.date))
                         ),
                         pw.Expanded(
                           flex: 2, 
@@ -1599,6 +1900,37 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                     ),
                   );
                 }).toList(),
+
+                // Add a spacer to push the footer to the bottom of the page
+                pw.Spacer(),
+                
+                // Footer with app name and generated date
+                pw.Container(
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border(top: pw.BorderSide(color: PdfColors.grey300))
+                  ),
+                  padding: pw.EdgeInsets.all(8),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'My Byaj Book',
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue700,
+                        ),
+                      ),
+                      pw.Text(
+                        'Generated on ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          color: PdfColors.grey700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             );
           },
@@ -1637,160 +1969,26 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
     }
   }
 
+  // Updated floating action button - simplified to just add client
   Widget _buildFloatingActionButtons() {
-    return Container(
-      height: 240, // Fixed height for the stack
-      width: 180, // Fixed width for the stack
-      alignment: Alignment.bottomRight,
-      child: Stack(
-        alignment: Alignment.bottomRight,
-        children: [
-          // Semi-transparent background overlay when menu is open
-          Positioned.fill(
-            child: IgnorePointer(
-              ignoring: !_isDialOpen,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: _isDialOpen ? 1.0 : 0.0,
-                child: Container(color: Colors.transparent),
-              ),
-            ),
-          ),
-          
-          // Add Payment Button
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
-            right: 4,
-            bottom: _isDialOpen ? 160 : 4,
-            child: AnimatedOpacity(
-              opacity: _isDialOpen ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 250),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // Label container
-                  AnimatedOpacity(
-                    duration: const Duration(milliseconds: 250),
-                    opacity: _isDialOpen ? 1.0 : 0.0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(6),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Text(
-                        'Add Payment',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  // Button
-                  FloatingActionButton(
-                    mini: true,
-                    heroTag: 'addPayment',
-                    elevation: _isDialOpen ? 6 : 0,
-                    backgroundColor: Colors.green,
-                    child: const Icon(Icons.payments, color: Colors.white),
-                    onPressed: _isDialOpen ? () {
-                      setState(() {
-                        _isDialOpen = false;
-                      });
-                      _addPayment();
-                    } : null,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          // Add Client Button
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
-            right: 4,
-            bottom: _isDialOpen ? 80 : 4,
-            child: AnimatedOpacity(
-              opacity: _isDialOpen ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 250),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // Label container
-                  AnimatedOpacity(
-                    duration: const Duration(milliseconds: 250),
-                    opacity: _isDialOpen ? 1.0 : 0.0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(6),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Text(
-                        'Add Client',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  // Button
-                  FloatingActionButton(
-                    mini: true,
-                    heroTag: 'addClient',
-                    elevation: _isDialOpen ? 6 : 0,
-                    backgroundColor: AppColors.primary,
-                    child: const Icon(Icons.person_add, color: Colors.white),
-                    onPressed: _isDialOpen ? () {
-                      setState(() {
-                        _isDialOpen = false;
-                      });
-                      _addClient();
-                    } : null,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          // Main FAB that toggles the dial
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: FloatingActionButton(
-              heroTag: 'mainFAB',
-              elevation: 6,
-              backgroundColor: _isDialOpen ? Colors.red : AppColors.primary,
-              onPressed: () {
-                setState(() {
-                  _isDialOpen = !_isDialOpen;
-                });
-              },
-              child: AnimatedRotation(
-                turns: _isDialOpen ? 0.125 : 0, // Rotate 45 degrees when open
-                duration: const Duration(milliseconds: 250),
-                child: Icon(_isDialOpen ? Icons.close : Icons.add, color: Colors.white),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return FloatingActionButton.extended(
+      onPressed: _addClient,
+      label: Text('Add Client'),
+      icon: Icon(Icons.person_add),
+      backgroundColor: AppColors.primary,
+      elevation: 6,
     );
+  }
+
+  DateTime _getLatestEntryDate(List<WorkEntry> entries) {
+    if (entries.isEmpty) {
+      return DateTime.now(); // Default to current date if no entries
+    }
+    // Create a copy of the entries list to avoid modifying the original
+    final sortedEntries = List<WorkEntry>.from(entries);
+    // Sort by date in descending order (newest first)
+    sortedEntries.sort((a, b) => b.date.compareTo(a.date));
+    // Return the date of the newest entry
+    return sortedEntries.first.date;
   }
 } 

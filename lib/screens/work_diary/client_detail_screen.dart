@@ -31,11 +31,20 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   late Client _client;
   final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
   final dateFormat = DateFormat('dd MMM yyyy');
+  final dateTimeFormat = DateFormat('dd MMM yyyy');
+  final timeFormat = DateFormat('hh:mm a');
 
   @override
   void initState() {
     super.initState();
     _client = widget.client;
+    
+    // Ensure entries are sorted by most recent first
+    if (_client.workEntries.isNotEmpty) {
+      final sortedEntries = List<WorkEntry>.from(_client.workEntries)
+        ..sort((a, b) => b.date.compareTo(a.date));
+      _client = _client.copyWith(workEntries: sortedEntries);
+    }
   }
 
   void _editClientInfo() async {
@@ -226,69 +235,95 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     ),
                     SizedBox(height: 20),
                     
-                    // Duration Type
-                    Text('Duration Type', 
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade400),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          isExpanded: true,
-                          value: selectedDurationType,
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                selectedDurationType = newValue;
-                                updateAmount();
-                              });
-                            }
-                          },
-                          items: ['Hourly', 'Half Day', 'Full Day']
-                              .map<DropdownMenuItem<String>>((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
+                    // Amount and Duration Type in a single row
+                    Row(
+                      children: [
+                        // Amount field (first)
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: amountController,
+                            decoration: InputDecoration(
+                              labelText: 'Amount (₹)',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              prefixIcon: Icon(Icons.currency_rupee),
+                              contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
                         ),
-                      ),
+                        SizedBox(width: 12),
+                        
+                        // Duration Type (second)
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Type',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey.shade400),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    isExpanded: true,
+                                    value: selectedDurationType,
+                                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    hint: Text('Type'),
+                                    icon: Icon(Icons.arrow_drop_down),
+                                    onChanged: (String? newValue) {
+                                      if (newValue != null) {
+                                        setState(() {
+                                          selectedDurationType = newValue;
+                                          updateAmount();
+                                        });
+                                      }
+                                    },
+                                    items: ['Hourly', 'Half Day', 'Full Day']
+                                        .map<DropdownMenuItem<String>>((String value) {
+                                      return DropdownMenuItem<String>(
+                                        value: value,
+                                        child: Text(value),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 16),
                     
                     // Hours field (if hourly)
                     if (selectedDurationType == 'Hourly')
-                      TextField(
-                        controller: hoursController,
-                        decoration: InputDecoration(
-                          labelText: 'Hours',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.timelapse),
+                      Padding(
+                        padding: EdgeInsets.only(top: 16),
+                        child: TextField(
+                          controller: hoursController,
+                          decoration: InputDecoration(
+                            labelText: 'Hours',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            prefixIcon: Icon(Icons.timelapse),
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => updateAmount(),
                         ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (_) => updateAmount(),
                       ),
-                    if (selectedDurationType == 'Hourly')
-                      SizedBox(height: 16),
-                      
-                    // Amount field
-                    TextField(
-                      controller: amountController,
-                      decoration: InputDecoration(
-                        labelText: 'Amount (₹)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.currency_rupee),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
                     SizedBox(height: 16),
                     
                     // Description field
@@ -506,7 +541,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       
       // Format currency without rupee symbol for PDF
       String formatCurrencyForPdf(double amount) {
-        return NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0).format(amount);
+        return NumberFormat.currency(locale: 'en_IN', symbol: '', decimalDigits: 0).format(amount);
       }
 
       // Generate PDF
@@ -656,15 +691,20 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                   child: pw.Row(
                     children: [
                       pw.Expanded(flex: 2, child: pw.Text('Date')),
-                      pw.Expanded(flex: 2, child: pw.Text('Type')),
+                      pw.Expanded(flex: 1, child: pw.Text('Time')),
+                      pw.Expanded(flex: 1, child: pw.Text('Type')),
                       pw.Expanded(flex: 3, child: pw.Text('Description')),
                       pw.Expanded(flex: 2, child: pw.Text('Amount')),
                     ],
                   ),
                 ),
                 
-                // Entries
-                ...client.workEntries.map((entry) {
+                // Sort entries by date (newest first) before displaying
+                ...((){
+                  final sortedEntries = List<WorkEntry>.from(client.workEntries);
+                  sortedEntries.sort((a, b) => b.date.compareTo(a.date)); // Sort newest first
+                  return sortedEntries;
+                })().map((entry) {
                   final isPayment = entry.description.toLowerCase().contains('received') || 
                                    entry.description.toLowerCase().contains('payment');
                   
@@ -682,7 +722,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                           child: pw.Text(DateFormat('MM/dd/yyyy').format(entry.date))
                         ),
                         pw.Expanded(
-                          flex: 2, 
+                          flex: 1, 
+                          child: pw.Text(DateFormat('hh:mm a').format(entry.date))
+                        ),
+                        pw.Expanded(
+                          flex: 1, 
                           child: pw.Text(entry.durationType)
                         ),
                         pw.Expanded(
@@ -739,6 +783,226 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         SnackBar(
           content: Text('Failed to generate PDF: $e'),
           backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Method to add a payment entry
+  void _addPaymentEntry(double amountDue) async {
+    DateTime selectedDate = DateTime.now();
+    final TextEditingController amountController = TextEditingController(
+      text: amountDue > 0 ? amountDue.toString() : '',
+    );
+    final TextEditingController notesController = TextEditingController(
+      text: 'Payment received'
+    );
+
+    final result = await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                top: 16,
+                left: 16,
+                right: 16,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Handle bar at top
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Header
+                    Text(
+                      'Add Payment',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Date selector
+                    GestureDetector(
+                      onTap: () async {
+                        final DateTime? pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2101),
+                        );
+                        if (pickedDate != null) {
+                          setState(() {
+                            selectedDate = pickedDate;
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today, color: AppColors.primary),
+                            SizedBox(width: 8),
+                            Text(
+                              'Date: ${DateFormat('dd MMM yyyy').format(selectedDate)}',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Amount input
+                    TextField(
+                      controller: amountController,
+                      decoration: InputDecoration(
+                        labelText: 'Payment Amount (₹)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.currency_rupee),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Notes input
+                    TextField(
+                      controller: notesController,
+                      decoration: InputDecoration(
+                        labelText: 'Notes',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.note),
+                        helperText: 'Limited to 40 characters',
+                        helperStyle: TextStyle(fontSize: 12),
+                      ),
+                      maxLines: 1,
+                      maxLength: 40,
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Add button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final paymentAmount = double.tryParse(amountController.text);
+                          if (paymentAmount == null || paymentAmount <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Please enter a valid amount')),
+                            );
+                            return;
+                          }
+                          
+                          // Limit description length to prevent overflow
+                          String description = notesController.text.trim();
+                          if (description.isEmpty) {
+                            description = "Payment received";
+                          } else if (!description.toLowerCase().contains("payment") && 
+                                     !description.toLowerCase().contains("received")) {
+                            description = "Payment: $description";
+                          }
+                          
+                          if (description.length > 40) {
+                            description = description.substring(0, 37) + "...";
+                          }
+                          
+                          Navigator.pop(context, {
+                            'amount': paymentAmount,
+                            'date': selectedDate,
+                            'description': description,
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'ADD PAYMENT',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null) {
+      final double amount = result['amount'];
+      final DateTime date = result['date'];
+      final String description = result['description'];
+      
+      final newEntry = WorkEntry(
+        id: Uuid().v4(),
+        date: date,
+        durationType: 'Payment',
+        hours: null,
+        amount: amount,
+        description: description,
+      );
+
+      setState(() {
+        final updatedEntries = List<WorkEntry>.from(_client.workEntries)..add(newEntry);
+        updatedEntries.sort((a, b) => b.date.compareTo(a.date)); // Sort by date, newest first
+        _client = _client.copyWith(workEntries: updatedEntries);
+      });
+
+      widget.updateClient(_client);
+      
+      // Calculate remaining balance
+      final totalWork = _client.workEntries
+          .where((entry) => 
+            !entry.description.toLowerCase().contains('received') && 
+            !entry.description.toLowerCase().contains('payment'))
+          .fold(0.0, (sum, entry) => sum + entry.amount);
+      
+      final totalPayments = _client.workEntries
+          .where((entry) => 
+            entry.description.toLowerCase().contains('received') || 
+            entry.description.toLowerCase().contains('payment'))
+          .fold(0.0, (sum, entry) => sum + entry.amount);
+      
+      final remainingBalance = totalWork - totalPayments;
+      
+      // Show feedback message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Payment of ${currencyFormat.format(amount)} added.' +
+            (remainingBalance > 0 ? ' Remaining: ${currencyFormat.format(remainingBalance)}' : ' All payments settled!')
+          ),
+          backgroundColor: remainingBalance > 0 ? Colors.orange : Colors.green,
         ),
       );
     }
@@ -920,6 +1184,22 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                   isLast: true,
                                 ),
                                 
+                                // Add Payment Button
+                                SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _addPaymentEntry(amountDue),
+                                    icon: Icon(Icons.payments),
+                                    label: Text('ADD PAYMENT'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      padding: EdgeInsets.symmetric(vertical: 10),
+                                    ),
+                                  ),
+                                ),
+                                
                                 // Progress Bar
                                 if (workAmount > 0)
                                   Padding(
@@ -1051,10 +1331,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             ],
           ),
         ),
-        floatingActionButton: FloatingActionButton(
+        floatingActionButton: FloatingActionButton.extended(
           onPressed: _addWorkEntry,
           backgroundColor: AppColors.primary,
-          child: Icon(Icons.add),
+          icon: Icon(Icons.add),
+          label: Text('Add Entry'),
           tooltip: 'Add Work Entry',
         ),
       ),
@@ -1145,61 +1426,117 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       }
     }
 
-    String getTypeText() {
-      if (entry.durationType == 'Hourly' && entry.hours != null) {
-        return '${entry.hours} hour${entry.hours == 1 ? '' : 's'}';
-      }
-      return entry.durationType;
-    }
+    // Determine if this is a payment entry
+    bool isPayment = entry.durationType == 'Payment' || 
+                     entry.description.toLowerCase().contains('payment') ||
+                     entry.description.toLowerCase().contains('received');
 
     Widget entryCard = Card(
-      elevation: 1,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: AppColors.primary.withOpacity(0.2),
-          child: Icon(getTypeIcon(), color: AppColors.primary),
-        ),
-        title: Row(
+      elevation: 3,
+      margin: EdgeInsets.symmetric(vertical: 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      shadowColor: Colors.black38,
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              dateFormat.format(entry.date),
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
-            SizedBox(width: 8),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                getTypeText(),
-                style: TextStyle(fontSize: 12),
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  backgroundColor: isPayment 
+                      ? Colors.green.withOpacity(0.2) 
+                      : AppColors.primary.withOpacity(0.2),
+                  child: Icon(
+                    isPayment ? Icons.payments : getTypeIcon(), 
+                    color: isPayment ? Colors.green : AppColors.primary
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Date and time on the same row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            dateFormat.format(entry.date),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                          Text(
+                            timeFormat.format(entry.date),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      // Description below date/time
+                      if (entry.description.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6.0),
+                          child: Text(
+                            entry.description,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[800],
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      
+                      SizedBox(height: 8),
+                      
+                      // Amount and work/payment indicator at bottom
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isPayment 
+                                  ? Colors.green.withOpacity(0.15) 
+                                  : AppColors.primary.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              isPayment ? 'Payment' : entry.durationType,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: isPayment ? Colors.green : AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            currencyFormat.format(entry.amount),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isPayment ? Colors.green : AppColors.primary,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-        subtitle: entry.description.isNotEmpty
-            ? Text(
-                entry.description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              )
-            : null,
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              currencyFormat.format(entry.amount),
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
-        onLongPress: () => _confirmAndDeleteWorkEntry(entry.id),
       ),
     );
 

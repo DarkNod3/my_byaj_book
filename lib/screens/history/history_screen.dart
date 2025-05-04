@@ -329,40 +329,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
             _buildFilterChip('Payments'),
             const SizedBox(width: 8),
             _buildFilterChip('Receipts'),
-            const SizedBox(width: 16),
-            // PDF Report Button
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.orange.shade100,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.orange.shade300),
-              ),
-              child: InkWell(
-                onTap: () => _generatePdfReport(),
-                borderRadius: BorderRadius.circular(20),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.picture_as_pdf,
-                        color: Colors.orange.shade700,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Report',
-                        style: TextStyle(
-                          color: Colors.orange.shade900,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),

@@ -351,7 +351,7 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
     // Create a currency format without the rupee symbol for the PDF report
     final pdfCurrencyFormat = NumberFormat.currency(
       locale: 'en_IN',
-      symbol: '',  // Empty symbol
+      symbol: '',  // Remove the rupee symbol
       decimalDigits: 0,
     );
     
@@ -365,28 +365,81 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
         header: (pw.Context context) {
           return pw.Container(
-            alignment: pw.Alignment.center,
-            margin: const pw.EdgeInsets.only(bottom: 20),
-            child: pw.Text(
-              'EMI Calculation Report',
-              style: pw.TextStyle(
-                fontSize: 24,
-                fontWeight: pw.FontWeight.bold,
-              ),
+            padding: const pw.EdgeInsets.only(bottom: 20),
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(width: 1, color: PdfColors.grey300)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'My Byaj Book',
+                      style: pw.TextStyle(
+                        fontSize: 24,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.blue600,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'EMI Calculation Report',
+                      style: const pw.TextStyle(
+                        fontSize: 14,
+                        color: PdfColors.grey700,
+                      ),
+                    ),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'Generated on',
+                      style: const pw.TextStyle(
+                        fontSize: 12,
+                        color: PdfColors.grey700,
+                      ),
+                    ),
+                    pw.Text(
+                      DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now()),
+                      style: const pw.TextStyle(
+                        fontSize: 12,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           );
         },
         footer: (pw.Context context) {
           return pw.Container(
-            alignment: pw.Alignment.centerRight,
             margin: const pw.EdgeInsets.only(top: 10),
-            child: pw.Text(
-              'Page ${context.pageNumber} of ${context.pagesCount}',
-              style: const pw.TextStyle(
-                fontSize: 10,
-              ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'Generated using My Byaj Book App',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey600,
+                  ),
+                ),
+                pw.Text(
+                  'Page ${context.pageNumber} of ${context.pagesCount}',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey600,
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -396,7 +449,7 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
             pw.Container(
               padding: const pw.EdgeInsets.all(15),
               decoration: pw.BoxDecoration(
-                border: pw.Border.all(width: 1),
+                color: PdfColors.grey100,
                 borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
               ),
               child: pw.Column(
@@ -493,8 +546,8 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
     
     try {
       // Save the PDF
-      final output = await getTemporaryDirectory();
-      final file = File('${output.path}/emi_calculation_report.pdf');
+      final output = await getApplicationDocumentsDirectory(); // Use app documents directory instead of temp
+      final file = File('${output.path}/emi_calculation_report_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await file.writeAsBytes(await pdf.save());
       
       // Open the PDF
@@ -651,7 +704,11 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                       _buildPdfButton(),
                       const SizedBox(height: 16),
                       _buildPaymentSchedule(),
-                      // Loan breakdown section removed
+                      // Add EMI breakdown and tips
+                      const SizedBox(height: 16),
+                      _buildBreakdownCard(),
+                      const SizedBox(height: 16),
+                      _buildTipsCard(),
                     ],
                   ),
                 ),
@@ -1053,7 +1110,7 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
             Row(
               children: [
                 Expanded(
-                  flex: 2,
+                  flex: 3,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1087,55 +1144,47 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                 
                 Expanded(
                   flex: 1,
-                  child: Container(
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Stack(
-                      children: [
-                        // Simple pie chart representation
-                        Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    color: Colors.blue,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${(principalRatio * 100).toStringAsFixed(0)}%',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    color: Colors.orange,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${(interestRatio * 100).toStringAsFixed(0)}%',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                            ],
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 14,
+                            height: 14,
+                            color: Colors.blue,
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${(principalRatio * 100).toStringAsFixed(0)}%',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 14,
+                            height: 14,
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${(interestRatio * 100).toStringAsFixed(0)}%',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -1551,6 +1600,94 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  // Add a tips card for EMI calculation
+  Widget _buildTipsCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.lightbulb_outline, color: Colors.amber.shade700),
+                const SizedBox(width: 8),
+                const Text(
+                  'EMI Calculation Tips',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildTipItem(
+              icon: Icons.check_circle_outline,
+              text: 'Lower interest rates can significantly reduce your EMI',
+            ),
+            const SizedBox(height: 8),
+            _buildTipItem(
+              icon: Icons.check_circle_outline,
+              text: 'Increasing down payment reduces loan amount and EMI',
+            ),
+            const SizedBox(height: 8),
+            _buildTipItem(
+              icon: Icons.check_circle_outline,
+              text: 'Longer tenure reduces EMI but increases total interest paid',
+            ),
+            const SizedBox(height: 8),
+            _buildTipItem(
+              icon: Icons.check_circle_outline,
+              text: 'Prepayment of loan can reduce total interest burden',
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'EMI = [P × R × (1+R)^N]/[(1+R)^N-1], where P is principal, R is monthly interest rate, and N is number of months',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTipItem({required IconData icon, required String text}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: Colors.green),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 14),
+          ),
+        ),
+      ],
     );
   }
 } 

@@ -170,10 +170,10 @@ class ToolsPopup extends StatelessWidget {
       {'icon': Icons.assignment_rounded, 'title': 'Tax Calc', 'color': Colors.red, 'id': 'tax_calc'},
     ],
     'Diaries': [
-      {'icon': Icons.note_alt_rounded, 'title': 'Bill Diary', 'color': Colors.blue.shade700, 'id': 'bill_diary'},
-      {'icon': Icons.local_drink_rounded, 'title': 'Milk Diary', 'color': Colors.amber.shade700, 'id': 'milk_diary'},
-      {'icon': Icons.work_rounded, 'title': 'Work Diary', 'color': Colors.blue, 'id': 'work_diary'},
-      {'icon': Icons.emoji_food_beverage_rounded, 'title': 'Tea Diary', 'color': Colors.deepPurple, 'id': 'tea_diary'},
+      {'icon': Icons.note_alt_rounded, 'title': 'Bills', 'color': Colors.blue.shade700, 'id': 'bill_diary'},
+      {'icon': Icons.local_drink_rounded, 'title': 'Milk', 'color': Colors.amber.shade700, 'id': 'milk_diary'},
+      {'icon': Icons.work_rounded, 'title': 'Work', 'color': Colors.blue, 'id': 'work_diary'},
+      {'icon': Icons.emoji_food_beverage_rounded, 'title': 'Tea', 'color': Colors.deepPurple, 'id': 'tea_diary'},
     ],
     'Other': [
       {'icon': Icons.account_balance_rounded, 'title': 'Loans', 'color': Colors.blue, 'id': 'loans'},
