@@ -346,13 +346,6 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
           displayUnit = mostCommonUnit ?? 'L';
         }
         
-        // Get average rate if entries exist
-        double averageRate = 0.0;
-        if (entriesForDate.isNotEmpty) {
-          averageRate = entriesForDate.fold(0.0, (sum, entry) => sum + (entry.rate * entry.quantity)) / 
-                        entriesForDate.fold(0.0, (sum, entry) => sum + entry.quantity);
-        }
-        
         // Calculate payments for the current month
         final allPayments = sellerProvider.payments;
         final paymentsForMonth = allPayments.where((payment) => 
@@ -400,21 +393,14 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          // Total Milk Today with Rate (Quantity x Rate format)
+                          // Total Milk Today
                           Expanded(
-                            child: averageRate > 0 
-                              ? _buildSummaryItem(
-                                  '${totalQuantity.toStringAsFixed(1)} × ₹${averageRate.toStringAsFixed(0)}',
-                                  'Milk Today',
-                                  Icons.water_drop,
-                                  Colors.blue,
-                                )
-                              : _buildSummaryItem(
-                                  '${totalQuantity.toStringAsFixed(2)} ${displayUnit}',
-                                  'Milk Today',
-                                  Icons.water_drop,
-                                  Colors.blue,
-                                ),
+                            child: _buildSummaryItem(
+                              '${totalQuantity.toStringAsFixed(2)} ${displayUnit}',
+                              'Milk Today',
+                              Icons.water_drop,
+                              Colors.blue,
+                            ),
                           ),
                           
                           // Total Amount
@@ -893,21 +879,13 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                         color: Colors.grey[600],
                       ),
                     ),
-                    entriesForToday.isEmpty
-                    ? Text(
-                        '0.0 ${mostRecentUnit}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : Text(
-                        '${totalQuantityToday.toStringAsFixed(1)} × ₹${entriesForToday.last.rate.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    Text(
+                      '${totalQuantityToday.toStringAsFixed(1)} ${entriesForToday.isNotEmpty ? entriesForToday.last.unit : mostRecentUnit}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
                   ],
                 ),
                 
@@ -1864,11 +1842,11 @@ class MilkPaymentsScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Due Amount: ₹${dueAmount.toStringAsFixed(2)}', 
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: dueAmount > 0 ? Colors.red : Colors.green,
-                    fontSize: 16,
-                  ),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold, 
+                  color: dueAmount > 0 ? Colors.red : Colors.green,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -1971,11 +1949,11 @@ class MilkPaymentsScreen extends StatelessWidget {
               
               // Show success message
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
                   content: Text('Payment of ₹${amount.toStringAsFixed(2)} added successfully'),
                   backgroundColor: Colors.green,
-                  duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
                 ),
               );
             },
@@ -2070,8 +2048,239 @@ class SellerProfileScreen extends StatelessWidget {
   
   const SellerProfileScreen({Key? key, required this.seller}) : super(key: key);
 
-  // Add payment dialog for a specific seller
-  void _showAddPaymentDialogForSeller(BuildContext context, String sellerId) {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(seller.name),
+      ),
+      body: Consumer2<DailyEntryProvider, MilkSellerProvider>(
+        builder: (context, entryProvider, sellerProvider, child) {
+          final entries = entryProvider.getEntriesForSeller(seller.id);
+          
+          // Calculate summary stats
+          final totalQuantity = entries.isEmpty ? 0.0 :
+            double.parse(entries.fold(0.0, (sum, entry) => sum + entry.quantity).toStringAsFixed(2));
+          
+          final totalAmount = entries.isEmpty ? 0.0 :
+            double.parse(entries.fold(0.0, (sum, entry) => sum + entry.amount).toStringAsFixed(2));
+          
+          // Get actual payments for this seller
+          final payments = sellerProvider.getPaymentsForSeller(seller.id);
+          final totalPaid = payments.isEmpty ? 0.0 :
+            double.parse(payments.fold(0.0, (sum, payment) => sum + payment.amount).toStringAsFixed(2));
+          final amountDue = totalAmount - totalPaid;
+          
+          // Update seller's due amount for consistency
+          seller.updateDueAmount(amountDue);
+          sellerProvider.updateSeller(seller);
+          
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Seller info card
+              Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+                      Text(
+                        seller.name,
+                        style: const TextStyle(
+                          fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+                      if (seller.mobile != null)
+                        Text('Phone: ${seller.mobile}'),
+                      if (seller.address != null)
+                        Text('Address: ${seller.address}'),
+                      const SizedBox(height: 8),
+                      Text('Default Rate: ₹${seller.defaultRate}/L'),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Add summary stats card
+              Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                color: Colors.blue[50],
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildSummaryItem(context, 'Total Milk', '${totalQuantity.toStringAsFixed(2)} L', Icons.water_drop, Colors.blue),
+                      _buildSummaryItem(context, 'Amount', '₹${totalAmount.toStringAsFixed(0)}', Icons.currency_rupee, Colors.green),
+                      _buildSummaryItem(context, 'Paid', '₹${totalPaid.toStringAsFixed(0)}', Icons.payments, Colors.purple),
+                      _buildSummaryItem(context, 'Due', '₹${amountDue.toStringAsFixed(0)}', Icons.account_balance_wallet, Colors.orange),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Payment button
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // Show add payment dialog for this seller
+                    _showAddPaymentDialog(context);
+                  },
+                  icon: const Icon(Icons.payments),
+                  label: const Text('ADD PAYMENT'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    elevation: 2,
+                  ),
+                ),
+              ),
+              
+              // Entry history title
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(
+                  'Entry History',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              
+              // Entry history
+              if (entries.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text('No entries found for this seller'),
+                  ),
+                )
+              else
+                ...entries.map((entry) => Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    title: Row(
+                      children: [
+                        Text('${entry.quantity}L @ ₹${entry.rate}/L'),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: entry.shift == EntryShift.morning ? Colors.orange[100] : Colors.blue[100],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            entry.shift == EntryShift.morning ? 'Morning' : 'Evening',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: entry.shift == EntryShift.morning ? Colors.orange[800] : Colors.blue[800],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    subtitle: Text(
+                      DateFormat('dd MMM yyyy, hh:mm a').format(entry.date),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '₹${entry.amount.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, size: 20),
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              _editEntry(context, entry);
+                            } else if (value == 'delete') {
+                              _confirmDeleteEntry(context, entry);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem<String>(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit, size: 20, color: Colors.blue),
+                                  SizedBox(width: 8),
+                                  Text('Edit Entry'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem<String>(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete, size: 20, color: Colors.red),
+                                  SizedBox(width: 8),
+                                  Text('Delete Entry'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                )).toList(),
+            ],
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          MilkDiaryAddEntry.showAddEntryBottomSheet(
+            context,
+            sellerId: seller.id,
+            initialDate: DateTime.now(),
+          );
+        },
+        backgroundColor: Colors.purple,
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  // Helper method to build summary item
+  Widget _buildSummaryItem(BuildContext context, String title, String value, IconData icon, Color color) {
+    return Column(
+        children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 4),
+          Text(
+          value,
+            style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: color,
+            ),
+          ),
+          Text(
+          title,
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey[600],
+            ),
+          ),
+        ],
+    );
+  }
+  
+  // Show payment dialog for this seller
+  void _showAddPaymentDialog(BuildContext context) {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
     final dateController = TextEditingController(
@@ -2080,25 +2289,20 @@ class SellerProfileScreen extends StatelessWidget {
     
     final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
     final entryProvider = Provider.of<DailyEntryProvider>(context, listen: false);
-    final seller = sellerProvider.getSellerById(sellerId);
-    
-    if (seller == null) return;
 
     // Calculate due amount
-    final entries = entryProvider.getEntriesForSeller(sellerId);
+    final entries = entryProvider.getEntriesForSeller(seller.id);
     final totalAmount = entries.isEmpty ? 0.0 :
       entries.fold(0.0, (sum, entry) => sum + entry.amount);
     
-    final sellerPayments = sellerProvider.getPaymentsForSeller(sellerId);
+    final sellerPayments = sellerProvider.getPaymentsForSeller(seller.id);
     final totalPayments = sellerPayments.isEmpty ? 0.0 :
       sellerPayments.fold(0.0, (sum, payment) => sum + payment.amount);
     
     final dueAmount = totalAmount - totalPayments;
     
     // Update seller's due amount for future reference
-    if (seller is MilkSeller) {
-      seller.updateDueAmount(dueAmount);
-    }
+    seller.updateDueAmount(dueAmount);
     
     showDialog(
       context: context,
@@ -2110,11 +2314,11 @@ class SellerProfileScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Due Amount: ₹${dueAmount.toStringAsFixed(2)}', 
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: dueAmount > 0 ? Colors.red : Colors.green,
-                    fontSize: 16,
-                  ),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold, 
+                  color: dueAmount > 0 ? Colors.red : Colors.green,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -2199,7 +2403,7 @@ class SellerProfileScreen extends StatelessWidget {
               // Create payment record
               final payment = MilkPayment(
                 id: const Uuid().v4(),
-                sellerId: sellerId,
+                sellerId: seller.id,
                 amount: amount,
                 date: date,
                 note: noteController.text,
@@ -2210,18 +2414,16 @@ class SellerProfileScreen extends StatelessWidget {
               
               // Update the seller's due amount
               final updatedDueAmount = dueAmount - amount;
-              if (seller is MilkSeller) {
-                seller.updateDueAmount(updatedDueAmount);
-                sellerProvider.updateSeller(seller);
-              }
+              seller.updateDueAmount(updatedDueAmount);
+              sellerProvider.updateSeller(seller);
               
               // Show success message
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
                   content: Text('Payment of ₹${amount.toStringAsFixed(2)} added successfully'),
                   backgroundColor: Colors.green,
-                  duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
                 ),
               );
             },
@@ -2232,201 +2434,50 @@ class SellerProfileScreen extends StatelessWidget {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(seller.name),
-      ),
-      body: Consumer2<DailyEntryProvider, MilkSellerProvider>(
-        builder: (context, entryProvider, sellerProvider, child) {
-          final entries = entryProvider.getEntriesForSeller(seller.id);
-          
-          // Calculate summary stats
-          final totalQuantity = entries.isEmpty ? 0.0 :
-            double.parse(entries.fold(0.0, (sum, entry) => sum + entry.quantity).toStringAsFixed(2));
-          
-          final totalAmount = entries.isEmpty ? 0.0 :
-            double.parse(entries.fold(0.0, (sum, entry) => sum + entry.amount).toStringAsFixed(2));
-          
-          // Get actual payments for this seller
-          final payments = sellerProvider.getPaymentsForSeller(seller.id);
-          final totalPaid = payments.isEmpty ? 0.0 :
-            double.parse(payments.fold(0.0, (sum, payment) => sum + payment.amount).toStringAsFixed(2));
-          final amountDue = totalAmount - totalPaid;
-          
-          // Update seller's due amount for consistency
-          seller.updateDueAmount(amountDue);
-          sellerProvider.updateSeller(seller);
-          
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Seller info card
-              Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-                      Text(
-                        seller.name,
-                        style: const TextStyle(
-                          fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-                      if (seller.mobile != null)
-                        Text('Phone: ${seller.mobile}'),
-                      if (seller.address != null)
-                        Text('Address: ${seller.address}'),
-                      const SizedBox(height: 8),
-                      Text('Default Rate: ₹${seller.defaultRate}/L'),
-                    ],
-                  ),
-                ),
-              ),
-              
-              // Add summary stats card
-              Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                color: Colors.blue[50],
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildSummaryItem(context, 'Total Milk', '${totalQuantity.toStringAsFixed(2)} L', Icons.water_drop, Colors.blue),
-                          _buildSummaryItem(context, 'Total Amount', '₹${totalAmount.toStringAsFixed(2)}', Icons.currency_rupee, Colors.green),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                          _buildSummaryItem(context, 'Total Paid', '₹${totalPaid.toStringAsFixed(2)}', Icons.payments, Colors.purple),
-                          _buildSummaryItem(context, 'Due Amount', '₹${amountDue.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.orange),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Payment button
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    // Call the payment dialog method instead of showing a snackbar
-                    _showAddPaymentDialogForSeller(context, seller.id);
-                  },
-                  icon: const Icon(Icons.payments),
-                  label: const Text('ADD PAYMENT'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-              
-              // Entry history title
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text(
-                  'Entry History',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              
-              // Entry history with quantity*rate format
-              if (entries.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Text('No entries found for this seller'),
-                  ),
-                )
-              else
-                ...entries.map((entry) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    title: Row(
-                      children: [
-                        Text('${entry.quantity} ${entry.unit} × ₹${entry.rate}/${entry.unit}'),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: entry.shift == EntryShift.morning ? Colors.orange[100] : Colors.blue[100],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            entry.shift == EntryShift.morning ? 'Morning' : 'Evening',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: entry.shift == EntryShift.morning ? Colors.orange[800] : Colors.blue[800],
-                            ),
-                ),
-              ),
-            ],
+  // Method to edit an entry
+  void _editEntry(BuildContext context, DailyEntry entry) {
+    MilkDiaryAddEntry.showAddEntryBottomSheet(
+      context,
+      entry: entry,
+      sellerId: seller.id,
+    );
+  }
+  
+  // Method to confirm deletion of an entry
+  void _confirmDeleteEntry(BuildContext context, DailyEntry entry) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Entry'),
+        content: const Text('Are you sure you want to delete this entry?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
           ),
-                    subtitle: Text(
-                      DateFormat('dd MMM yyyy, hh:mm a').format(entry.date),
-                    ),
-                    trailing: Text(
-                      '₹${entry.amount.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                )).toList(),
-            ],
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          MilkDiaryAddEntry.showAddEntryBottomSheet(
-            context,
-            sellerId: seller.id,
-          );
-        },
-        child: const Icon(Icons.add),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _deleteEntry(context, entry);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }
-
-  // Helper method to build summary item
-  Widget _buildSummaryItem(BuildContext context, String title, String value, IconData icon, Color color) {
-    return Column(
-        children: [
-        Icon(icon, color: color),
-        const SizedBox(height: 4),
-          Text(
-          value,
-            style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: color,
-            ),
-          ),
-          Text(
-          title,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-            ),
-          ),
-        ],
+  
+  // Method to delete an entry
+  void _deleteEntry(BuildContext context, DailyEntry entry) {
+    final entryProvider = Provider.of<DailyEntryProvider>(context, listen: false);
+    entryProvider.deleteEntry(entry.id);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Entry deleted successfully'),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 }

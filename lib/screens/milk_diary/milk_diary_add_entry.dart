@@ -57,6 +57,7 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
   
   bool _isEditMode = false;
   bool _isFatBased = false;
+  String? _errorMessage;
   
   // Lists for preset quantities based on unit
   List<String> _literPresets = ['250ml', '500ml', '1L', '2L', '5L'];
@@ -97,14 +98,17 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
       _selectedDate = widget.initialDate ?? DateTime.now();
       _selectedShift = _getDefaultShift();
       _quantityController.text = '';
-      _rateController.text = '';
-      _fatController.text = '';
-      _snfController.text = '';
+      
+      // Always set the rate from seller's default rate for new entries
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _updateRateFromSeller();
+        // Check for duplicate entries when form loads
+        _checkDuplicateEntry();
+      });
     }
     
     // Check if seller uses fat-based pricing
     _updateSellerPriceSystem();
-    _updateRateFromSeller();
   }
   
   EntryShift _getDefaultShift() {
@@ -208,8 +212,34 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
+        // Check for duplicate entries when date changes
+        _checkDuplicateEntry();
       });
     }
+  }
+  
+  // Method to check if an entry already exists for this date, shift and seller
+  void _checkDuplicateEntry() {
+    // Skip check if in edit mode (updating existing entry)
+    if (_isEditMode) return;
+    
+    final entryProvider = Provider.of<DailyEntryProvider>(context, listen: false);
+    final entries = entryProvider.entries;
+    
+    // Check if an entry with same date, shift and seller already exists
+    final duplicateEntry = entries.any((e) => 
+      e.sellerId == widget.sellerId &&
+      e.date.year == _selectedDate.year &&
+      e.date.month == _selectedDate.month &&
+      e.date.day == _selectedDate.day &&
+      e.shift == _selectedShift
+    );
+    
+    setState(() {
+      _errorMessage = duplicateEntry 
+        ? 'An entry already exists for ${_selectedShift == EntryShift.morning ? "Morning" : "Evening"} on ${DateFormat('dd MMM yyyy').format(_selectedDate)}' 
+        : null;
+    });
   }
 
   Future<void> _saveEntry() async {
@@ -231,6 +261,18 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
     if (_isFatBased && _fatController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter fat percentage')),
+      );
+      return;
+    }
+    
+    // Check for duplicate entries again before saving
+    _checkDuplicateEntry();
+    if (_errorMessage != null && !_isEditMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMessage!),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -458,6 +500,8 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
                           if (newValue != null) {
                             setState(() {
                               _selectedShift = newValue;
+                              // Check for duplicate entries when shift changes
+                              _checkDuplicateEntry();
                             });
                           }
                         },
@@ -478,6 +522,31 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
                 ),
               ],
             ),
+            
+            // Error message if duplicate entry
+            if (_errorMessage != null)
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
             const SizedBox(height: 16),
             
             // Quantity and Unit
