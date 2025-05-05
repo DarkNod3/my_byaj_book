@@ -623,6 +623,10 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     final TextEditingController noteController = TextEditingController();
     DateTime selectedDate = DateTime.now();
     String? imagePath;
+    String? amountError; // Add this to track error state
+    
+    // Define maximum amount (99 crore)
+    final double maxAmount = 990000000.0;
     
     // Check if this is a with-interest contact
     final bool isWithInterest = widget.contact['type'] != null;
@@ -717,7 +721,59 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      errorText: amountError, // Add error text
                     ),
+                    onChanged: (value) {
+                      // Validate input amount
+                      if (value.isNotEmpty) {
+                        try {
+                          final amount = double.parse(value);
+                          if (amount > maxAmount) {
+                            setState(() {
+                              amountError = 'Maximum allowed amount is ₹99 cr';
+                            });
+                          } else {
+                            setState(() {
+                              amountError = null;
+                            });
+                          }
+                        } catch (e) {
+                          setState(() {
+                            amountError = 'Invalid amount';
+                          });
+                        }
+                      } else {
+                        setState(() {
+                          amountError = null;
+                        });
+                      }
+                    },
+                    // Add this to prevent entering more than maxAmount
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                      TextInputFormatter.withFunction((oldValue, newValue) {
+                        try {
+                          // First check if it's not empty and is a valid number
+                          if (newValue.text.isEmpty) {
+                            return newValue;
+                          }
+                          
+                          final double? value = double.tryParse(newValue.text);
+                          if (value == null) {
+                            return oldValue;
+                          }
+                          
+                          // Return old value if amount exceeds max
+                          if (value > maxAmount) {
+                            return oldValue;
+                          }
+                          
+                          return newValue;
+                        } catch (e) {
+                          return oldValue;
+                        }
+                      }),
+                    ],
                   ),
                   
                   // Principal/Interest Switch (Only for with-interest contacts when appropriate)
@@ -956,11 +1012,25 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         child: ElevatedButton(
                           onPressed: () {
                             if (amountController.text.isEmpty) {
+                              setState(() {
+                                amountError = 'Amount is required';
+                              });
                               return;
                             }
 
                             final amount = double.tryParse(amountController.text);
                             if (amount == null || amount <= 0) {
+                              setState(() {
+                                amountError = 'Please enter a valid amount';
+                              });
+                              return;
+                            }
+                            
+                            // Validate maximum amount
+                            if (amount > maxAmount) {
+                              setState(() {
+                                amountError = 'Maximum allowed amount is ₹99 cr';
+                              });
                               return;
                             }
 
@@ -1196,18 +1266,77 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
             final interestRate = (widget.contact['interestRate'] as double);
             final isMonthly = widget.contact['interestPeriod'] == 'monthly';
             
-            // Calculate interest based on months instead of days
-            double interestForPeriod;
+            // Calculate interest based on complete months and remaining days
+            double interestForPeriod = 0.0;
             
             if (isMonthly) {
-              // For monthly rate: Calculate based on completed months and partial months
-              double monthsElapsed = daysSinceLastCalculation / 30.0;
-              interestForPeriod = runningPrincipal * (interestRate / 100) * monthsElapsed;
+              // For monthly rate:
+              // Step 1: Calculate complete months between dates
+              int completeMonths = 0;
+              DateTime tempDate = DateTime(lastInterestCalculationDate!.year, lastInterestCalculationDate!.month, lastInterestCalculationDate!.day);
+              
+              while (true) {
+                // Try to add one month
+                DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+                
+                // If adding one month exceeds the transaction date, break
+                if (nextMonth.isAfter(txDate)) {
+                  break;
+                }
+                
+                // Count this month and move to next
+                completeMonths++;
+                tempDate = nextMonth;
+              }
+              
+              // Apply full monthly interest for complete months
+              if (completeMonths > 0) {
+                interestForPeriod += runningPrincipal * (interestRate / 100) * completeMonths;
+              }
+              
+              // Step 2: Calculate interest for remaining days (partial month)
+              final remainingDays = txDate.difference(tempDate).inDays;
+              if (remainingDays > 0) {
+                // Get days in the current month for the partial calculation
+                final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+                double monthProportion = remainingDays / daysInMonth;
+                interestForPeriod += runningPrincipal * (interestRate / 100) * monthProportion;
+              }
             } else {
-              // For yearly rate: Convert to monthly rate first (yearly rate / 12)
+              // For yearly rate: Handle similarly but with yearly rate converted to monthly
               double monthlyRate = interestRate / 12;
-              double monthsElapsed = daysSinceLastCalculation / 30.0;
-              interestForPeriod = runningPrincipal * (monthlyRate / 100) * monthsElapsed;
+              
+              // Step 1: Calculate complete months between dates
+              int completeMonths = 0;
+              DateTime tempDate = DateTime(lastInterestCalculationDate!.year, lastInterestCalculationDate!.month, lastInterestCalculationDate!.day);
+              
+              while (true) {
+                // Try to add one month
+                DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+                
+                // If adding one month exceeds the transaction date, break
+                if (nextMonth.isAfter(txDate)) {
+                  break;
+                }
+                
+                // Count this month and move to next
+                completeMonths++;
+                tempDate = nextMonth;
+              }
+              
+              // Apply full monthly interest for complete months
+              if (completeMonths > 0) {
+                interestForPeriod += runningPrincipal * (monthlyRate / 100) * completeMonths;
+              }
+              
+              // Step 2: Calculate interest for remaining days (partial month)
+              final remainingDays = txDate.difference(tempDate).inDays;
+              if (remainingDays > 0) {
+                // Get days in the current month for the partial calculation
+                final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+                double monthProportion = remainingDays / daysInMonth;
+                interestForPeriod += runningPrincipal * (monthlyRate / 100) * monthProportion;
+              }
             }
             
             accumulatedInterest += interestForPeriod;
@@ -1267,24 +1396,81 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     // Calculate interest from last transaction date until today
     double interestDue = accumulatedInterest;
     if (lastInterestCalculationDate != null && principal > 0) {
-      final daysUntilNow = DateTime.now().difference(lastInterestCalculationDate!).inDays;
-      
       // Get interest rate and period
       final interestRate = (widget.contact['interestRate'] as double); 
       final isMonthly = widget.contact['interestPeriod'] == 'monthly';
       
-      // Calculate interest based on months instead of days
-      double interestFromLastTx;
+      // Calculate interest from last transaction to today (using same approach as above)
+      double interestFromLastTx = 0.0;
+      DateTime now = DateTime.now();
       
       if (isMonthly) {
-        // For monthly rate: Calculate based on completed months and partial months
-        double monthsElapsed = daysUntilNow / 30.0;
-        interestFromLastTx = principal * (interestRate / 100) * monthsElapsed;
+        // Step 1: Calculate complete months between last transaction and today
+        int completeMonths = 0;
+        DateTime tempDate = DateTime(lastInterestCalculationDate!.year, lastInterestCalculationDate!.month, lastInterestCalculationDate!.day);
+        
+        while (true) {
+          // Try to add one month
+          DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+          
+          // If adding one month exceeds current date, break
+          if (nextMonth.isAfter(now)) {
+            break;
+          }
+          
+          // Count this month and move to next
+          completeMonths++;
+          tempDate = nextMonth;
+        }
+        
+        // Apply full monthly interest for complete months
+        if (completeMonths > 0) {
+          interestFromLastTx += principal * (interestRate / 100) * completeMonths;
+        }
+        
+        // Step 2: Calculate interest for remaining days (partial month)
+        final remainingDays = now.difference(tempDate).inDays;
+        if (remainingDays > 0) {
+          // Get days in the current month for the partial calculation
+          final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+          double monthProportion = remainingDays / daysInMonth;
+          interestFromLastTx += principal * (interestRate / 100) * monthProportion;
+        }
       } else {
-        // For yearly rate: Convert to monthly rate first (yearly rate / 12)
+        // For yearly rate: Handle similarly but with yearly rate converted to monthly
         double monthlyRate = interestRate / 12;
-        double monthsElapsed = daysUntilNow / 30.0;
-        interestFromLastTx = principal * (monthlyRate / 100) * monthsElapsed;
+        
+        // Step 1: Calculate complete months between last transaction and today
+        int completeMonths = 0;
+        DateTime tempDate = DateTime(lastInterestCalculationDate!.year, lastInterestCalculationDate!.month, lastInterestCalculationDate!.day);
+        
+        while (true) {
+          // Try to add one month
+          DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+          
+          // If adding one month exceeds current date, break
+          if (nextMonth.isAfter(now)) {
+            break;
+          }
+          
+          // Count this month and move to next
+          completeMonths++;
+          tempDate = nextMonth;
+        }
+        
+        // Apply full monthly interest for complete months
+        if (completeMonths > 0) {
+          interestFromLastTx += principal * (monthlyRate / 100) * completeMonths;
+        }
+        
+        // Step 2: Calculate interest for remaining days (partial month)
+        final remainingDays = now.difference(tempDate).inDays;
+        if (remainingDays > 0) {
+          // Get days in the current month for the partial calculation
+          final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+          double monthProportion = remainingDays / daysInMonth;
+          interestFromLastTx += principal * (monthlyRate / 100) * monthProportion;
+        }
       }
       
       interestDue += interestFromLastTx;
@@ -1315,6 +1501,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day; // Last day of current month
     
     // Calculate daily interest based on actual days in month
+    // For example, if it's 24% annual (2% monthly) on 1,00,000, in a 31-day month:
+    // Daily interest = (1,00,000 × 0.02) ÷ 31 = 2,000 ÷ 31 = 64.52 per day
     interestPerDay = monthlyInterest / daysInMonth;
     
     // Calculate total amount (principal + interest)
@@ -1446,7 +1634,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
             ),
             const SizedBox(height: 20),
             
-            // Three-column layout for principal, interest, per day
+            // Three-column layout for principal, interest, total amount
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -1471,45 +1659,11 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                   color: Colors.white.withOpacity(0.3),
                 ),
                 _buildInterestDetailColumn(
-                  title: 'Daily Interest',
-                  amount: interestPerDay,
-                  icon: Icons.calendar_today_rounded,
-                  subtitle: '($currentMonthAbbr - $daysInMonth days)',
+                  title: 'Total Amount',
+                  amount: totalAmount,
+                  icon: Icons.account_balance_wallet,
                 ),
               ],
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Total amount
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Total Amount:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    currencyFormat.format(totalAmount),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -2599,6 +2753,10 @@ ${_getAppUserName()}
     String type = tx['type'] ?? 'gave';
     DateTime selectedDate = tx['date'] ?? DateTime.now();
     String? imagePath = tx['imagePath'];
+    String? amountError; // Add this to track error state
+    
+    // Define maximum amount (99 crore)
+    final double maxAmount = 990000000.0;
     
     // Check if this is a with-interest contact
     final bool isWithInterest = widget.contact['type'] != null;
@@ -2714,7 +2872,59 @@ ${_getAppUserName()}
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      errorText: amountError, // Add error text
                     ),
+                    onChanged: (value) {
+                      // Validate input amount
+                      if (value.isNotEmpty) {
+                        try {
+                          final amount = double.parse(value);
+                          if (amount > maxAmount) {
+                            setState(() {
+                              amountError = 'Maximum allowed amount is ₹99 cr';
+                            });
+                          } else {
+                            setState(() {
+                              amountError = null;
+                            });
+                          }
+                        } catch (e) {
+                          setState(() {
+                            amountError = 'Invalid amount';
+                          });
+                        }
+                      } else {
+                        setState(() {
+                          amountError = null;
+                        });
+                      }
+                    },
+                    // Add input formatters to prevent entering more than maxAmount
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                      TextInputFormatter.withFunction((oldValue, newValue) {
+                        try {
+                          // First check if it's not empty and is a valid number
+                          if (newValue.text.isEmpty) {
+                            return newValue;
+                          }
+                          
+                          final double? value = double.tryParse(newValue.text);
+                          if (value == null) {
+                            return oldValue;
+                          }
+                          
+                          // Return old value if amount exceeds max
+                          if (value > maxAmount) {
+                            return oldValue;
+                          }
+                          
+                          return newValue;
+                        } catch (e) {
+                          return oldValue;
+                        }
+                      }),
+                    ],
                   ),
                   
                   // Principal/Interest Switch (Only for with-interest contacts when appropriate)
@@ -3019,11 +3229,25 @@ ${_getAppUserName()}
                         child: ElevatedButton(
                           onPressed: () {
                             if (amountController.text.isEmpty) {
+                              setState(() {
+                                amountError = 'Amount is required';
+                              });
                               return;
                             }
 
                             final amount = double.tryParse(amountController.text);
                             if (amount == null || amount <= 0) {
+                              setState(() {
+                                amountError = 'Please enter a valid amount';
+                              });
+                              return;
+                            }
+                            
+                            // Validate maximum amount
+                            if (amount > maxAmount) {
+                              setState(() {
+                                amountError = 'Maximum allowed amount is ₹99 cr';
+                              });
                               return;
                             }
                             

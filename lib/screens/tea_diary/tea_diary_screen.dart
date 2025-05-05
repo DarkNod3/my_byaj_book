@@ -50,8 +50,33 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     // Load saved data
     _loadCustomers();
     
+    // Check if it's a new day compared to the last time the app was used
+    _checkForDayChange();
+    
     // Add search listener
     _searchController.addListener(_filterCustomers);
+  }
+
+  // New method to check if the day has changed since last app use
+  Future<void> _checkForDayChange() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? lastUsedDateStr = prefs.getString('lastUsedDate');
+    
+    if (lastUsedDateStr != null) {
+      final DateTime lastUsedDate = DateTime.parse(lastUsedDateStr);
+      final DateTime now = DateTime.now();
+      
+      // Check if it's a different day
+      if (lastUsedDate.day != now.day || 
+          lastUsedDate.month != now.month ||
+          lastUsedDate.year != now.year) {
+        // Reset cups if it's a new day
+        _resetDailyCups();
+      }
+    }
+    
+    // Update last used date to today
+    prefs.setString('lastUsedDate', DateTime.now().toIso8601String());
   }
 
   // Save customers to shared preferences
@@ -281,16 +306,12 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     double collected = 0;
     double remaining = 0;
     
-    // Calculate daily totals for the selected date only
+    // Calculate daily totals for all customers, not filtered by date
+    // This ensures the summary matches what the user sees in the list
     for (var customer in _allCustomers) {
-      // Only include in summary if the customer's date matches the selected date
-      if (customer.date.year == _selectedDate.year &&
-          customer.date.month == _selectedDate.month &&
-          customer.date.day == _selectedDate.day) {
-        cups += customer.cups;
-        amount += customer.totalAmount;
-        collected += customer.paymentsMade;
-      }
+      cups += customer.cups;
+      amount += customer.totalAmount;
+      collected += customer.paymentsMade;
     }
     
     // Calculate overall remaining/pending amount across all dates
@@ -322,8 +343,19 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     );
     
     if (picked != null && picked != _selectedDate) {
+      // Check if the new date is a different day
+      bool isDifferentDay = picked.day != _selectedDate.day || 
+                           picked.month != _selectedDate.month ||
+                           picked.year != _selectedDate.year;
+                           
       setState(() {
         _selectedDate = picked;
+        
+        // Reset cups for customers if it's a different day
+        if (isDifferentDay) {
+          _resetDailyCups();
+        }
+        
         // Filter data for the selected date
         _filterDataBySelectedDate();
         // Update totals based on filtered data
@@ -331,6 +363,22 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
         _counterAnimationController.forward(from: 0);
       });
     }
+  }
+  
+  // New method to reset customer cups while preserving history and pending amounts
+  void _resetDailyCups() {
+    // This method resets cups to 0 for all customers
+    // while preserving their history and pending amounts
+    for (var customer in _allCustomers) {
+      // Reset cups to 0
+      customer.cups = 0;
+      
+      // Make sure we save this change
+      customer.lastUpdated = DateTime.now();
+    }
+    
+    // Save the changes to shared preferences
+    _saveCustomers();
   }
   
   // Modify total market pending calculation to ensure it captures all dates

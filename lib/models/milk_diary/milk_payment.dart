@@ -5,14 +5,14 @@ class MilkPayment {
   final String sellerId;
   final DateTime date;
   final double amount;
-  final String? description;
+  final String? note;
 
   MilkPayment({
     String? id,
     required this.sellerId,
     required this.date,
     required this.amount,
-    this.description,
+    this.note,
   }) : this.id = id ?? const Uuid().v4();
 
   // Create a copy of this payment with the given fields replaced
@@ -20,14 +20,14 @@ class MilkPayment {
     String? sellerId,
     DateTime? date,
     double? amount,
-    String? description,
+    String? note,
   }) {
     return MilkPayment(
       id: this.id,
       sellerId: sellerId ?? this.sellerId,
       date: date ?? this.date,
       amount: amount ?? this.amount,
-      description: description ?? this.description,
+      note: note ?? this.note,
     );
   }
 
@@ -38,7 +38,7 @@ class MilkPayment {
       'sellerId': sellerId,
       'date': date.millisecondsSinceEpoch,
       'amount': amount,
-      'description': description,
+      'note': note,
     };
   }
 
@@ -49,7 +49,7 @@ class MilkPayment {
       sellerId: map['sellerId'],
       date: DateTime.fromMillisecondsSinceEpoch(map['date']),
       amount: map['amount'],
-      description: map['description'],
+      note: map['note'],
     );
   }
 } 

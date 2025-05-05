@@ -327,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         floatingActionButton: _currentIndex == 0 ? Container(
-          margin: const EdgeInsets.only(bottom: 32),
+          margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -610,158 +610,111 @@ class _HomeScreenState extends State<HomeScreen> {
       interestRateController.text = '12';
     }
     
-    // Maximum amount error
-    String? amountError;
-    
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (BuildContext context, StateSetter setState) {
-          return AlertDialog(
-            title: const Text('Enter Amount'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: amountController,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'Amount',
-                    hintText: 'Enter amount',
-                    prefixText: '₹ ',
-                    border: OutlineInputBorder(),
-                    errorText: amountError,
-                  ),
-                  autofocus: true,
-                  inputFormatters: [
-                    // Use a special formatter that both limits the input and shows the error message
-                    TextInputFormatter.withFunction(
-                      (oldValue, newValue) {
-                        // Allow backspace/deletion
-                        if (oldValue.text.length > newValue.text.length) {
-                          setState(() {
-                            amountError = null;
-                          });
-                          return newValue;
-                        }
-                        
-                        // Don't allow non-numeric or multiple decimal points
-                        if (!RegExp(r'^\d*\.?\d*$').hasMatch(newValue.text)) {
-                          return oldValue;
-                        }
-                        
-                        // Check if new value exceeds 1 Crore
-                        if (newValue.text.isNotEmpty) {
-                          final value = double.tryParse(newValue.text);
-                          if (value == null) {
-                            return oldValue;
-                          }
-                          
-                          if (value > _HomeContentState.MAX_AMOUNT) {
-                            setState(() {
-                              amountError = 'Invalid amount. Maximum allowed is 1 crore.';
-                            });
-                            return oldValue;
-                          } else {
-                            setState(() {
-                              amountError = null;
-                            });
-                          }
-                        }
-                        return newValue;
-                      },
-                    ),
-                  ],
-                ),
-                if (withInterest) ...[
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: interestRateController,
-                    keyboardType: TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      labelText: 'Interest Rate (% p.a.)',
-                      hintText: 'Enter interest rate',
-                      suffixText: '%',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+      builder: (context) => AlertDialog(
+        title: const Text('Enter Amount'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'Amount',
+                hintText: 'Enter amount',
+                prefixText: '₹ ',
+                border: OutlineInputBorder(),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  // Validate amount
-                  if (amountController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter an amount'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                    return;
-                  }
-                  
-                  final amount = double.tryParse(amountController.text) ?? 0.0;
-                  if (amount <= 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter a valid amount'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                    return;
-                  }
-                  
-                  // Check maximum amount validation again
-                  if (amount > _HomeContentState.MAX_AMOUNT) {
-                    setState(() {
-                      amountError = 'Invalid amount. Maximum allowed is 1 crore.';
-                    });
-                    return;
-                  }
-                  
-                  // Get interest rate if applicable
-                  double interestRate = 0;
-                  if (withInterest) {
-                    interestRate = double.tryParse(interestRateController.text) ?? 0;
-                    if (interestRate <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please enter a valid interest rate'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                      return;
-                    }
-                  }
-                  
-                  // Use the new method to ensure contact is added
-                  _ensureContactAdded(
-                    name,
-                    phone,
-                    amount,
-                    isGet,
-                    withInterest,
-                    interestRate,
-                    relationshipType
-                  );
-                  
-                  // Close all dialogs and navigate back to home
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
+              autofocus: true,
+            ),
+            if (withInterest) ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: interestRateController,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Interest Rate (% p.a.)',
+                  hintText: 'Enter interest rate',
+                  suffixText: '%',
+                  border: OutlineInputBorder(),
                 ),
-                child: const Text('Save'),
               ),
             ],
-          );
-        }
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Validate amount
+              if (amountController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter an amount'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+                return;
+              }
+              
+              final amount = double.tryParse(amountController.text) ?? 0.0;
+              if (amount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a valid amount'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+                return;
+              }
+              
+              // Get interest rate if applicable
+              double interestRate = 0;
+              if (withInterest) {
+                interestRate = double.tryParse(interestRateController.text) ?? 0;
+                if (interestRate <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter a valid interest rate'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                  return;
+                }
+              }
+              
+              // Use the new method to ensure contact is added
+              _ensureContactAdded(
+                name,
+                phone,
+                amount,
+                isGet,
+                withInterest,
+                interestRate,
+                relationshipType
+              );
+              
+              // Close all dialogs and navigate back to home
+              Navigator.popUntil(context, (route) => route.isFirst);
+              
+              // Show success message
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Contact added ${withInterest ? "with" : "without"} interest'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+            ),
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }
@@ -830,43 +783,51 @@ class _HomeScreenState extends State<HomeScreen> {
           (existingContact['type'] != null ? 'withInterest' : 'withoutInterest');
       final newTabType = withInterest ? 'withInterest' : 'withoutInterest';
       
-      if (existingTabType != newTabType) {
-        // Show an error dialog if trying to add to a different tab
+      // We now allow the same contact to exist in both tabs, so we no longer return an error
+      // if (existingTabType != newTabType) {
+      //   // Show an error dialog if trying to add to a different tab
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(
+      //       content: Text('Error: This number already exists in ${existingTabType == 'withInterest' ? 'Interest' : 'Standard'} Entries tab'),
+      //       backgroundColor: Colors.red,
+      //       duration: const Duration(seconds: 3),
+      //     ),
+      //   );
+      //   return;
+      // }
+      
+      // If the contact already exists in the same tab we're adding to, update it
+      if (existingTabType == newTabType) {
+        // Update the existing contact instead of adding a new one
+        final updatedContact = Map<String, dynamic>.from(existingContact);
+        
+        // Update only certain fields to avoid overriding transaction data
+        updatedContact['name'] = name;
+        if (withInterest) {
+          updatedContact['interestRate'] = interestRate;
+          updatedContact['type'] = relationshipType ?? 'borrower';
+        }
+        
+        // Always update the timestamp when modifying a contact
+        updatedContact['lastEditedAt'] = DateTime.now();
+        
+        // Update the contact
+        transactionProvider.updateContact(updatedContact);
+        
+        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: This number already exists in ${existingTabType == 'withInterest' ? 'Interest' : 'Standard'} Entries tab'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
+            content: Text('Contact information updated'),
+            duration: const Duration(seconds: 2),
           ),
         );
+        
         return;
       }
       
-      // Update the existing contact instead of adding a new one
-      final updatedContact = Map<String, dynamic>.from(existingContact);
-      
-      // Update only certain fields to avoid overriding transaction data
-      updatedContact['name'] = name;
-      if (withInterest) {
-        updatedContact['interestRate'] = interestRate;
-        updatedContact['type'] = relationshipType ?? 'borrower';
-      }
-      
-      // Always update the timestamp when modifying a contact
-      updatedContact['lastEditedAt'] = DateTime.now();
-      
-      // Update the contact
-      transactionProvider.updateContact(updatedContact);
-      
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Contact information updated'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      
-      return;
+      // If we reach here, the contact exists but in a different tab
+      // We'll create a new contact entry for the other tab with a special ID
+      // that links it to the original contact but keeps the data separate
     }
     
     // Create contact data
@@ -874,10 +835,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final initials = nameInitials.isEmpty ? 'AA' : nameInitials.substring(0, min(2, nameInitials.length));
     final color = Colors.primaries[name.length % Colors.primaries.length];
     
+    // Create a unique ID for the contact if it exists in the other tab
+    String contactId = phone;
+    if (existingContact != null) {
+      // This contact exists in the other tab, so create a unique ID
+      final newTabType = withInterest ? 'withInterest' : 'withoutInterest';
+      contactId = "${phone}_${newTabType}";
+    }
+    
     // Create contact map
     final contactMap = {
       'name': name,
-      'phone': phone,
+      'phone': contactId, // Use potentially modified contactId here
+      'displayPhone': phone, // Store the original phone for display purposes
       'initials': initials,
       'color': color,
       'amount': amount,
@@ -901,7 +871,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (homeContentState != null) {
       homeContentState.addContact(
         name: name,
-        phone: phone,
+        phone: contactId, // Use the potentially modified contactId
         amount: amount,
         isGet: isGet,
         withInterest: withInterest,
@@ -942,38 +912,6 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   String _filterMode = 'All'; // 'All', 'You received', 'You paid'
   String _sortMode = 'Recent'; // 'Recent', 'High to Low', 'Low to High', 'By Name'
   String? _qrCodePath; // Add this variable for QR code path
-  
-  // Maximum amount limit constant
-  static const double MAX_AMOUNT = 10000000.0; // 1 Crore = 1,00,00,000
-  
-  // Utility method to create a standard amount formatter with 1 crore limit
-  TextInputFormatter get amountFormatter => TextInputFormatter.withFunction(
-    (oldValue, newValue) {
-      // Allow backspace/deletion
-      if (oldValue.text.length > newValue.text.length) {
-        return newValue;
-      }
-      
-      // Don't allow non-numeric or multiple decimal points
-      if (newValue.text.isNotEmpty) {
-        // Check for valid numeric format (allow one decimal point)
-        if (!RegExp(r'^\d*\.?\d*$').hasMatch(newValue.text)) {
-          return oldValue;
-        }
-        
-        // Check if new value exceeds 1 Crore (10,000,000)
-        final value = double.tryParse(newValue.text);
-        if (value == null) {
-          return oldValue;
-        }
-        
-        if (value > MAX_AMOUNT) {
-          return oldValue;
-        }
-      }
-      return newValue;
-    },
-  );
   
   // Interest calculation variables
   double _totalPrincipal = 0.0;
@@ -1168,15 +1106,17 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       
       // Get interest rate from contact
       final double interestRate = contact['interestRate'] as double? ?? 12.0;
+      final bool isMonthly = contact['interestPeriod'] == 'monthly';
       
       // Sort transactions chronologically for accurate interest calculation
       transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
       
-      // Calculate interest using the same approach as in _buildContactItem
+      // Calculate interest using the same approach as in contact detail screen
       DateTime? lastInterestDate = transactions.first['date'] as DateTime;
       double runningPrincipal = 0.0;
       double accumulatedInterest = 0.0;
       double interestPaid = 0.0;
+      bool isBorrower = contactType == 'borrower';
       
       for (var tx in transactions) {
         final note = (tx['note'] ?? '').toLowerCase();
@@ -1188,24 +1128,81 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         if (lastInterestDate != null && runningPrincipal > 0) {
           final daysSinceLastCalculation = txDate.difference(lastInterestDate).inDays;
           if (daysSinceLastCalculation > 0) {
-            // Get interest period type
-      final String interestPeriod = contact['interestPeriod'] as String? ?? 'yearly';
-      
-            double interestForPeriod;
-      if (interestPeriod == 'monthly') {
-              // Monthly rate: Calculate based on months elapsed
-              double monthsElapsed = daysSinceLastCalculation / 30.0;
-              interestForPeriod = runningPrincipal * (interestRate / 100) * monthsElapsed;
-      } else {
-              // Yearly rate: Convert to monthly rate first
+            // Calculate interest based on complete months and remaining days
+            double interestForPeriod = 0.0;
+            
+            if (isMonthly) {
+              // Step 1: Calculate complete months between dates
+              int completeMonths = 0;
+              DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+              
+              while (true) {
+                // Try to add one month
+                DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+                
+                // If adding one month exceeds the transaction date, break
+                if (nextMonth.isAfter(txDate)) {
+                  break;
+                }
+                
+                // Count this month and move to next
+                completeMonths++;
+                tempDate = nextMonth;
+              }
+              
+              // Apply full monthly interest for complete months
+              if (completeMonths > 0) {
+                interestForPeriod += runningPrincipal * (interestRate / 100) * completeMonths;
+              }
+              
+              // Step 2: Calculate interest for remaining days (partial month)
+              final remainingDays = txDate.difference(tempDate).inDays;
+              if (remainingDays > 0) {
+                // Get days in the current month for the partial calculation
+                final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+                double monthProportion = remainingDays / daysInMonth;
+                interestForPeriod += runningPrincipal * (interestRate / 100) * monthProportion;
+              }
+            } else {
+              // For yearly rate: Handle similarly but with yearly rate converted to monthly
               double monthlyRate = interestRate / 12;
-              double monthsElapsed = daysSinceLastCalculation / 30.0;
-              interestForPeriod = runningPrincipal * (monthlyRate / 100) * monthsElapsed;
+              
+              // Step 1: Calculate complete months between dates
+              int completeMonths = 0;
+              DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+              
+              while (true) {
+                // Try to add one month
+                DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+                
+                // If adding one month exceeds the transaction date, break
+                if (nextMonth.isAfter(txDate)) {
+                  break;
+                }
+                
+                // Count this month and move to next
+                completeMonths++;
+                tempDate = nextMonth;
+              }
+              
+              // Apply full monthly interest for complete months
+              if (completeMonths > 0) {
+                interestForPeriod += runningPrincipal * (monthlyRate / 100) * completeMonths;
+              }
+              
+              // Step 2: Calculate interest for remaining days (partial month)
+              final remainingDays = txDate.difference(tempDate).inDays;
+              if (remainingDays > 0) {
+                // Get days in the current month for the partial calculation
+                final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+                double monthProportion = remainingDays / daysInMonth;
+                interestForPeriod += runningPrincipal * (monthlyRate / 100) * monthProportion;
+              }
             }
             
             accumulatedInterest += interestForPeriod;
           }
-      }
+        }
       
         // Update based on transaction type
         if (note.contains('interest:')) {
@@ -1250,61 +1247,125 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       
       // Calculate interest from last transaction to now
       if (lastInterestDate != null && runningPrincipal > 0) {
-        final daysUntilNow = DateTime.now().difference(lastInterestDate).inDays;
-      
-        // Get interest period type
-        final String interestPeriod = contact['interestPeriod'] as String? ?? 'yearly';
+        // Calculate interest from last transaction to today (using same approach as above)
+        double interestFromLastTx = 0.0;
+        DateTime now = DateTime.now();
         
-        double interestFromLastTx;
-        if (interestPeriod == 'monthly') {
-          // Monthly rate: Calculate based on months elapsed
-          double monthsElapsed = daysUntilNow / 30.0;
-          interestFromLastTx = runningPrincipal * (interestRate / 100) * monthsElapsed;
+        if (isMonthly) {
+          // Step 1: Calculate complete months between last transaction and today
+          int completeMonths = 0;
+          DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+          
+          while (true) {
+            // Try to add one month
+            DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+            
+            // If adding one month exceeds current date, break
+            if (nextMonth.isAfter(now)) {
+              break;
+            }
+            
+            // Count this month and move to next
+            completeMonths++;
+            tempDate = nextMonth;
+          }
+          
+          // Apply full monthly interest for complete months
+          if (completeMonths > 0) {
+            interestFromLastTx += runningPrincipal * (interestRate / 100) * completeMonths;
+          }
+          
+          // Step 2: Calculate interest for remaining days (partial month)
+          final remainingDays = now.difference(tempDate).inDays;
+          if (remainingDays > 0) {
+            // Get days in the current month for the partial calculation
+            final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+            double monthProportion = remainingDays / daysInMonth;
+            interestFromLastTx += runningPrincipal * (interestRate / 100) * monthProportion;
+          }
         } else {
-          // Yearly rate: Convert to monthly rate first
+          // For yearly rate with converted monthly rate
           double monthlyRate = interestRate / 12;
-          double monthsElapsed = daysUntilNow / 30.0;
-          interestFromLastTx = runningPrincipal * (monthlyRate / 100) * monthsElapsed;
+          
+          // Step 1: Calculate complete months between last transaction and today
+          int completeMonths = 0;
+          DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+          
+          while (true) {
+            // Try to add one month
+            DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+            
+            // If adding one month exceeds current date, break
+            if (nextMonth.isAfter(now)) {
+              break;
+            }
+            
+            // Count this month and move to next
+            completeMonths++;
+            tempDate = nextMonth;
+          }
+          
+          // Apply full monthly interest for complete months
+          if (completeMonths > 0) {
+            interestFromLastTx += runningPrincipal * (monthlyRate / 100) * completeMonths;
+          }
+          
+          // Step 2: Calculate interest for remaining days (partial month)
+          final remainingDays = now.difference(tempDate).inDays;
+          if (remainingDays > 0) {
+            // Get days in the current month for the partial calculation
+            final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+            double monthProportion = remainingDays / daysInMonth;
+            interestFromLastTx += runningPrincipal * (monthlyRate / 100) * monthProportion;
+          }
         }
         
         accumulatedInterest += interestFromLastTx;
       }
       
+      // Adjust for interest already paid - show net interest due
+      totalInterestDue = (accumulatedInterest - interestPaid > 0) ? accumulatedInterest - interestPaid : 0;
+      
       // Update values
       principalAmount = runningPrincipal;
-      totalInterestDue = accumulatedInterest > interestPaid ? accumulatedInterest - interestPaid : 0;
       
-      // Calculate monthly interest for daily rate
+      // Calculate daily interest based on current month's days
+      final daysInMonth = DateTime(now.year, now.month + 1, 0).day; // Last day of current month
+      
+      // Calculate monthly interest first
       double monthlyInterest;
-      final String interestPeriod = contact['interestPeriod'] as String? ?? 'yearly';
-      if (interestPeriod == 'monthly') {
+      if (isMonthly) {
         // Monthly rate: Calculate monthly interest
-        monthlyInterest = principalAmount * (interestRate / 100);
+        monthlyInterest = runningPrincipal * (interestRate / 100);
       } else {
         // Yearly rate: Convert to monthly rate first
         double monthlyRate = interestRate / 12;
-        monthlyInterest = principalAmount * (monthlyRate / 100);
+        monthlyInterest = runningPrincipal * (monthlyRate / 100);
       }
       
-      // Calculate daily interest based on days in month
-      final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+      // Calculate daily interest based on actual days in month
       interestPerDay = monthlyInterest / daysInMonth;
-        
-      // Add to totals based on contact type and direction
+      
+      // Update the display amount to include interest if appropriate
+      if (contactType == 'lender' || contactType == 'borrower') {
+        // Set the total amount (principal + interest) for display
+        contact['displayAmount'] = principalAmount + totalInterestDue;
+      }
+      
+      // Add to totals based on relationship type
       if (contactType == 'borrower') {
-        // Borrower - they borrowed from you, so it's a receivable for you
+        // For borrowers, we get the money
         _principalToReceive += principalAmount;
         _interestToReceive += totalInterestDue;
-      } else {
-        // Lender - they lent to you, so it's a payable for you
+      } else if (contactType == 'lender') {
+        // For lenders, we pay the money
         _principalToPay += principalAmount;
         _interestToPay += totalInterestDue;
       }
       
-      // Update global values
+      // Update overall totals
       _totalPrincipal += principalAmount;
       _totalInterestDue += totalInterestDue;
-      _interestPerDay += interestPerDay;
     }
   }
 
@@ -1416,20 +1477,11 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       }
     }
     
-    // Apply search filtering - enhanced to search by name or amount
+    // Apply search filtering
     if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((contact) {
-        // Search by name
-        final nameMatch = contact['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
-        
-        // Search by amount
-        final amount = contact['amount'] as double? ?? 0.0;
-        final amountStr = amount.toString();
-        final amountMatch = amountStr.contains(_searchQuery);
-        
-        // Return true if either name or amount matches
-        return nameMatch || amountMatch;
-      }).toList();
+      filtered = filtered.where((contact) => 
+        contact['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
+      ).toList();
     }
     
     // Apply sorting
@@ -1507,36 +1559,33 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       children: [
         _buildTabBar(),
         Expanded(
-          child: SafeArea(
-            bottom: true,
-            child: GestureDetector(
-              // Add swipe gesture detection
-              onHorizontalDragEnd: (details) {
-                // Detect the direction of the swipe
-                if (details.primaryVelocity! > 0) {
-                  // Swiping from left to right (go to previous tab)
-                  if (_tabController.index > 0) {
-                    _tabController.animateTo(_tabController.index - 1);
-                  }
-                } else if (details.primaryVelocity! < 0) {
-                  // Swiping from right to left (go to next tab)
-                  if (_tabController.index < _tabController.length - 1) {
-                    _tabController.animateTo(_tabController.index + 1);
-                  }
+          child: GestureDetector(
+            // Add swipe gesture detection
+            onHorizontalDragEnd: (details) {
+              // Detect the direction of the swipe
+              if (details.primaryVelocity! > 0) {
+                // Swiping from left to right (go to previous tab)
+                if (_tabController.index > 0) {
+                  _tabController.animateTo(_tabController.index - 1);
                 }
-              },
-              child: Column(
-                children: [
-                  _buildBalanceSummary(),
-                  if (_isWithInterest) 
-                    // Remove the interest type selector for With Interest tab
-                    Container(),
-                  _buildSearchBar(),
-                  Expanded(
-                    child: _buildContactsList(),
-                  ),
-                ],
-              ),
+              } else if (details.primaryVelocity! < 0) {
+                // Swiping from right to left (go to next tab)
+                if (_tabController.index < _tabController.length - 1) {
+                  _tabController.animateTo(_tabController.index + 1);
+                }
+              }
+            },
+            child: Column(
+              children: [
+        _buildBalanceSummary(),
+        if (_isWithInterest) 
+          // Remove the interest type selector for With Interest tab
+          Container(),
+        _buildSearchBar(),
+        Expanded(
+          child: _buildContactsList(),
+                ),
+              ],
             ),
           ),
         ),
@@ -1988,23 +2037,47 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               size: 20,
             ),
             Expanded(
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Find person by name or amount',
-                  hintStyle: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 14,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                ),
-                style: const TextStyle(fontSize: 14),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
+              child: Focus(
+                onFocusChange: (hasFocus) {
+                  if (hasFocus) {
+                    // When focused, scroll to top of the page to show more results
+                    Scrollable.ensureVisible(
+                      context,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      alignment: 0.0,
+                    );
+                  }
                 },
-                textInputAction: TextInputAction.search,
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Find person by name or amount',
+                    hintStyle: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 14,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  ),
+                  style: const TextStyle(fontSize: 14),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                  textInputAction: TextInputAction.search,
+                  onTap: () {
+                    // When tapped, also ensure visibility by scrolling
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      Scrollable.ensureVisible(
+                        context,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        alignment: 0.0,
+                      );
+                    });
+                  },
+                ),
               ),
             ),
             Container(
@@ -2343,7 +2416,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
             )
           : ListView.builder(
               itemCount: _filteredContacts.length,
-              padding: const EdgeInsets.only(bottom: 120), // Increased padding for FAB clearance
+              padding: const EdgeInsets.only(bottom: 100), // For FAB clearance
               itemBuilder: (context, index) {
                 final contact = _filteredContacts[index];
                 return _buildContactItem(contact);
@@ -2409,20 +2482,14 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       // Get interest rate from contact
       final double interestRate = contact['interestRate'] as double? ?? 12.0;
       final String contactType = contact['type'] as String? ?? 'borrower';
+      final bool isMonthly = contact['interestPeriod'] == 'monthly';
+      final bool isBorrower = contactType == 'borrower';
       
       // Sort transactions chronologically for accurate interest calculation
       final transactions = transactionProvider.getTransactionsForContact(phone);
       transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
       
-      // INTEREST CALCULATION LOGIC:
-      // --------------------------
-      // For both borrowers and lenders, we calculate interest in the same way:
-      // 1. Interest accrues daily on the outstanding principal
-      // 2. Interest payments are tracked separately and don't reduce principal
-      // 3. Principal payments reduce future interest by reducing the outstanding amount
-      // 4. Total interest due = accumulated interest - interest payments received
-      
-      // Calculate interest using a similar approach to the contact detail screen
+      // Calculate interest using the same approach as in the contact detail screen
       DateTime? lastInterestDate = transactions.first['date'] as DateTime;
       double runningPrincipal = 0.0;
       double accumulatedInterest = 0.0;
@@ -2438,25 +2505,82 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         if (lastInterestDate != null && runningPrincipal > 0) {
           final daysSinceLastCalculation = txDate.difference(lastInterestDate).inDays;
           if (daysSinceLastCalculation > 0) {
-            // Get interest rate and period
-            final String interestPeriod = contact['interestPeriod'] as String? ?? 'yearly';
+            // Calculate interest based on complete months and remaining days
+            double interestForPeriod = 0.0;
             
-            double interestForPeriod;
-            if (interestPeriod == 'monthly') {
-              // Monthly rate: Calculate based on months elapsed
-              double monthsElapsed = daysSinceLastCalculation / 30.0;
-              interestForPeriod = runningPrincipal * (interestRate / 100) * monthsElapsed;
+            if (isMonthly) {
+              // Step 1: Calculate complete months between dates
+              int completeMonths = 0;
+              DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+              
+              while (true) {
+                // Try to add one month
+                DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+                
+                // If adding one month exceeds the transaction date, break
+                if (nextMonth.isAfter(txDate)) {
+                  break;
+                }
+                
+                // Count this month and move to next
+                completeMonths++;
+                tempDate = nextMonth;
+              }
+              
+              // Apply full monthly interest for complete months
+              if (completeMonths > 0) {
+                interestForPeriod += runningPrincipal * (interestRate / 100) * completeMonths;
+              }
+              
+              // Step 2: Calculate interest for remaining days (partial month)
+              final remainingDays = txDate.difference(tempDate).inDays;
+              if (remainingDays > 0) {
+                // Get days in the current month for the partial calculation
+                final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+                double monthProportion = remainingDays / daysInMonth;
+                interestForPeriod += runningPrincipal * (interestRate / 100) * monthProportion;
+              }
             } else {
-              // Yearly rate: Convert to monthly rate first
+              // For yearly rate: Handle similarly but with yearly rate converted to monthly
               double monthlyRate = interestRate / 12;
-              double monthsElapsed = daysSinceLastCalculation / 30.0;
-              interestForPeriod = runningPrincipal * (monthlyRate / 100) * monthsElapsed;
+              
+              // Step 1: Calculate complete months between dates
+              int completeMonths = 0;
+              DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+              
+              while (true) {
+                // Try to add one month
+                DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+                
+                // If adding one month exceeds the transaction date, break
+                if (nextMonth.isAfter(txDate)) {
+                  break;
+                }
+                
+                // Count this month and move to next
+                completeMonths++;
+                tempDate = nextMonth;
+              }
+              
+              // Apply full monthly interest for complete months
+              if (completeMonths > 0) {
+                interestForPeriod += runningPrincipal * (monthlyRate / 100) * completeMonths;
+              }
+              
+              // Step 2: Calculate interest for remaining days (partial month)
+              final remainingDays = txDate.difference(tempDate).inDays;
+              if (remainingDays > 0) {
+                // Get days in the current month for the partial calculation
+                final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+                double monthProportion = remainingDays / daysInMonth;
+                interestForPeriod += runningPrincipal * (monthlyRate / 100) * monthProportion;
+              }
             }
             
             accumulatedInterest += interestForPeriod;
           }
         }
-        
+      
         // Update based on transaction type
         if (note.contains('interest:')) {
           if (isGave) {
@@ -2500,36 +2624,94 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       
       // Calculate interest from last transaction to now
       if (lastInterestDate != null && runningPrincipal > 0) {
-        final daysUntilNow = DateTime.now().difference(lastInterestDate).inDays;
+        // Calculate interest from last transaction to today (using same approach as above)
+        double interestFromLastTx = 0.0;
+        DateTime now = DateTime.now();
         
-        // Get interest period type
-        final String interestPeriod = contact['interestPeriod'] as String? ?? 'yearly';
-        
-        double interestFromLastTx;
-        if (interestPeriod == 'monthly') {
-          // Monthly rate: Calculate based on months elapsed
-          double monthsElapsed = daysUntilNow / 30.0;
-          interestFromLastTx = runningPrincipal * (interestRate / 100) * monthsElapsed;
+        if (isMonthly) {
+          // Step 1: Calculate complete months between last transaction and today
+          int completeMonths = 0;
+          DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+          
+          while (true) {
+            // Try to add one month
+            DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+            
+            // If adding one month exceeds current date, break
+            if (nextMonth.isAfter(now)) {
+              break;
+            }
+            
+            // Count this month and move to next
+            completeMonths++;
+            tempDate = nextMonth;
+          }
+          
+          // Apply full monthly interest for complete months
+          if (completeMonths > 0) {
+            interestFromLastTx += runningPrincipal * (interestRate / 100) * completeMonths;
+          }
+          
+          // Step 2: Calculate interest for remaining days (partial month)
+          final remainingDays = now.difference(tempDate).inDays;
+          if (remainingDays > 0) {
+            // Get days in the current month for the partial calculation
+            final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+            double monthProportion = remainingDays / daysInMonth;
+            interestFromLastTx += runningPrincipal * (interestRate / 100) * monthProportion;
+          }
         } else {
-          // Yearly rate: Convert to monthly rate first
+          // For yearly rate with converted monthly rate
           double monthlyRate = interestRate / 12;
-          double monthsElapsed = daysUntilNow / 30.0;
-          interestFromLastTx = runningPrincipal * (monthlyRate / 100) * monthsElapsed;
+          
+          // Step 1: Calculate complete months between last transaction and today
+          int completeMonths = 0;
+          DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+          
+          while (true) {
+            // Try to add one month
+            DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+            
+            // If adding one month exceeds current date, break
+            if (nextMonth.isAfter(now)) {
+              break;
+            }
+            
+            // Count this month and move to next
+            completeMonths++;
+            tempDate = nextMonth;
+          }
+          
+          // Apply full monthly interest for complete months
+          if (completeMonths > 0) {
+            interestFromLastTx += runningPrincipal * (monthlyRate / 100) * completeMonths;
+          }
+          
+          // Step 2: Calculate interest for remaining days (partial month)
+          final remainingDays = now.difference(tempDate).inDays;
+          if (remainingDays > 0) {
+            // Get days in the current month for the partial calculation
+            final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+            double monthProportion = remainingDays / daysInMonth;
+            interestFromLastTx += runningPrincipal * (monthlyRate / 100) * monthProportion;
+          }
         }
         
         accumulatedInterest += interestFromLastTx;
       }
       
-      // Update display values
-      principalAmount = runningPrincipal;
-      totalInterestDue = accumulatedInterest > interestPaid ? accumulatedInterest - interestPaid : 0;
+      // Adjust for interest already paid - show net interest due
+      totalInterestDue = (accumulatedInterest - interestPaid > 0) ? accumulatedInterest - interestPaid : 0;
       
-      // Calculate daily interest based on rate type
-      final String interestPeriod = contact['interestPeriod'] as String? ?? 'yearly';
+      // Update values
+      principalAmount = runningPrincipal;
+      
+      // Calculate daily interest based on current month's days
+      final daysInMonth = DateTime(DateTime.now().year, DateTime.now().month + 1, 0).day; // Last day of current month
       
       // Calculate monthly interest first
       double monthlyInterest;
-      if (interestPeriod == 'monthly') {
+      if (isMonthly) {
         // Monthly rate: Calculate monthly interest
         monthlyInterest = runningPrincipal * (interestRate / 100);
       } else {
@@ -2538,15 +2720,13 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         monthlyInterest = runningPrincipal * (monthlyRate / 100);
       }
       
-      // Calculate the actual number of days in the current month
-      final now = DateTime.now();
-      final daysInMonth = DateTime(now.year, now.month + 1, 0).day; // Last day of current month
-      
       // Calculate daily interest based on actual days in month
       interestPerDay = monthlyInterest / daysInMonth;
       
       // Update the display amount to include interest if appropriate
       if (contactType == 'lender' || contactType == 'borrower') {
+        // Set the total amount (principal + interest) for display
+        contact['displayAmount'] = principalAmount + totalInterestDue;
         displayAmount = principalAmount + totalInterestDue;
       }
     }
@@ -2784,9 +2964,9 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                             color: Colors.grey.shade300,
                       ),
                       _buildInterestBreakdownItem(
-                            label: 'Daily Interest',
-                        amount: interestPerDay,
-                            iconData: Icons.calendar_today_rounded,
+                            label: 'Total',
+                        amount: principalAmount + totalInterestDue,
+                            iconData: Icons.account_balance_wallet,
                             color: Colors.teal,
                       ),
                     ],
@@ -3905,6 +4085,9 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     final existingContact = transactionProvider.getContactById(phone);
     
+    // Generate a unique ID if necessary
+    String contactId = phone;
+    
     if (existingContact != null) {
       // Check if the contact is in a different tab than we're trying to add to
       final existingTabType = existingContact['tabType'] ?? 
@@ -3914,14 +4097,21 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       const newTabType = 'withInterest';
       
       if (existingTabType != newTabType) {
-        // Show an error dialog if trying to add to a different tab
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: This number already exists in the Standard Entries tab'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        // This contact exists in the other tab, so create a unique ID
+        contactId = "${phone}_${newTabType}";
+      } else {
+        // The contact exists in the same tab, update rather than create
+        final updatedContact = Map<String, dynamic>.from(existingContact);
+        updatedContact['name'] = name;
+        updatedContact['type'] = relationshipType;
+        updatedContact['interestRate'] = 12.0; // Default interest rate
+        updatedContact['lastEditedAt'] = DateTime.now();
+        
+        // Update the contact
+        transactionProvider.updateContact(updatedContact);
+        
+        // Navigate to edit screen
+        _navigateToEditContact(context, updatedContact, transactionProvider);
         return;
       }
     }
@@ -3929,7 +4119,8 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     // Create contact data with interest type
     final contactData = {
       'name': name,
-      'phone': phone,
+      'phone': contactId,
+      'displayPhone': phone, // Store original phone if it's cross-tab
       'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
       'color': Colors.primaries[name.length % Colors.primaries.length],
       'amount': 0.0,
@@ -4054,6 +4245,8 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                   final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
                   final existingContact = transactionProvider.getContactById(phone);
                   
+                  // Generate a unique ID if the contact already exists in the other tab
+                  String contactId = phone;
                   if (existingContact != null) {
                     // Check if the contact is in a different tab than we're trying to add to
                     final existingTabType = existingContact['tabType'] ?? 
@@ -4061,15 +4254,27 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                     final newTabType = widget.isWithInterest ? 'withInterest' : 'withoutInterest';
                     
                     if (existingTabType != newTabType) {
-                      // Show an error message if the contact exists in the other tab
-                      Navigator.pop(context); // Close the dialog
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error: This number already exists in ${existingTabType == 'withInterest' ? 'Interest' : 'Standard'} Entries tab'),
-                          backgroundColor: Colors.red,
-                          duration: const Duration(seconds: 3),
-                        ),
-                      );
+                      // Create a unique ID for this contact in the other tab
+                      contactId = "${phone}_${newTabType}";
+                    } else {
+                      // Contact already exists in the same tab we're trying to add to,
+                      // just update the existing contact
+                      Navigator.pop(context);
+                      
+                      final name = nameController.text;
+                      
+                      if (widget.isWithInterest) {
+                        // For with interest contacts, show the relationship type dialog
+                        _showRelationshipTypeDialog(context, name, phone);
+                      } else {
+                        // For without interest contacts, directly update the contact
+                        final contactData = Map<String, dynamic>.from(existingContact);
+                        contactData['name'] = name;
+                        contactData['lastEditedAt'] = DateTime.now();
+                        
+                        transactionProvider.updateContact(contactData);
+                        _refreshHomeScreenAndNavigateToDetail(context, contactData);
+                      }
                       return;
                     }
                   }
@@ -4077,16 +4282,16 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                   Navigator.pop(context);
                   
                   final name = nameController.text;
-                  // Don't redeclare phone variable here
                   
                   if (widget.isWithInterest) {
                     // For with interest contacts, show the relationship type dialog
-                    _showRelationshipTypeDialog(context, name, phone);
+                    _showRelationshipTypeDialog(context, name, contactId);
                   } else {
                     // For without interest contacts, create contact directly
                     final contactData = {
                       'name': name,
-                      'phone': phone,
+                      'phone': contactId,
+                      'displayPhone': phone, // Store original phone if it's a dual-tab contact
                       'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
                       'color': Colors.primaries[name.length % Colors.primaries.length],
                       'amount': 0.0,
@@ -4126,16 +4331,13 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       final newTabType = contactData['tabType'] ?? 
           (contactData['type'] != null ? 'withInterest' : 'withoutInterest');
       
+      // We now allow the same contact to exist in both tabs, so we no longer show an error
+      // Instead, create a unique ID for the new tab entry
       if (existingTabType != newTabType) {
-        // Show an error dialog if trying to add to a different tab
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: This number already exists in ${existingTabType == 'withInterest' ? 'Interest' : 'Standard'} Entries tab'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        return;
+        // Create a unique ID for this cross-tab entry
+        final String uniqueId = "${contactData['phone']}_${newTabType}";
+        contactData['phone'] = uniqueId;
+        contactData['displayPhone'] = existingContact['phone']; // Save original phone number
       }
     }
     

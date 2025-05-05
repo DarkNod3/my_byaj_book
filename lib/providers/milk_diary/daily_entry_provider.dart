@@ -214,4 +214,19 @@ class DailyEntryProvider with ChangeNotifier {
     final entriesInRange = getEntriesForSellerInRange(sellerId, startDate, endDate);
     return entriesInRange.fold(0.0, (sum, entry) => sum + entry.amount);
   }
+  
+  // Get all entries in a specific date range
+  List<DailyEntry> getEntriesInDateRange(DateTime startDate, DateTime endDate) {
+    // Normalize dates to start of day
+    final normalizedStartDate = DateTime(startDate.year, startDate.month, startDate.day);
+    final normalizedEndDate = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+    
+    final entriesList = _isFiltered ? _filteredEntries : _entries;
+    return entriesList.where((entry) => 
+      (entry.date.isAtSameMomentAs(normalizedStartDate) || 
+       entry.date.isAfter(normalizedStartDate)) &&
+      (entry.date.isAtSameMomentAs(normalizedEndDate) || 
+       entry.date.isBefore(normalizedEndDate))
+    ).toList();
+  }
 } 

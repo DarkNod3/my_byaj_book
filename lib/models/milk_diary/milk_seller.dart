@@ -17,6 +17,7 @@ class MilkSeller {
   final bool isActive;
   final PriceSystem priceSystem;
   final Map<double, double>? fatRates;
+  double _dueAmount = 0.0;
 
   MilkSeller({
     required this.id,
@@ -27,7 +28,15 @@ class MilkSeller {
     this.isActive = true,
     this.priceSystem = PriceSystem.defaultRate,
     this.fatRates,
-  });
+    double dueAmount = 0.0,
+  }) : _dueAmount = dueAmount;
+
+  double get dueAmount => _dueAmount;
+  
+  // Method to update the due amount
+  void updateDueAmount(double amount) {
+    _dueAmount = amount;
+  }
 
   MilkSeller copyWith({
     String? id,
@@ -38,6 +47,7 @@ class MilkSeller {
     bool? isActive,
     PriceSystem? priceSystem,
     Map<double, double>? fatRates,
+    double? dueAmount,
   }) {
     return MilkSeller(
       id: id ?? this.id,
@@ -48,6 +58,7 @@ class MilkSeller {
       isActive: isActive ?? this.isActive,
       priceSystem: priceSystem ?? this.priceSystem,
       fatRates: fatRates ?? this.fatRates,
+      dueAmount: dueAmount ?? this._dueAmount,
     );
   }
 
@@ -63,6 +74,7 @@ class MilkSeller {
       'fatRates': fatRates != null ? Map<String, dynamic>.fromEntries(
         fatRates!.entries.map((e) => MapEntry(e.key.toString(), e.value))
       ) : null,
+      'dueAmount': _dueAmount,
     };
   }
 
@@ -89,6 +101,7 @@ class MilkSeller {
             orElse: () => PriceSystem.defaultRate)
         : PriceSystem.defaultRate,
       fatRates: fatRatesMap,
+      dueAmount: map['dueAmount']?.toDouble() ?? 0.0,
     );
   }
 

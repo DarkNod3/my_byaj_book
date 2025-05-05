@@ -4,16 +4,29 @@ import 'package:uuid/uuid.dart';
 import '../../models/milk_diary/milk_seller.dart';
 import '../../providers/milk_diary/milk_seller_provider.dart';
 
-class MilkSellerBottomSheet extends StatefulWidget {
+class MilkDiaryAddSeller extends StatefulWidget {
   final MilkSeller? seller;
 
-  const MilkSellerBottomSheet({Key? key, this.seller}) : super(key: key);
+  const MilkDiaryAddSeller({Key? key, this.seller}) : super(key: key);
+  
+  // Static method to show bottom sheet
+  static Future<MilkSeller?> showAddSellerBottomSheet(
+    BuildContext context, {
+    MilkSeller? seller,
+  }) async {
+    return await showModalBottomSheet<MilkSeller>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => MilkDiaryAddSeller(seller: seller),
+    );
+  }
 
   @override
-  _MilkSellerBottomSheetState createState() => _MilkSellerBottomSheetState();
+  _MilkDiaryAddSellerState createState() => _MilkDiaryAddSellerState();
 }
 
-class _MilkSellerBottomSheetState extends State<MilkSellerBottomSheet> {
+class _MilkDiaryAddSellerState extends State<MilkDiaryAddSeller> {
   final _formKey = GlobalKey<FormState>();
   
   // Text controllers
@@ -111,6 +124,8 @@ class _MilkSellerBottomSheetState extends State<MilkSellerBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -122,18 +137,35 @@ class _MilkSellerBottomSheetState extends State<MilkSellerBottomSheet> {
       // Use Flexible content height to prevent overflow
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.85,
+        maxWidth: screenWidth,
       ),
+      width: screenWidth,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Header with drag handle
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 12.0),
+              child: Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
+              ),
+            ),
+          ),
+          
           // Header
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.0),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
             child: Text(
-              'Add Milk Seller',
+              widget.seller == null ? 'Add New Seller' : 'Edit Seller',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -246,64 +278,23 @@ class _MilkSellerBottomSheetState extends State<MilkSellerBottomSheet> {
                       ),
                       const SizedBox(height: 10.0),
                       
-                      // Combine Default Rate and Default Unit in one row
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Default Unit dropdown
-                          Expanded(
-                            child: Column(
+                      // Default Rate fields - only show if default rate system selected
+                      if (_priceSystem == PriceSystem.defaultRate)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Default Rate field with Unit
+                            Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Default Unit', style: _labelStyle),
-                                const SizedBox(height: 4),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey.shade300),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: _defaultUnit,
-                                      isExpanded: true,
-                                      icon: const Icon(Icons.arrow_drop_down),
-                                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'Liter (L)',
-                                          child: Text('Liter (L)'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Kilogram (kg)',
-                                          child: Text('Kilogram (kg)'),
-                                        ),
-                                      ],
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _defaultUnit = value!;
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          
-                          const SizedBox(width: 12),
-                          
-                          // Conditional Default Rate field
-                          if (_priceSystem == PriceSystem.defaultRate)
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Default Rate', style: _labelStyle),
-                                  const SizedBox(height: 4),
-                                  TextFormField(
+                                // Rate input
+                                Expanded(
+                                  flex: 3,
+                                  child: TextFormField(
                                     controller: _defaultRateController,
-                                    keyboardType: TextInputType.number,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                     decoration: const InputDecoration(
+                                      hintText: 'Price per unit',
                                       prefixIcon: Icon(Icons.currency_rupee),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -316,157 +307,186 @@ class _MilkSellerBottomSheetState extends State<MilkSellerBottomSheet> {
                                           return 'Please enter rate';
                                         }
                                         if (double.tryParse(value) == null) {
+                                          return 'Please enter a valid number';
+                                        }
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8.0),
+                                
+                                // Unit selector
+                                Expanded(
+                                  flex: 2,
+                                  child: Container(
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: _defaultUnit,
+                                        isExpanded: true,
+                                        icon: const Icon(Icons.arrow_drop_down),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                        items: ['Liter (L)', 'Kilogram (kg)'].map((unit) {
+                                          return DropdownMenuItem<String>(
+                                            value: unit,
+                                            child: Text(
+                                              unit,
+                                              style: const TextStyle(fontSize: 14),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          );
+                                        }).toList(),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _defaultUnit = value!;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            
+                            // Helper text
+                            const SizedBox(height: 8.0),
+                            Text(
+                              'This rate will be used for all entries for this seller.',
+                              style: _hintStyle,
+                            ),
+                          ],
+                        ),
+                      
+                      // Fat Based Rate fields - only show if fat based system selected
+                      if (_priceSystem == PriceSystem.fatBased)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Label
+                            Text(
+                              'Fat Based Price',
+                              style: _labelStyle,
+                            ),
+                            const SizedBox(height: 8.0),
+                            
+                            // Fat rate inputs in row
+                            Row(
+                              children: [
+                                // Base fat percentage
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _baseFatController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: const InputDecoration(
+                                      hintText: 'Fat %',
+                                      suffixText: '%',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                                      ),
+                                      contentPadding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                                    ),
+                                    validator: (value) {
+                                      if (_priceSystem == PriceSystem.fatBased) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Enter fat %';
+                                        }
+                                        if (double.tryParse(value) == null) {
                                           return 'Invalid number';
                                         }
                                       }
                                       return null;
                                     },
                                   ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 10.0),
-                      
-                      // Fat-based pricing fields in compact layout
-                      if (_priceSystem == PriceSystem.fatBased)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Rate per fat and Base fat in a row
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Rate per 100 Fat field
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Rate per 100 Fat', style: _labelStyle),
-                                      const SizedBox(height: 4),
-                                      TextFormField(
-                                        controller: _fatRateController,
-                                        keyboardType: TextInputType.number,
-                                        decoration: const InputDecoration(
-                                          prefixIcon: Icon(Icons.currency_rupee),
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.all(Radius.circular(12)),
-                                          ),
-                                          contentPadding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                                        ),
-                                        validator: (value) {
-                                          if (_priceSystem == PriceSystem.fatBased) {
-                                            if (value == null || value.isEmpty) {
-                                              return 'Enter rate per 100 fat';
-                                            }
-                                            if (double.tryParse(value) == null) {
-                                              return 'Invalid number';
-                                            }
-                                          }
-                                          return null;
-                                        },
-                                      ),
-                                      Text(
-                                        'Ex: ₹${_fatRateController.text} for 100 fat',
-                                        style: _hintStyle,
-                                      ),
-                                    ],
-                                  ),
                                 ),
+                                const SizedBox(width: 10.0),
                                 
-                                const SizedBox(width: 12),
-                                
-                                // Base Fat Value field
+                                // Rate for this fat
                                 Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Base Fat Value', style: _labelStyle),
-                                      const SizedBox(height: 4),
-                                      TextFormField(
-                                        controller: _baseFatController,
-                                        keyboardType: TextInputType.number,
-                                        decoration: const InputDecoration(
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.all(Radius.circular(12)),
-                                          ),
-                                          contentPadding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                                        ),
-                                        validator: (value) {
-                                          if (_priceSystem == PriceSystem.fatBased) {
-                                            if (value == null || value.isEmpty) {
-                                              return 'Enter base fat value';
-                                            }
-                                            if (double.tryParse(value) == null) {
-                                              return 'Invalid number';
-                                            }
-                                          }
-                                          return null;
-                                        },
+                                  child: TextFormField(
+                                    controller: _fatRateController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: const InputDecoration(
+                                      hintText: 'Rate (₹)',
+                                      prefixIcon: Icon(Icons.currency_rupee),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.all(Radius.circular(12)),
                                       ),
-                                      Text(
-                                        'Usually 100',
-                                        style: _hintStyle,
-                                      ),
-                                    ],
+                                      contentPadding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                                    ),
+                                    validator: (value) {
+                                      if (_priceSystem == PriceSystem.fatBased) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Enter rate';
+                                        }
+                                        if (double.tryParse(value) == null) {
+                                          return 'Invalid number';
+                                        }
+                                      }
+                                      return null;
+                                    },
                                   ),
                                 ),
                               ],
                             ),
+                            
+                            const SizedBox(height: 8.0),
+                            
+                            // Helper text
+                            Text(
+                              'Rate will be calculated based on fat percentage for each entry.',
+                              style: _hintStyle,
+                            ),
                           ],
                         ),
+
+                      const SizedBox(height: 24.0),
                       
-                      const SizedBox(height: 20.0),
+                      // Save and Cancel buttons
+                      Row(
+                        children: [
+                          // Cancel button
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
+                              ),
+                              child: const Text('Cancel'),
+                            ),
+                          ),
+                          const SizedBox(width: 16.0),
+                          
+                          // Save button
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _saveSeller,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.purple,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
+                              ),
+                              child: Text(widget.seller == null ? 'Add Seller' : 'Save Changes'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 16.0),
                     ],
                   ),
                 ),
               ),
-            ),
-          ),
-          
-          // Bottom buttons section (stays in place)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Add Seller button
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _saveSeller,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Add Seller',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                
-                // Cancel button
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(
-                      color: Colors.blue,
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
         ],

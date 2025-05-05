@@ -19,7 +19,7 @@ class MilkDiaryReportService {
     required this.sellerProvider,
   });
 
-  Future<void> generateDailyReport(DateTime date) async {
+  Future<String> generateDailyReport(DateTime date) async {
     final pdf = pw.Document();
     final entries = entryProvider.getEntriesForDate(date);
     
@@ -55,8 +55,8 @@ class MilkDiaryReportService {
     final file = File('${output.path}/milk_report_${DateFormat('yyyyMMdd').format(date)}.pdf');
     await file.writeAsBytes(await pdf.save());
     
-    // Open the PDF file
-    OpenFile.open(file.path);
+    // Return the file path instead of opening it directly
+    return file.path;
   }
   
   Future<void> generateMonthlyReport(DateTime month) async {

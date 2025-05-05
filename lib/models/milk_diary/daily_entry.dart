@@ -17,6 +17,7 @@ class DailyEntry {
   final String? remarks;
   final EntryStatus status;
   final MilkType milkType;
+  final String unit; // 'L' for liter or 'kg' for kilogram
 
   DailyEntry({
     String? id,
@@ -31,6 +32,7 @@ class DailyEntry {
     this.remarks,
     this.status = EntryStatus.pending,
     this.milkType = MilkType.cow,
+    this.unit = 'L', // Default to Liter
   }) : id = id ?? const Uuid().v4();
 
   // Create a copy with modified fields
@@ -47,6 +49,7 @@ class DailyEntry {
     String? remarks,
     EntryStatus? status,
     MilkType? milkType,
+    String? unit,
   }) {
     return DailyEntry(
       id: id ?? this.id,
@@ -61,6 +64,7 @@ class DailyEntry {
       remarks: remarks ?? this.remarks,
       status: status ?? this.status,
       milkType: milkType ?? this.milkType,
+      unit: unit ?? this.unit,
     );
   }
 
@@ -79,6 +83,7 @@ class DailyEntry {
       'remarks': remarks,
       'status': status.toString().split('.').last,
       'milkType': milkType.toString().split('.').last,
+      'unit': unit,
     };
   }
 
@@ -108,11 +113,12 @@ class DailyEntry {
               (e) => e.toString().split('.').last == map['milkType'],
               orElse: () => MilkType.cow)
           : MilkType.cow,
+      unit: map['unit'] ?? 'L', // Default to L if not specified
     );
   }
 
   @override
   String toString() {
-    return 'DailyEntry(id: $id, sellerId: $sellerId, date: $date, shift: $shift, quantity: $quantity, fat: $fat, snf: $snf, rate: $rate, amount: $amount, status: $status, milkType: $milkType)';
+    return 'DailyEntry(id: $id, sellerId: $sellerId, date: $date, shift: $shift, quantity: $quantity, fat: $fat, snf: $snf, rate: $rate, amount: $amount, status: $status, milkType: $milkType, unit: $unit)';
   }
 } 
