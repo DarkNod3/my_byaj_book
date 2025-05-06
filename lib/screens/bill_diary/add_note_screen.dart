@@ -89,18 +89,12 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
               TextFormField(
                 controller: _contentController,
                 decoration: InputDecoration(
-                  labelText: 'Content',
+                  labelText: 'Content (Optional)',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.notes),
                   alignLabelWithHint: true,
                 ),
                 maxLines: 5,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter content';
-                  }
-                  return null;
-                },
               ),
               SizedBox(height: 16),
               Text(
@@ -256,7 +250,7 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
       // Update existing note
       final updatedNote = widget.note!.copyWith(
         title: _titleController.text,
-        content: _contentController.text,
+        content: _contentController.text.isEmpty ? "" : _contentController.text,
         category: _selectedCategory,
         reminderDate: _reminderDate,
         amount: amount,
@@ -271,7 +265,7 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
       final newNote = BillNote(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text,
-        content: _contentController.text,
+        content: _contentController.text.isEmpty ? "" : _contentController.text,
         category: _selectedCategory,
         createdDate: DateTime.now(),
         reminderDate: _reminderDate,

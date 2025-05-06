@@ -407,7 +407,7 @@ class ToolsPopup extends StatelessWidget {
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const TeaDiaryScreen(showAppBar: true)));
         break;
       case 'loans':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const LoanScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const LoanScreen(showAppBar: true)));
         break;
       case 'cards':
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const CardScreen(showAppBar: true)));

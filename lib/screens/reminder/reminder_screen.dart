@@ -6,9 +6,12 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:my_byaj_book/screens/card/card_screen.dart';
 import 'package:my_byaj_book/providers/card_provider.dart';
+import 'package:my_byaj_book/services/notification_service.dart';
 
 class ReminderScreen extends StatefulWidget {
   const ReminderScreen({super.key});
+  
+  static const routeName = '/reminders';
 
   @override
   State<ReminderScreen> createState() => _ReminderScreenState();
@@ -785,6 +788,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     // Add to provider
                     final provider = Provider.of<TransactionProvider>(context, listen: false);
                     provider.addManualReminder(reminder);
+                    
+                    // Schedule notification for the reminder
+                    NotificationService.instance.scheduleManualReminders(provider);
                     
                     // Close dialog and show success message
                     Navigator.pop(context);

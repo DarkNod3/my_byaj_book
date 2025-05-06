@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 class TransactionProvider extends ChangeNotifier {
   // Map of contactId -> list of transactions
   Map<String, List<Map<String, dynamic>>> _contactTransactions = {};
+  
+  // UUID generator
+  final _uuid = Uuid();
   
   // Constructor
   TransactionProvider() {
@@ -260,6 +264,9 @@ class TransactionProvider extends ChangeNotifier {
   // Add a manual reminder
   Future<bool> addManualReminder(Map<String, dynamic> reminder) async {
     try {
+      // Generate a unique ID for this reminder
+      reminder['id'] = _uuid.v4();
+      
       // Add to list
       _manualReminders.add(reminder);
       

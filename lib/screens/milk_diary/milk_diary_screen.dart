@@ -349,7 +349,14 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
         
         // Calculate payments for the current month
         final allPayments = sellerProvider.payments;
-        final paymentsForMonth = allPayments.where((payment) => 
+        
+        // Filter payments to only include those with existing sellers
+        final validPayments = allPayments.where((payment) => 
+          sellerProvider.getSellerById(payment.sellerId) != null
+        ).toList();
+        
+        // Filter further for the date range
+        final paymentsForMonth = validPayments.where((payment) => 
           payment.date.isAfter(firstDayOfMonth.subtract(const Duration(days: 1))) &&
           payment.date.isBefore(lastDayOfMonth.add(const Duration(days: 1)))
         ).toList();
@@ -454,21 +461,24 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
         // Calculate pending dues for each seller
         Map<String, double> pendingDues = {};
         
-        for (var seller in sellers) {
-          final entries = entryProvider.getEntriesForSeller(seller.id);
-          final totalAmount = entries.isEmpty ? 0.0 :
-            entries.fold(0.0, (sum, entry) => sum + entry.amount);
-          
-          // Get payments for this seller and calculate actual due amount
-          final sellerPayments = sellerProvider.getPaymentsForSeller(seller.id);
-          final totalPaid = sellerPayments.isEmpty ? 0.0 :
-            sellerPayments.fold(0.0, (sum, payment) => sum + payment.amount);
-          
-          pendingDues[seller.id] = totalAmount - totalPaid;
-          
-          // Update the seller's due amount for consistency
-          seller.updateDueAmount(pendingDues[seller.id] ?? 0.0);
-          sellerProvider.updateSeller(seller);
+        // Only process if there are sellers
+        if (sellers.isNotEmpty) {
+          for (var seller in sellers) {
+            final entries = entryProvider.getEntriesForSeller(seller.id);
+            final totalAmount = entries.isEmpty ? 0.0 :
+              entries.fold(0.0, (sum, entry) => sum + entry.amount);
+            
+            // Get payments for this seller and calculate actual due amount
+            final sellerPayments = sellerProvider.getPaymentsForSeller(seller.id);
+            final totalPaid = sellerPayments.isEmpty ? 0.0 :
+              sellerPayments.fold(0.0, (sum, payment) => sum + payment.amount);
+            
+            pendingDues[seller.id] = totalAmount - totalPaid;
+            
+            // Update the seller's due amount for consistency
+            seller.updateDueAmount(pendingDues[seller.id] ?? 0.0);
+            sellerProvider.updateSeller(seller);
+          }
         }
         
         return Row(
@@ -2255,11 +2265,17 @@ class SellerProfileScreen extends StatelessWidget {
                             _generateSellerReport(context, seller.id);
                           },
                           icon: const Icon(Icons.picture_as_pdf),
-                          label: const Text('GENERATE PDF'),
+                          label: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Text('GENERATE PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              Text('Complete History', style: TextStyle(fontSize: 9)),
+                            ],
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red.shade700,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -2348,12 +2364,31 @@ class SellerProfileScreen extends StatelessWidget {
   // Method to generate PDF report for a seller
   void _generateSellerReport(BuildContext context, String sellerId) async {
     try {
-      // Show loading dialog
+      // Show loading dialog with explicit message about generating full history
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
+        builder: (context) => Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 20),
+                const Text(
+                  'Generating Complete History Report',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Please wait while we gather all historical data...',
+                  style: TextStyle(fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
         ),
       );
       
@@ -2371,14 +2406,15 @@ class SellerProfileScreen extends StatelessWidget {
         sellerProvider: sellerProvider,
       );
       
-      // Get the date range for the report (current month by default)
+      // Get the date range for the current month (only used for the "current month" section)
+      // The actual report will include ALL historical data
       final now = DateTime.now();
       final startDate = DateTime(now.year, now.month, 1);
       final endDate = DateTime(now.year, now.month + 1, 0);
       
-      // Generate seller-specific report
+      // Generate seller-specific report with all history
       await reportService.generateSellerReport(
-        seller,  // Pass the seller object
+        seller,
         startDate,
         endDate,
       );
@@ -2387,12 +2423,22 @@ class SellerProfileScreen extends StatelessWidget {
       if (context.mounted) {
         Navigator.pop(context);
         
-        // Show success message
+        // Show success message indicating complete history was included
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Seller report generated successfully'),
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Complete history report generated successfully'),
+                Text(
+                  'All data for ${seller.name} included',
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                ),
+              ],
+            ),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -2842,17 +2888,38 @@ void _deleteSeller(BuildContext context, String sellerId) async {
       await entryProvider.deleteEntry(entry.id);
     }
     
+    // Delete all payments for this seller
+    final payments = sellerProvider.getPaymentsForSeller(sellerId);
+    for (var payment in payments) {
+      await sellerProvider.deletePayment(payment.id);
+    }
+    
     // Delete the seller
     await sellerProvider.deleteSeller(sellerId);
     
+    // Force UI refresh by notifying listeners
+    entryProvider.notifyListeners();
+    sellerProvider.notifyListeners();
+    
+    // Additional UI refresh to ensure summary card updates properly
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Seller deleted successfully'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      // To trigger a complete refresh of the UI and data
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Simulate a state change to trigger a rebuild of the screen
+      if (context.mounted) {
+        final state = context.findAncestorStateOfType<_MilkDiaryScreenState>();
+        state?.setState(() {});
+        
+        // Show confirmation
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Seller deleted successfully'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   } catch (e) {
     if (context.mounted) {
@@ -2860,7 +2927,7 @@ void _deleteSeller(BuildContext context, String sellerId) async {
         SnackBar(
           content: Text('Error deleting seller: $e'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
+          duration: Duration(seconds: 3),
         ),
       );
     }

@@ -17,6 +17,7 @@ import 'screens/profile/profile_edit_screen.dart';
 import 'utils/string_extensions.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
 import 'package:my_byaj_book/screens/tea_diary/tea_diary_screen.dart';
+import 'package:my_byaj_book/screens/reminder/reminder_screen.dart';
 import 'services/notification_service.dart';
 import 'models/loan_notification.dart';
 import 'screens/loan/loan_details_screen.dart';
@@ -110,6 +111,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // Also schedule card due date notifications
     final cardProvider = Provider.of<CardProvider>(navigatorKey.currentContext!, listen: false);
     notificationService.scheduleCardDueNotifications(cardProvider);
+    
+    // Schedule manual reminders
+    final transactionProvider = Provider.of<TransactionProvider>(navigatorKey.currentContext!, listen: false);
+    notificationService.scheduleManualReminders(transactionProvider);
   }
 
   // This widget is the root of your application.
@@ -143,6 +148,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               NavSettingsScreen.routeName: (ctx) => const NavSettingsScreen(),
               TeaDiaryScreen.routeName: (ctx) => const TeaDiaryScreen(showAppBar: true),
               ProfileEditScreen.routeName: (ctx) => const ProfileEditScreen(),
+              ReminderScreen.routeName: (ctx) => const ReminderScreen(),
             },
           );
         },

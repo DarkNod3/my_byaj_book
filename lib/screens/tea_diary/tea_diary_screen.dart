@@ -669,6 +669,9 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     int newCoffeeCups = 0;
     int newMilkCups = 0;
     
+    // Add date selection with default as today
+    DateTime selectedDate = DateTime.now();
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -682,6 +685,22 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
             final int originalCups = customer.cups;
             
             int getTotalNewCups() => newTeaCups + newCoffeeCups + newMilkCups;
+            
+            // Select date method
+            Future<void> _selectDate(BuildContext context) async {
+              final DateTime? picked = await showDatePicker(
+                context: context,
+                initialDate: selectedDate,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now(),
+              );
+              
+              if (picked != null && picked != selectedDate) {
+                setModalState(() {
+                  selectedDate = picked;
+                });
+              }
+            }
             
             // Add cup functions
             void addTeaCup() {
@@ -729,13 +748,19 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                 customer.cups += newTeaCups;
                 customer.totalAmount += newTeaCups * customer.teaRate;
                 
-                // Add to history
+                // Add to history - use selected date for timestamp instead of current time
                 customer.history.add(
                   CustomerEntry(
                     type: EntryType.tea,
                     cups: newTeaCups,
                     amount: newTeaCups * customer.teaRate,
-                    timestamp: DateTime.now(),
+                    timestamp: DateTime(
+                      selectedDate.year,
+                      selectedDate.month,
+                      selectedDate.day,
+                      DateTime.now().hour,
+                      DateTime.now().minute,
+                    ),
                     beverageType: 'tea',
                   ),
                 );
@@ -746,13 +771,19 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                 customer.cups += newCoffeeCups;
                 customer.totalAmount += newCoffeeCups * customer.coffeeRate;
                 
-                // Add to history
+                // Add to history - use selected date for timestamp
                 customer.history.add(
                   CustomerEntry(
                     type: EntryType.tea,
                     cups: newCoffeeCups,
                     amount: newCoffeeCups * customer.coffeeRate,
-                    timestamp: DateTime.now(),
+                    timestamp: DateTime(
+                      selectedDate.year,
+                      selectedDate.month,
+                      selectedDate.day,
+                      DateTime.now().hour,
+                      DateTime.now().minute,
+                    ),
                     beverageType: 'coffee',
                   ),
                 );
@@ -763,13 +794,19 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                 customer.cups += newMilkCups;
                 customer.totalAmount += newMilkCups * customer.milkRate;
                 
-                // Add to history
+                // Add to history - use selected date for timestamp
                 customer.history.add(
                   CustomerEntry(
                     type: EntryType.tea,
                     cups: newMilkCups,
                     amount: newMilkCups * customer.milkRate,
-                    timestamp: DateTime.now(),
+                    timestamp: DateTime(
+                      selectedDate.year,
+                      selectedDate.month,
+                      selectedDate.day,
+                      DateTime.now().hour,
+                      DateTime.now().minute,
+                    ),
                     beverageType: 'milk',
                   ),
                 );
@@ -823,6 +860,37 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  
+                  // Add Date Selector
+                  InkWell(
+                    onTap: () => _selectDate(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.teal.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.teal.shade50,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.calendar_today, size: 16, color: Colors.teal.shade700),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Date: ${DateFormat('dd MMM yyyy').format(selectedDate)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.teal.shade700,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(Icons.arrow_drop_down, color: Colors.teal.shade700),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -1562,9 +1630,9 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     _pdfSummaryItem('Total Cups', totalCups.toInt().toString()),
-                    _pdfSummaryItem('Total Sales', '${totalAmount.toStringAsFixed(2)}'),
-                    _pdfSummaryItem('Collected', '${collectedAmount.toStringAsFixed(2)}'),
-                    _pdfSummaryItem('Remaining', '${remainingAmount.toStringAsFixed(2)}'),
+                    _pdfSummaryItem('Total Sales', 'Rs.${totalAmount.toStringAsFixed(2)}'),
+                    _pdfSummaryItem('Collected', 'Rs.${collectedAmount.toStringAsFixed(2)}'),
+                    _pdfSummaryItem('Remaining', 'Rs.${remainingAmount.toStringAsFixed(2)}'),
                   ],
                 ),
               ),
@@ -1599,7 +1667,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                           'Rate',
                           style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                           textAlign: pw.TextAlign.center,
-      ),
+                        ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(5),
@@ -1652,14 +1720,14 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(5),
                           child: pw.Text(
-                            '${customer.totalAmount.toStringAsFixed(2)}',
+                            'Rs.${customer.totalAmount.toStringAsFixed(2)}',
                             textAlign: pw.TextAlign.center,
                           ),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(5),
                           child: pw.Text(
-                            '${pendingAmount.toStringAsFixed(2)}',
+                            'Rs.${pendingAmount.toStringAsFixed(2)}',
                             style: pendingAmount > 0
                                 ? const pw.TextStyle(color: PdfColors.red)
                                 : const pw.TextStyle(color: PdfColors.green),
@@ -1694,28 +1762,32 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     return pdf;
   }
   
+  // Helper method for PDF summary items 
   pw.Widget _pdfSummaryItem(String title, String value) {
-    return pw.Column(
-      children: [
-        pw.Text(
-          title,
-          style: const pw.TextStyle(
-            fontSize: 10,
-            color: PdfColors.grey700,
+    return pw.Expanded(
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          pw.Text(
+            title,
+            style: const pw.TextStyle(
+              fontSize: 10,
+              color: PdfColors.grey700,
+            ),
           ),
-        ),
-        pw.SizedBox(height: 2),
-        pw.Text(
-          value,
-          style: pw.TextStyle(
-            fontSize: 14,
-            fontWeight: pw.FontWeight.bold,
+          pw.SizedBox(height: 4),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.bold,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
-
+  
   // Replace the improperly placed method with a proper class method at the class level
   // Add this method properly outside the build method
   void _showSelectCustomerForPaymentDialog() {
@@ -2403,6 +2475,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Customer name and PDF button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -2430,6 +2503,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                 ],
               ),
               
+              // Phone number if available
               if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4.0),
@@ -2442,6 +2516,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                   ),
                 ),
               const SizedBox(height: 8),
+              
               // Display all rates in a row
               Row(
                 children: [
@@ -2455,39 +2530,90 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     _buildRateChip('Milk', customer.milkRate, Colors.blue[100]!, Colors.blue[700]!),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 12),
+              
+              // Summary Card - NEW ADDITION
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.teal[50],
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2),
+                      spreadRadius: 1,
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    // Total Cups
+                    _buildSummaryItem(
+                      'Total Cups',
+                      '${customer.cups}',
+                      Icons.local_cafe,
+                      Colors.orange[700]!,
+                    ),
+                    
+                    // Total Amount
+                    _buildSummaryItem(
+                      'Total Amount',
+                      '₹${customer.totalAmount.toStringAsFixed(2)}',
+                      Icons.receipt,
+                      Colors.teal[700]!,
+                    ),
+                    
+                    // Received Amount
+                    _buildSummaryItem(
+                      'Received',
+                      '₹${customer.paymentsMade.toStringAsFixed(2)}',
+                      Icons.payments,
+                      Colors.green[700]!,
+                    ),
+                    
+                    // Due Amount
+                    _buildSummaryItem(
+                      'Due',
+                      '₹${(customer.totalAmount - customer.paymentsMade).toStringAsFixed(2)}',
+                      Icons.account_balance_wallet,
+                      Colors.red[700]!,
+                    ),
+                  ],
+                ),
+              ),
+              
+              const Divider(height: 24),
+              
+              // Transaction History title with action buttons
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Total Cups: ${customer.cups}',
+                  const Text(
+                    'Transaction History',
                     style: TextStyle(
-                      color: Colors.grey[800],
-                      fontSize: 14,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Text(
-                    'Balance: ₹${(customer.totalAmount - customer.paymentsMade).toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: Colors.red[700],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                  // Add payment button
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _addPayment(customer);
+                    },
+                    icon: Icon(Icons.add_circle, color: Colors.green[700], size: 18),
+                    label: Text('Add Payment', style: TextStyle(color: Colors.green[700])),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     ),
                   ),
                 ],
               ),
               
-              const Divider(height: 24),
-              
-              const Text(
-                'Transaction History',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              
+              // Transaction history list
               Expanded(
                 child: customer.history.isEmpty
                     ? const Center(
@@ -2496,54 +2622,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                           style: TextStyle(color: Colors.grey),
                         ),
                       )
-                    : ListView.builder(
-                        itemCount: customer.history.length,
-                        itemBuilder: (context, index) {
-                          final entry = customer.history[index];
-                          final bool isPayment = entry.type == EntryType.payment;
-                          
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: isPayment 
-                                  ? Colors.green[100]
-                                  : Colors.orange[100],
-                              child: Icon(
-                                isPayment 
-                                    ? Icons.payment
-                                    : Icons.local_cafe,
-                                color: isPayment 
-                                    ? Colors.green[700]
-                                    : Colors.orange[700],
-                                size: 20,
-                              ),
-                            ),
-                            title: Text(
-                              isPayment 
-                                  ? 'Payment Received'
-                                  : '${entry.cups} cups of ${entry.beverageType ?? 'tea'}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            subtitle: Text(
-                              DateFormat('dd MMM yyyy, hh:mm a').format(entry.timestamp),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            trailing: Text(
-                              isPayment 
-                                  ? '+₹${entry.amount.toStringAsFixed(2)}'
-                                  : '-₹${entry.amount.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: isPayment ? Colors.green[700] : Colors.red[700],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                    : _buildGroupedHistoryList(customer.history),
               ),
               
               Padding(
@@ -2598,6 +2677,33 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
       ),
     );
   }
+  
+  // Helper method to build customer summary items
+  Widget _buildSummaryItem(String title, String value, IconData icon, Color color) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
+  }
 
   void _showAddSellerDialog() {
     // Implementation...
@@ -2605,61 +2711,121 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
   
   // Add missing methods
   void _addPayment(Customer customer) {
+    // Default date to today
+    DateTime selectedDate = DateTime.now();
+    double amount = 0;
+    
     showDialog(
       context: context,
       builder: (context) {
-        double amount = 0;
-        
-        return AlertDialog(
-          title: const Text('Add Payment'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Amount'),
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  amount = double.tryParse(value) ?? 0;
-                },
-              ),
-              const SizedBox(height: 8),
-              Text('Current Balance: ₹${(customer.totalAmount - customer.paymentsMade).toStringAsFixed(2)}'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            // Method to select date
+            Future<void> _selectDate() async {
+              final DateTime? picked = await showDatePicker(
+                context: context,
+                initialDate: selectedDate,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now(),
+              );
+              
+              if (picked != null) {
                 setState(() {
-                  customer.paymentsMade += amount;
-                  
-                  // Add to history
-                  customer.history.add(
-                    CustomerEntry(
-                      type: EntryType.payment,
-                      amount: amount,
-                      timestamp: DateTime.now(),
-                    ),
-                  );
-                  
-                  // Update timestamp
-                  customer.lastUpdated = DateTime.now();
-                  
-                  _updateTotals();
-                  _sortCustomers(); // Re-sort to put most recent at top
-                  _saveCustomers(); // Save changes
+                  selectedDate = picked;
                 });
-                Navigator.of(context).pop();
-              },
-              child: const Text('Add Payment'),
-            ),
-          ],
+              }
+            }
+            
+            return AlertDialog(
+              title: const Text('Add Payment'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    autofocus: true,
+                    decoration: const InputDecoration(labelText: 'Amount'),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      amount = double.tryParse(value) ?? 0;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Date selector
+                  InkWell(
+                    onTap: _selectDate,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.teal.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.teal.shade50,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.calendar_today, size: 16, color: Colors.teal.shade700),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Date: ${DateFormat('dd MMM yyyy').format(selectedDate)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.teal.shade700,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(Icons.arrow_drop_down, color: Colors.teal.shade700),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  Text('Current Balance: ₹${(customer.totalAmount - customer.paymentsMade).toStringAsFixed(2)}'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      customer.paymentsMade += amount;
+                      
+                      // Add to history - use selected date
+                      customer.history.add(
+                        CustomerEntry(
+                          type: EntryType.payment,
+                          amount: amount,
+                          timestamp: DateTime(
+                            selectedDate.year,
+                            selectedDate.month,
+                            selectedDate.day,
+                            DateTime.now().hour,
+                            DateTime.now().minute,
+                          ),
+                        ),
+                      );
+                      
+                      // Update timestamp
+                      customer.lastUpdated = DateTime.now();
+                      
+                      _updateTotals();
+                      _sortCustomers(); // Re-sort to put most recent at top
+                      _saveCustomers(); // Save changes
+                    });
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Add Payment'),
+                ),
+              ],
+            );
+          }
         );
       },
     );
@@ -3043,314 +3209,466 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     return _allCustomers.any((customer) => customer.name.toLowerCase() == name.toLowerCase());
   }
 
-  // Add the new method to generate PDF for a single customer
+  // Generate PDF for a specific customer
   Future<void> _generateCustomerPdf(Customer customer) async {
     try {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-      
-      // Create PDF document
+      // Create the PDF document with complete history
       final pdf = await _createCustomerPdf(customer);
       
-      // Get the app's documents directory
-      final directory = await getApplicationDocumentsDirectory();
-      final reportName = 'customer_${customer.name.replaceAll(' ', '_')}_${DateFormat('dd_MM_yyyy').format(DateTime.now())}.pdf';
-      final filePath = '${directory.path}/$reportName';
+      // Generate a unique filename with timestamp
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final String fileName = '${customer.name.replaceAll(' ', '_')}_history_$timestamp.pdf';
       
-      // Save the PDF
-      final file = File(filePath);
+      // Get the documents directory
+      final output = await getApplicationDocumentsDirectory();
+      final file = File('${output.path}/$fileName');
+      
+      // Save the PDF file
       await file.writeAsBytes(await pdf.save());
       
-      // Close loading dialog
-      Navigator.pop(context);
+      // Open the PDF file
+      OpenFile.open(file.path);
       
-      // Automatically open the PDF file
-      await OpenFile.open(filePath);
-      
-      // Show a simple snackbar notification that PDF was saved
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('PDF report saved and opened: $reportName'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF exported successfully: $fileName'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     } catch (e) {
-      // Close loading dialog and show error
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error generating report: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating PDF: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
-
-  // Create PDF for a single customer with detailed transaction history
+  
+  // Create a PDF document for a customer with all transaction history
   Future<pw.Document> _createCustomerPdf(Customer customer) async {
     final pdf = pw.Document();
-    final pendingAmount = customer.totalAmount - customer.paymentsMade;
+    
+    // Sort history by timestamp (newest first)
+    final sortedHistory = List<CustomerEntry>.from(customer.history)
+      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    
+    // Calculate summary statistics
+    double totalDue = customer.totalAmount - customer.paymentsMade;
     
     pdf.addPage(
-      pw.Page(
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Header with app name
-              pw.Container(
-                padding: const pw.EdgeInsets.all(12),
-                color: PdfColors.teal50,
-                width: double.infinity,
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.center,
-                  children: [
-                    pw.Text(
-                      'My Byaj Book - Tea Diary',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.teal800,
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) => [
+          // Header with app name and customer info
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            color: PdfColors.teal50,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Text(
+                  'My Byaj Book - Tea Diary',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 5),
+                pw.Text(
+                  'Customer Transaction Report',
+                  style: const pw.TextStyle(
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          pw.SizedBox(height: 15),
+          
+          // Customer information
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Customer: ${customer.name}',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
+                  pw.Text(
+                    'Phone: ${customer.phoneNumber}',
+                    style: const pw.TextStyle(
+                      fontSize: 12,
+                    ),
+                  ),
+                pw.SizedBox(height: 5),
+                pw.Text(
+                  'Tea Rate: Rs.${customer.teaRate.toStringAsFixed(2)}/cup',
+                  style: const pw.TextStyle(
+                    fontSize: 12,
+                  ),
+                ),
+                if (customer.coffeeRate > 0)
+                  pw.Text(
+                    'Coffee Rate: Rs.${customer.coffeeRate.toStringAsFixed(2)}/cup',
+                    style: const pw.TextStyle(
+                      fontSize: 12,
+                    ),
+                  ),
+                if (customer.milkRate > 0)
+                  pw.Text(
+                    'Milk Rate: Rs.${customer.milkRate.toStringAsFixed(2)}/cup',
+                    style: const pw.TextStyle(
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          
+          pw.SizedBox(height: 15),
+          
+          // Summary section in a nice card format
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.teal50,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                _pdfSummaryItem('Total Cups', customer.cups.toString()),
+                _pdfSummaryItem('Total Amount', 'Rs.${customer.totalAmount.toStringAsFixed(2)}'),
+                _pdfSummaryItem('Paid Amount', 'Rs.${customer.paymentsMade.toStringAsFixed(2)}'),
+                _pdfSummaryItem('Due Amount', 'Rs.${totalDue.toStringAsFixed(2)}'),
+              ],
+            ),
+          ),
+          
+          pw.SizedBox(height: 20),
+          
+          // Transactions history section
+          pw.Text(
+            'Transaction History',
+            style: pw.TextStyle(
+              fontSize: 16,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          
+          pw.SizedBox(height: 10),
+          
+          // Transaction history table
+          sortedHistory.isEmpty
+              ? pw.Center(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(vertical: 20),
+                    child: pw.Text(
+                      'No transaction history available',
+                      style: const pw.TextStyle(
+                        color: PdfColors.grey600, 
+                        fontStyle: pw.FontStyle.italic,
                       ),
                     ),
-                    pw.SizedBox(height: 5),
-                    pw.Text(
-                      'Customer Report',
-                      style: const pw.TextStyle(
-                        fontSize: 14,
-                        color: PdfColors.teal700,
+                  ),
+                )
+              : pw.Table(
+                  border: pw.TableBorder.all(color: PdfColors.grey300),
+                  children: [
+                    // Table header
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(color: PdfColors.teal100),
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(
+                            'Date & Time',
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(
+                            'Type',
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(
+                            'Details',
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(
+                            'Amount',
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                            textAlign: pw.TextAlign.right,
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    // Table data
+                    ...sortedHistory.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      CustomerEntry historyItem = entry.value;
+                      bool isPayment = historyItem.type == EntryType.payment;
+                      
+                      return pw.TableRow(
+                        decoration: index % 2 == 0 
+                            ? const pw.BoxDecoration(color: PdfColors.grey100)
+                            : const pw.BoxDecoration(color: PdfColors.white),
+                        children: [
+                          // Date column
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              DateFormat('dd MMM yyyy, hh:mm a').format(historyItem.timestamp),
+                              style: const pw.TextStyle(fontSize: 9),
+                            ),
+                          ),
+                          
+                          // Type column
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              isPayment ? 'Payment' : 'Purchase',
+                              style: pw.TextStyle(
+                                color: isPayment ? PdfColors.green700 : PdfColors.red700,
+                              ),
+                            ),
+                          ),
+                          
+                          // Details column
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              isPayment 
+                                ? 'Payment received'
+                                : '${historyItem.cups} cups of ${historyItem.beverageType ?? 'tea'}',
+                            ),
+                          ),
+                          
+                          // Amount column
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              isPayment 
+                                ? '+ Rs.${historyItem.amount.toStringAsFixed(2)}'
+                                : '- Rs.${historyItem.amount.toStringAsFixed(2)}',
+                              style: pw.TextStyle(
+                                color: isPayment ? PdfColors.green700 : PdfColors.red700,
+                              ),
+                              textAlign: pw.TextAlign.right,
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
+          
+          pw.Spacer(),
+          
+          // Footer
+          pw.Container(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Text(
+                  'Generated on: ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey600,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Text(
+                  'My Byaj Book App',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.teal900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    
+    return pdf;
+  }
+
+  // Helper method to build grouped history list by date
+  Widget _buildGroupedHistoryList(List<CustomerEntry> history) {
+    // Group entries by date (ignoring time)
+    final Map<String, List<CustomerEntry>> groupedByDate = {};
+    
+    for (var entry in history) {
+      final dateKey = DateFormat('yyyy-MM-dd').format(entry.timestamp);
+      if (!groupedByDate.containsKey(dateKey)) {
+        groupedByDate[dateKey] = [];
+      }
+      groupedByDate[dateKey]!.add(entry);
+    }
+    
+    // Sort dates (newest first)
+    final sortedDates = groupedByDate.keys.toList()
+      ..sort((a, b) => b.compareTo(a));
+    
+    return ListView.builder(
+      itemCount: sortedDates.length,
+      itemBuilder: (context, index) {
+        final dateKey = sortedDates[index];
+        final entries = groupedByDate[dateKey]!;
+        final date = DateTime.parse(dateKey);
+        
+        // Calculate total cups for this date (non-payment entries)
+        final totalCups = entries
+            .where((e) => e.type == EntryType.tea)
+            .fold(0, (sum, entry) => sum + entry.cups);
+            
+        // Calculate total payments for this date
+        final totalPayments = entries
+            .where((e) => e.type == EntryType.payment)
+            .fold(0.0, (sum, entry) => sum + entry.amount);
+        
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Date header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      DateFormat('dd MMM yyyy').format(date),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      'Total: ${totalCups} cups',
+                      style: TextStyle(
+                        color: Colors.teal[800],
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Customer Details
-              pw.Container(
-                padding: const pw.EdgeInsets.all(12),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.teal200),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      'Customer: ${customer.name}',
-                      style: pw.TextStyle(
-                        fontSize: 16,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                    
-                    if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
-                      pw.Text('Phone: ${customer.phoneNumber}'),
-                    
-                    pw.SizedBox(height: 10),
-                    
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                const Divider(),
+                // Details for this date
+                ...entries.map((entry) {
+                  final bool isPayment = entry.type == EntryType.payment;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        Row(
                           children: [
-                            pw.Text('Tea Rate: Rs. ${customer.teaRate.toStringAsFixed(2)}/cup'),
-                            if (customer.coffeeRate > 0)
-                              pw.Text('Coffee Rate: Rs. ${customer.coffeeRate.toStringAsFixed(2)}/cup'),
-                            if (customer.milkRate > 0)
-                              pw.Text('Milk Rate: Rs. ${customer.milkRate.toStringAsFixed(2)}/cup'),
+                            Icon(
+                              isPayment ? Icons.payment : Icons.local_cafe,
+                              size: 16,
+                              color: isPayment ? Colors.green[700] : Colors.orange[700],
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              isPayment 
+                                  ? 'Payment' 
+                                  : '${entry.cups} cups',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[800],
+                              ),
+                            ),
                           ],
                         ),
-                        pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        Row(
                           children: [
-                            pw.Text('Total Cups: ${customer.cups}'),
-                            pw.Text('Total Amount: Rs. ${customer.totalAmount.toStringAsFixed(2)}'),
-                            pw.Text('Amount Paid: Rs. ${customer.paymentsMade.toStringAsFixed(2)}'),
-                            pw.Text(
-                              'Balance Due: Rs. ${pendingAmount.toStringAsFixed(2)}',
-                              style: pw.TextStyle(
-                                fontWeight: pw.FontWeight.bold,
-                                color: pendingAmount > 0 ? PdfColors.red : PdfColors.green,
+                            Text(
+                              DateFormat('hh:mm a').format(entry.timestamp),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              isPayment 
+                                  ? '+₹${entry.amount.toStringAsFixed(2)}'
+                                  : '-₹${entry.amount.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: isPayment ? Colors.green[700] : Colors.red[700],
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Transaction History
-              pw.Text(
-                'Transaction History',
-                style: pw.TextStyle(
-                  fontSize: 16, 
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.teal800,
-                ),
-              ),
-              
-              pw.SizedBox(height: 10),
-              
-              // Transaction table
-              customer.history.isEmpty
-                ? pw.Center(
-                    child: pw.Padding(
-                      padding: const pw.EdgeInsets.symmetric(vertical: 30),
-                      child: pw.Text(
-                        'No transaction history available',
-                        style: const pw.TextStyle(
-                          color: PdfColors.grey600, 
-                          fontStyle: pw.FontStyle.italic,
+                  );
+                }).toList(),
+                
+                // Show total payments if any
+                if (totalPayments > 0) ...[
+                  const Divider(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Total payments: ',
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 13,
                         ),
                       ),
-                    ),
-                  )
-                : pw.Table(
-                    border: pw.TableBorder.all(color: PdfColors.grey300),
-                    children: [
-                      // Table header
-                      pw.TableRow(
-                        decoration: const pw.BoxDecoration(color: PdfColors.teal100),
-                        children: [
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(6),
-                            child: pw.Text(
-                              'Date & Time',
-                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(6),
-                            child: pw.Text(
-                              'Type',
-                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(6),
-                            child: pw.Text(
-                              'Details',
-                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(6),
-                            child: pw.Text(
-                              'Amount',
-                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                              textAlign: pw.TextAlign.right,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        '+₹${totalPayments.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
-                      
-                      // Table data
-                      ...customer.history.asMap().entries.map((entry) {
-                        int index = entry.key;
-                        CustomerEntry historyItem = entry.value;
-                        bool isPayment = historyItem.type == EntryType.payment;
-                        
-                        return pw.TableRow(
-                          decoration: index % 2 == 0 
-                              ? const pw.BoxDecoration(color: PdfColors.grey100)
-                              : const pw.BoxDecoration(color: PdfColors.white),
-                          children: [
-                            // Date column
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(6),
-                              child: pw.Text(
-                                DateFormat('dd MMM yyyy, hh:mm a').format(historyItem.timestamp),
-                                style: const pw.TextStyle(fontSize: 9),
-                              ),
-                            ),
-                            
-                            // Type column
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(6),
-                              child: pw.Text(
-                                isPayment ? 'Payment' : 'Purchase',
-                                style: pw.TextStyle(
-                                  color: isPayment ? PdfColors.green700 : PdfColors.red700,
-                                ),
-                              ),
-                            ),
-                            
-                            // Details column
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(6),
-                              child: pw.Text(
-                                isPayment 
-                                  ? 'Payment received'
-                                  : '${historyItem.cups} cups of ${historyItem.beverageType ?? 'tea'}',
-                              ),
-                            ),
-                            
-                            // Amount column
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(6),
-                              child: pw.Text(
-                                isPayment 
-                                  ? '+ Rs. ${historyItem.amount.toStringAsFixed(2)}'
-                                  : '- Rs. ${historyItem.amount.toStringAsFixed(2)}',
-                                style: pw.TextStyle(
-                                  color: isPayment ? PdfColors.green700 : PdfColors.red700,
-                                ),
-                                textAlign: pw.TextAlign.right,
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
                     ],
                   ),
-              
-              pw.Spacer(),
-              
-              // Footer
-              pw.Container(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      'Generated on ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
-                      style: const pw.TextStyle(
-                        fontSize: 10,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                    pw.SizedBox(height: 4),
-                    pw.Text(
-                      'My Byaj Book App',
-                      style: const pw.TextStyle(
-                        fontSize: 10,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.teal900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
-    
-    return pdf;
   }
 }
 

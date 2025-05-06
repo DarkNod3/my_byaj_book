@@ -104,30 +104,53 @@ class MilkDiaryReportService {
   Future<void> generateSellerReport(MilkSeller seller, DateTime fromDate, DateTime toDate) async {
     final pdf = pw.Document();
     
-    // Get all entries for this seller in the date range
-    final entries = entryProvider.entries.where(
-      (entry) => entry.sellerId == seller.id && 
-                entry.date.isAfter(fromDate.subtract(const Duration(days: 1))) &&
+    // Get ALL entries for this seller (complete history)
+    final allEntries = entryProvider.entries.where(
+      (entry) => entry.sellerId == seller.id
+    ).toList();
+    
+    // Get ALL payments for this seller (complete history)
+    final allPayments = sellerProvider.getPaymentsForSeller(seller.id);
+    
+    // Get current month entries for this seller for the recent activity section
+    final entriesInDateRange = allEntries.where(
+      (entry) => entry.date.isAfter(fromDate.subtract(const Duration(days: 1))) &&
                 entry.date.isBefore(toDate.add(const Duration(days: 1)))
     ).toList();
     
-    // Get all payments for this seller in the date range
-    final payments = sellerProvider.getPaymentsForSeller(seller.id).where(
+    // Get current month payments for the recent activity section
+    final paymentsInDateRange = allPayments.where(
       (payment) => payment.date.isAfter(fromDate.subtract(const Duration(days: 1))) &&
                   payment.date.isBefore(toDate.add(const Duration(days: 1)))
     ).toList();
     
     // Sort entries by date
-    entries.sort((a, b) => b.date.compareTo(a.date)); // Most recent first
+    allEntries.sort((a, b) => b.date.compareTo(a.date)); // Most recent first
+    entriesInDateRange.sort((a, b) => b.date.compareTo(a.date)); // Most recent first
     
     // Sort payments by date
-    payments.sort((a, b) => b.date.compareTo(a.date)); // Most recent first
+    allPayments.sort((a, b) => b.date.compareTo(a.date)); // Most recent first
+    paymentsInDateRange.sort((a, b) => b.date.compareTo(a.date)); // Most recent first
     
-    // Calculate total amounts
-    final totalQuantity = entries.fold(0.0, (sum, entry) => sum + entry.quantity);
-    final totalAmount = entries.fold(0.0, (sum, entry) => sum + entry.amount);
-    final totalPaid = payments.fold(0.0, (sum, payment) => sum + payment.amount);
+    // Calculate all-time totals
+    final totalQuantity = allEntries.fold(0.0, (sum, entry) => sum + entry.quantity);
+    final totalAmount = allEntries.fold(0.0, (sum, entry) => sum + entry.amount);
+    final totalPaid = allPayments.fold(0.0, (sum, payment) => sum + payment.amount);
     final amountDue = totalAmount - totalPaid;
+    
+    // Calculate current month totals (for comparison)
+    final currentMonthQuantity = entriesInDateRange.fold(0.0, (sum, entry) => sum + entry.quantity);
+    final currentMonthAmount = entriesInDateRange.fold(0.0, (sum, entry) => sum + entry.amount);
+    final currentMonthPaid = paymentsInDateRange.fold(0.0, (sum, payment) => sum + payment.amount);
+    
+    // Get first transaction date (all-time) for "Since" date
+    DateTime? firstTransactionDate;
+    if (allEntries.isNotEmpty) {
+      // Find earliest entry date
+      firstTransactionDate = allEntries
+          .map((e) => e.date)
+          .reduce((a, b) => a.isBefore(b) ? a : b);
+    }
     
     try {
       // Create PDF content
@@ -149,9 +172,9 @@ class MilkDiaryReportService {
             pw.SizedBox(height: 10),
             
             // Seller Report Header
-            _buildSellerReportHeader(seller, fromDate, toDate),
+            _buildSellerReportHeader(seller, fromDate, toDate, firstTransactionDate),
             
-            // Summary section
+            // All-time Summary section
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
@@ -162,7 +185,7 @@ class MilkDiaryReportService {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'Summary',
+                    'All-Time Summary',
                     style: pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
@@ -173,9 +196,9 @@ class MilkDiaryReportService {
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       _buildSummaryPdfItem('Total Milk', '${totalQuantity.toStringAsFixed(2)} L'),
-                      _buildSummaryPdfItem('Total Amount', 'Rs. ${totalAmount.toStringAsFixed(2)}'),
-                      _buildSummaryPdfItem('Total Paid', 'Rs. ${totalPaid.toStringAsFixed(2)}'),
-                      _buildSummaryPdfItem('Amount Due', 'Rs. ${amountDue.toStringAsFixed(2)}'),
+                      _buildSummaryPdfItem('Total Amount', '₹${totalAmount.toStringAsFixed(2)}'),
+                      _buildSummaryPdfItem('Total Paid', '₹${totalPaid.toStringAsFixed(2)}'),
+                      _buildSummaryPdfItem('Amount Due', '₹${amountDue.toStringAsFixed(2)}'),
                     ],
                   ),
                 ],
@@ -183,28 +206,59 @@ class MilkDiaryReportService {
             ),
             pw.SizedBox(height: 15),
             
-            // Milk Entries Table
+            // Current Month Summary section
+            pw.Container(
+              padding: const pw.EdgeInsets.all(10),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.amber50,
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'Current Month Summary (${DateFormat('MMMM yyyy').format(fromDate)})',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 10),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildSummaryPdfItem('Month Milk', '${currentMonthQuantity.toStringAsFixed(2)} L'),
+                      _buildSummaryPdfItem('Month Amount', '₹${currentMonthAmount.toStringAsFixed(2)}'),
+                      _buildSummaryPdfItem('Month Paid', '₹${currentMonthPaid.toStringAsFixed(2)}'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 15),
+            
+            // All-time Milk Entries Table
             pw.Text(
-              'Milk Entries',
+              'All Milk Entries',
               style: pw.TextStyle(
                 fontSize: 16,
                 fontWeight: pw.FontWeight.bold,
               ),
             ),
             pw.SizedBox(height: 10),
-            _buildSellerDetailTable(entries),
+            _buildSellerDetailTable(allEntries),
             pw.SizedBox(height: 20),
             
-            // Payment History Table
+            // All-time Payment History Table
             pw.Text(
-              'Payment History',
+              'All Payment History',
               style: pw.TextStyle(
                 fontSize: 16,
                 fontWeight: pw.FontWeight.bold,
               ),
             ),
             pw.SizedBox(height: 10),
-            _buildPaymentHistoryTable(payments),
+            _buildPaymentHistoryTable(allPayments),
             
             // Footer with generation date
             pw.SizedBox(height: 20),
@@ -224,7 +278,7 @@ class MilkDiaryReportService {
       
       // Save the PDF file
       final output = await getApplicationDocumentsDirectory(); // Use app documents directory instead of temp
-      final fileName = 'milk_diary_${seller.name.replaceAll(' ', '_')}_${DateFormat('yyyyMMdd').format(fromDate)}.pdf';
+      final fileName = 'milk_diary_${seller.name.replaceAll(' ', '_')}_complete_history_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
       final file = File('${output.path}/$fileName');
       await file.writeAsBytes(await pdf.save());
       
@@ -282,7 +336,7 @@ class MilkDiaryReportService {
     );
   }
   
-  pw.Widget _buildSellerReportHeader(MilkSeller seller, DateTime fromDate, DateTime toDate) {
+  pw.Widget _buildSellerReportHeader(MilkSeller seller, DateTime fromDate, DateTime toDate, DateTime? firstTransactionDate) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(
@@ -293,7 +347,7 @@ class MilkDiaryReportService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            'Milk Seller Report',
+            'Milk Seller Complete History Report',
             style: pw.TextStyle(
               fontSize: 18,
               fontWeight: pw.FontWeight.bold,
@@ -332,11 +386,19 @@ class MilkDiaryReportService {
                       ),
                     pw.SizedBox(height: 3),
                     pw.Text(
-                      'Default Rate: Rs. ${seller.defaultRate}/L',
+                      'Default Rate: ₹${seller.defaultRate}/L',
                       style: pw.TextStyle(
                         fontSize: 10,
                       ),
                     ),
+                    if (firstTransactionDate != null)
+                      pw.Text(
+                        'Since: ${DateFormat('dd MMM yyyy').format(firstTransactionDate)}',
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          fontStyle: pw.FontStyle.italic,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -344,7 +406,7 @@ class MilkDiaryReportService {
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
                   pw.Text(
-                    'Report Period:',
+                    'Current Month:',
                     style: pw.TextStyle(
                       fontSize: 10,
                       fontWeight: pw.FontWeight.bold,
@@ -355,6 +417,15 @@ class MilkDiaryReportService {
                     '${DateFormat('dd MMM yyyy').format(fromDate)} to ${DateFormat('dd MMM yyyy').format(toDate)}',
                     style: pw.TextStyle(
                       fontSize: 10,
+                    ),
+                  ),
+                  pw.SizedBox(height: 5),
+                  pw.Text(
+                    'Full History Included',
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.green700,
                     ),
                   ),
                 ],

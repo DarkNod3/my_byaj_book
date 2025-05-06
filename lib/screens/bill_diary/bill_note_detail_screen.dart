@@ -102,7 +102,7 @@ class _BillNoteDetailScreenState extends State<BillNoteDetailScreen> {
       
       final updatedNote = _note.copyWith(
         title: _titleController.text.trim(),
-        content: _contentController.text.trim(),
+        content: _contentController.text.trim().isEmpty ? "" : _contentController.text.trim(),
         category: _selectedCategory,
         reminderDate: _reminderDate,
         amount: amount,
@@ -356,11 +356,12 @@ class _BillNoteDetailScreenState extends State<BillNoteDetailScreen> {
               border: Border.all(color: Colors.grey.shade300),
             ),
             child: Text(
-              _note.content,
+              _note.content.isEmpty ? "No details provided" : _note.content,
               style: TextStyle(
                 fontSize: 16,
                 height: 1.5,
-                color: Colors.grey.shade800,
+                color: _note.content.isEmpty ? Colors.grey.shade500 : Colors.grey.shade800,
+                fontStyle: _note.content.isEmpty ? FontStyle.italic : FontStyle.normal,
                 decoration: _note.isCompleted 
                     ? TextDecoration.lineThrough 
                     : null,
@@ -473,17 +474,11 @@ class _BillNoteDetailScreenState extends State<BillNoteDetailScreen> {
             TextFormField(
               controller: _contentController,
               decoration: const InputDecoration(
-                labelText: 'Content',
+                labelText: 'Content (Optional)',
                 border: OutlineInputBorder(),
                 alignLabelWithHint: true,
               ),
               maxLines: 5,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter content';
-                }
-                return null;
-              },
             ),
             const SizedBox(height: 16),
             TextFormField(

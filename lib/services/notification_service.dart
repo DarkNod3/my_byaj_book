@@ -2,11 +2,15 @@ import 'dart:math';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz_data;
 import '../providers/loan_provider.dart';
 import '../providers/card_provider.dart';
+import '../providers/transaction_provider.dart';
 import '../models/loan_notification.dart';
 import '../models/card_notification.dart';
-import '../main.dart' show markLoanAsPaid;
+import '../screens/reminder/reminder_screen.dart';
+import '../main.dart' show markLoanAsPaid, navigatorKey;
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -19,10 +23,15 @@ class NotificationService {
   final Map<String, int> _loanNotificationIds = {};
   // Map to track notification IDs by card ID
   final Map<String, int> _cardNotificationIds = {};
+  // Map to track notification IDs by reminder ID
+  final Map<String, int> _reminderNotificationIds = {};
   
   NotificationService._internal();
   
   Future<void> init() async {
+    // Initialize timezone
+    tz_data.initializeTimeZones();
+    
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     
@@ -45,7 +54,7 @@ class NotificationService {
   }
   
   void _onNotificationTapped(NotificationResponse response) {
-    // Parse the payload to determine if it's a loan or card notification
+    // Parse the payload to determine if it's a loan, card, or reminder notification
     if (response.payload != null) {
       try {
         final Map<String, dynamic> payloadData = jsonDecode(response.payload!);
@@ -60,6 +69,14 @@ class NotificationService {
             // This would be implemented in main.dart similar to the loan handling
           }
         } 
+        // Check if it's a reminder notification
+        else if (payloadData.containsKey('reminderId')) {
+          // Navigate to reminder screen
+          final context = navigatorKey.currentContext;
+          if (context != null) {
+            Navigator.of(context).pushNamed(ReminderScreen.routeName);
+          }
+        }
         // Otherwise assume it's a loan notification
         else if (payloadData.containsKey('loanId')) {
           final notificationData = LoanNotification.fromJson(response.payload!);
@@ -188,6 +205,35 @@ class NotificationService {
     }
   }
   
+  // Schedule notifications for manual reminders
+  Future<void> scheduleManualReminders(TransactionProvider transactionProvider) async {
+    // Cancel existing manual reminder notifications
+    await cancelManualReminderNotifications();
+    
+    final manualReminders = transactionProvider.manualReminders;
+    
+    for (final reminder in manualReminders) {
+      // Skip completed reminders
+      if (reminder['isCompleted'] == true) continue;
+      
+      final dueDate = reminder['dueDate'] as DateTime;
+      // Skip past reminders
+      if (dueDate.isBefore(DateTime.now())) continue;
+      
+      final reminderId = reminder['id'] as String? ?? 'reminder_${reminder.hashCode}';
+      final title = reminder['title'] as String;
+      final amount = reminder['amount'] as double? ?? 0.0;
+      
+      await scheduleTimeBasedReminder(
+        id: _generateReminderNotificationId(reminderId),
+        reminderId: reminderId,
+        title: title,
+        amount: amount,
+        scheduledDate: dueDate,
+      );
+    }
+  }
+  
   int _getMonthNumber(String monthName) {
     const monthNames = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -239,6 +285,15 @@ class NotificationService {
       'Payment Due: $loanName',
       'Installment #$installmentNumber for ₹${amount.toStringAsFixed(2)} is due on $formattedDueDate. Tap to view details.',
       notificationDetails,
+      payload: payload,
+    );
+    
+    // Also schedule a time-based notification for the actual due date
+    await _scheduleTimedNotification(
+      id: id + 1000, // Use a different ID for the scheduled notification
+      title: 'Payment Due: $loanName',
+      body: 'Installment #$installmentNumber for ₹${amount.toStringAsFixed(2)} is due today. Tap to view details.',
+      scheduledDate: dueDate,
       payload: payload,
     );
   }
@@ -298,6 +353,136 @@ class NotificationService {
       notificationDetails,
       payload: payload,
     );
+    
+    // Also schedule a time-based notification for the actual due date
+    await _scheduleTimedNotification(
+      id: id + 2000, // Use a different ID for the scheduled notification
+      title: 'Credit Card Payment Due: $bankName',
+      body: 'Payment of ₹${amount.toStringAsFixed(0)} is due TODAY. Tap to view details.',
+      scheduledDate: dueDate,
+      payload: payload,
+    );
+  }
+  
+  // Schedule a time-based manual reminder
+  Future<void> scheduleTimeBasedReminder({
+    required int id,
+    required String reminderId,
+    required String title,
+    required double amount,
+    required DateTime scheduledDate,
+  }) async {
+    final androidDetails = AndroidNotificationDetails(
+      'manual_reminder_channel',
+      'Manual Reminder Notifications',
+      channelDescription: 'Notifications for manually set reminders',
+      importance: Importance.high,
+      priority: Priority.high,
+      color: Colors.purple,
+    );
+    
+    final iOSDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    
+    final notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iOSDetails,
+    );
+    
+    final payload = jsonEncode({
+      'reminderId': reminderId,
+      'action': 'view_details',
+    });
+    
+    // Store the notification ID for later cancellation
+    _reminderNotificationIds[reminderId] = id;
+    
+    // Calculate days remaining
+    final int daysRemaining = scheduledDate.difference(DateTime.now()).inDays;
+    
+    // Show immediate notification if due date is within 7 days
+    if (daysRemaining <= 7) {
+      String daysText = daysRemaining == 0 
+          ? 'TODAY!' 
+          : daysRemaining == 1 
+              ? 'TOMORROW!' 
+              : 'in $daysRemaining days';
+      
+      await _flutterLocalNotificationsPlugin.show(
+        id,
+        'Reminder: $title',
+        'Your reminder for ₹${amount.toStringAsFixed(0)} is due $daysText (${scheduledDate.day}/${scheduledDate.month}/${scheduledDate.year})',
+        notificationDetails,
+        payload: payload,
+      );
+    }
+    
+    // Schedule a time-based notification for the actual due date at 9 AM
+    await _scheduleTimedNotification(
+      id: id + 3000, // Use a different ID for the scheduled notification
+      title: 'Reminder: $title',
+      body: 'Your reminder for ₹${amount.toStringAsFixed(0)} is due TODAY',
+      scheduledDate: DateTime(
+        scheduledDate.year, 
+        scheduledDate.month, 
+        scheduledDate.day, 
+        9, 0, 0 // 9:00 AM
+      ),
+      payload: payload,
+    );
+  }
+  
+  // Schedule a notification at a specific date and time
+  Future<void> _scheduleTimedNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    required String payload,
+  }) async {
+    // Skip if the scheduled date is in the past
+    if (scheduledDate.isBefore(DateTime.now())) {
+      return;
+    }
+    
+    final androidDetails = AndroidNotificationDetails(
+      'scheduled_notification_channel',
+      'Scheduled Notifications',
+      channelDescription: 'Notifications scheduled for a specific time',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    
+    final iOSDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    
+    final notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iOSDetails,
+    );
+    
+    // Convert to TZ format
+    final scheduledDateTZ = tz.TZDateTime.from(scheduledDate, tz.local);
+    
+    try {
+      await _flutterLocalNotificationsPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledDateTZ,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Error scheduling notification: $e');
+    }
   }
   
   String _getMonthName(int month) {
@@ -316,20 +501,32 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.cancelAll();
     _loanNotificationIds.clear();
     _cardNotificationIds.clear();
+    _reminderNotificationIds.clear();
   }
   
   Future<void> cancelCardNotifications() async {
     // Cancel all card notifications
     for (final id in _cardNotificationIds.values) {
       await _flutterLocalNotificationsPlugin.cancel(id);
+      await _flutterLocalNotificationsPlugin.cancel(id + 2000); // Cancel scheduled notification too
     }
     _cardNotificationIds.clear();
+  }
+  
+  Future<void> cancelManualReminderNotifications() async {
+    // Cancel all manual reminder notifications
+    for (final id in _reminderNotificationIds.values) {
+      await _flutterLocalNotificationsPlugin.cancel(id);
+      await _flutterLocalNotificationsPlugin.cancel(id + 3000); // Cancel scheduled notification too
+    }
+    _reminderNotificationIds.clear();
   }
   
   Future<void> cancelNotificationForLoan(String loanId) async {
     final notificationId = _loanNotificationIds[loanId];
     if (notificationId != null) {
       await _flutterLocalNotificationsPlugin.cancel(notificationId);
+      await _flutterLocalNotificationsPlugin.cancel(notificationId + 1000); // Cancel scheduled notification too
       _loanNotificationIds.remove(loanId);
     }
   }
@@ -338,7 +535,17 @@ class NotificationService {
     final notificationId = _cardNotificationIds[cardId];
     if (notificationId != null) {
       await _flutterLocalNotificationsPlugin.cancel(notificationId);
+      await _flutterLocalNotificationsPlugin.cancel(notificationId + 2000); // Cancel scheduled notification too
       _cardNotificationIds.remove(cardId);
+    }
+  }
+  
+  Future<void> cancelNotificationForReminder(String reminderId) async {
+    final notificationId = _reminderNotificationIds[reminderId];
+    if (notificationId != null) {
+      await _flutterLocalNotificationsPlugin.cancel(notificationId);
+      await _flutterLocalNotificationsPlugin.cancel(notificationId + 3000); // Cancel scheduled notification too
+      _reminderNotificationIds.remove(reminderId);
     }
   }
   
@@ -351,6 +558,12 @@ class NotificationService {
     // Use a simple hash of the card ID to generate a notification ID
     // Add 20000 to avoid conflicts with loan notification IDs
     return cardId.hashCode.abs() % 10000 + 20000;
+  }
+  
+  int _generateReminderNotificationId(String reminderId) {
+    // Use a simple hash of the reminder ID to generate a notification ID
+    // Add 40000 to avoid conflicts with other notification IDs
+    return reminderId.hashCode.abs() % 10000 + 40000;
   }
   
   double _calculateMonthlyEMI(Map<String, dynamic> loan) {

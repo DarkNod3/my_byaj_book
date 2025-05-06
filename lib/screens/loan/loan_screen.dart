@@ -8,7 +8,9 @@ import 'add_loan_screen.dart';
 import 'loan_details_screen.dart';
 
 class LoanScreen extends StatefulWidget {
-  const LoanScreen({super.key});
+  final bool showAppBar;
+  
+  const LoanScreen({super.key, this.showAppBar = false});
 
   @override
   State<LoanScreen> createState() => _LoanScreenState();
@@ -118,10 +120,10 @@ class _LoanScreenState extends State<LoanScreen> {
             final summaryData = _getCategorySummary(loanProvider, userProvider);
             
             return Scaffold(
-              appBar: AppBar(
+              appBar: widget.showAppBar ? AppBar(
                 title: const Text('Loans'),
                 backgroundColor: AppTheme.primaryColor,
-              ),
+              ) : null,
               body: SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -146,10 +148,10 @@ class _LoanScreenState extends State<LoanScreen> {
           } catch (e) {
             print('Error in LoanScreen build: $e');
             return Scaffold(
-              appBar: AppBar(
+              appBar: widget.showAppBar ? AppBar(
                 title: const Text('Loans'),
                 backgroundColor: AppTheme.primaryColor,
-              ),
+              ) : null,
               body: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -174,10 +176,10 @@ class _LoanScreenState extends State<LoanScreen> {
     } catch (e) {
       print('Fatal error in LoanScreen: $e');
       return Scaffold(
-        appBar: AppBar(
+        appBar: widget.showAppBar ? AppBar(
           title: const Text('Loans'),
           backgroundColor: Colors.red,
-        ),
+        ) : null,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

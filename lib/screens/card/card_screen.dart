@@ -900,9 +900,7 @@ class _CardScreenState extends State<CardScreen> {
                               'cvv': cvvController.text,
                               'color': selectedColor,
                               'logo': 'assets/bank_logo.png', // Default logo
-                              'balance': limitController.text.isEmpty 
-                                  ? '₹0' 
-                                  : '₹${limitController.text}', // Set balance equal to limit for full credit
+                              'balance': '₹0', // Always set new card balance to 0
                               'limit': limitController.text.isEmpty 
                                   ? '₹0' 
                                   : '₹${limitController.text}',
@@ -952,20 +950,20 @@ class _CardScreenState extends State<CardScreen> {
     final card = cardProvider.cards[cardIndex];
     
     final TextEditingController bankController = TextEditingController(text: card['bank']);
-    final TextEditingController cardTypeController = TextEditingController(text: 'Credit Card');
+    final TextEditingController cardTypeController = TextEditingController(text: card['cardType']);
     final TextEditingController cardNumberController = TextEditingController(text: card['cardNumber']);
     final TextEditingController holderNameController = TextEditingController(text: card['holderName']);
     final TextEditingController expiryController = TextEditingController(text: card['expiry']);
     final TextEditingController cvvController = TextEditingController(text: card['cvv']);
     
     // Remove the "₹" symbol and format for controllers
-    String balanceValue = card['balance'].toString().replaceAll('₹', '').trim();
-    String limitValue = card['limit'].toString().replaceAll('₹', '').trim();
+    String balanceValue = card['balance'].toString().replaceAll('₹', '').replaceAll(',', '').trim();
+    String limitValue = card['limit'].toString().replaceAll('₹', '').replaceAll(',', '').trim();
     
     final TextEditingController balanceController = TextEditingController(text: balanceValue);
     final TextEditingController limitController = TextEditingController(text: limitValue == 'N/A' ? '' : limitValue);
     final TextEditingController dueDateController = TextEditingController(
-      text: card['dueDate'] != 'N/A' ? card['dueDate'] : '',
+      text: card['dueDate'] != null && card['dueDate'] != 'N/A' ? card['dueDate'] : '',
     );
     
     Color selectedColor = card['color'];
@@ -978,208 +976,402 @@ class _CardScreenState extends State<CardScreen> {
       Colors.teal,
     ];
     
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Edit Card'),
-          content: SingleChildScrollView(
+        builder: (context, setState) {
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.85,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
             child: Column(
               children: [
-                TextField(
-                  controller: bankController,
-                  decoration: const InputDecoration(
-                    labelText: 'Bank Name',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: cardTypeController,
-                  readOnly: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Card Type',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: cardNumberController,
-                  decoration: const InputDecoration(
-                    labelText: 'Card Number',
-                  ),
-                  keyboardType: TextInputType.number,
-                  maxLength: 19,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: holderNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Card Holder Name',
-                  ),
-                  textCapitalization: TextCapitalization.characters,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                  controller: expiryController,
-                  decoration: const InputDecoration(
-                    labelText: 'Expiry Date',
-                    hintText: 'MM/YY',
-                  ),
-                  keyboardType: TextInputType.datetime,
-                  maxLength: 5,
-                        readOnly: true,
-                      ),
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: selectedColor.withOpacity(0.1),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.calendar_month),
-                      onPressed: () async {
-                        await _showMonthYearPicker(context, expiryController, selectedColor);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: cvvController,
-                  decoration: const InputDecoration(
-                    labelText: 'CVV (Optional)',
                   ),
-                  keyboardType: TextInputType.number,
-                  maxLength: 3,
-                  obscureText: true,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: balanceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Current Balance',
-                    prefixText: '₹ ',
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: limitController,
-                  decoration: InputDecoration(
-                    labelText: 'Credit Limit',
-                    prefixText: limitValue == 'N/A' ? '' : '₹ ',
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                if (cardTypeController.text == 'Credit Card') ...[
-                  const SizedBox(height: 12),
-                  Row(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: TextField(
-                    controller: dueDateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Due Date',
-                      hintText: 'e.g. 15 May 2025',
-                    ),
-                          readOnly: true,
+                      Text(
+                        'Edit Card',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: selectedColor,
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.calendar_month),
-                        onPressed: () async {
-                          await _showDueDatePicker(context, dueDateController, selectedColor);
-                        },
+                        icon: Icon(Icons.close, color: selectedColor),
+                        onPressed: () => Navigator.pop(context),
                       ),
                     ],
                   ),
-                ],
-                const SizedBox(height: 16),
-                const Text('Card Color'),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: availableColors.map((color) {
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          selectedColor = color;
-                        });
-                      },
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: selectedColor.value == color.value
-                              ? Border.all(color: Colors.white, width: 2)
-                              : null,
-                          boxShadow: selectedColor.value == color.value
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
-                                    blurRadius: 5,
-                                    spreadRadius: 1,
-                                  )
-                                ]
-                              : null,
+                ),
+                
+                // Form fields in a scrollable container
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Bank Name
+                        TextField(
+                          controller: bankController,
+                          decoration: InputDecoration(
+                            labelText: 'Bank Name',
+                            hintText: 'e.g. HDFC Bank',
+                            prefixIcon: Icon(Icons.account_balance, color: selectedColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: selectedColor, width: 2),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Card Type
+                        TextField(
+                          controller: cardTypeController,
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            labelText: 'Card Type',
+                            prefixIcon: Icon(Icons.credit_card, color: selectedColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: selectedColor, width: 2),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Card Number
+                        TextField(
+                          controller: cardNumberController,
+                          decoration: InputDecoration(
+                            labelText: 'Card Number',
+                            hintText: 'XXXX XXXX XXXX XXXX',
+                            prefixIcon: Icon(Icons.credit_card, color: selectedColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: selectedColor, width: 2),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          maxLength: 19,
+                        ),
+                        const SizedBox(height: 8),
+                        
+                        // Card Holder Name
+                        TextField(
+                          controller: holderNameController,
+                          decoration: InputDecoration(
+                            labelText: 'Card Holder Name',
+                            hintText: 'e.g. JOHN DOE',
+                            prefixIcon: Icon(Icons.person, color: selectedColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: selectedColor, width: 2),
+                            ),
+                          ),
+                          textCapitalization: TextCapitalization.characters,
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Two fields in a row: Expiry Date and CVV
+                        Row(
+                          children: [
+                            // Expiry Date
+                            Expanded(
+                              flex: 3,
+                              child: TextField(
+                                controller: expiryController,
+                                decoration: InputDecoration(
+                                  labelText: 'Expiry Date',
+                                  hintText: 'MM/YY',
+                                  prefixIcon: Icon(Icons.calendar_month, color: selectedColor),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: selectedColor, width: 2),
+                                  ),
+                                ),
+                                readOnly: true,
+                                onTap: () async {
+                                  await _showMonthYearPicker(context, expiryController, selectedColor);
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // CVV (Optional)
+                            Expanded(
+                              flex: 2,
+                              child: TextField(
+                                controller: cvvController,
+                                decoration: InputDecoration(
+                                  labelText: 'CVV (Optional)',
+                                  hintText: '123',
+                                  prefixIcon: Icon(Icons.security, color: selectedColor),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: selectedColor, width: 2),
+                                  ),
+                                ),
+                                keyboardType: TextInputType.number,
+                                maxLength: 3,
+                                obscureText: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        
+                        // Current Balance
+                        TextField(
+                          controller: balanceController,
+                          decoration: InputDecoration(
+                            labelText: 'Current Balance',
+                            hintText: 'e.g. 5000',
+                            prefixText: '₹ ',
+                            prefixIcon: Icon(Icons.account_balance_wallet, color: selectedColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: selectedColor, width: 2),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Credit Limit field
+                        TextField(
+                          controller: limitController,
+                          decoration: InputDecoration(
+                            labelText: 'Credit Limit',
+                            hintText: 'e.g. 50000',
+                            prefixText: '₹ ',
+                            prefixIcon: Icon(Icons.credit_score, color: selectedColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: selectedColor, width: 2),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Due Date with date picker button
+                        TextField(
+                          controller: dueDateController,
+                          decoration: InputDecoration(
+                            labelText: 'Due Date',
+                            hintText: 'e.g. 15 May 2025',
+                            prefixIcon: Icon(Icons.event, color: selectedColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: selectedColor, width: 2),
+                            ),
+                          ),
+                          readOnly: true,
+                          onTap: () async {
+                            await _showDueDatePicker(context, dueDateController, selectedColor);
+                          },
+                        ),
+                        
+                        const SizedBox(height: 20),
+                        
+                        // Card Color Selection
+                        const Text(
+                          'Card Color',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 50,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: availableColors.length,
+                            itemBuilder: (context, index) {
+                              final color = availableColors[index];
+                              final isSelected = selectedColor.value == color.value;
+                              
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    selectedColor = color;
+                                  });
+                                },
+                                child: Container(
+                                  width: 50,
+                                  height: 50,
+                                  margin: const EdgeInsets.only(right: 10),
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    shape: BoxShape.circle,
+                                    border: isSelected
+                                        ? Border.all(color: Colors.white, width: 3)
+                                        : null,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: color.withOpacity(0.5),
+                                        blurRadius: 8,
+                                        spreadRadius: isSelected ? 2 : 0,
+                                      ),
+                                    ],
+                                  ),
+                                  child: isSelected 
+                                    ? const Icon(Icons.check, color: Colors.white) 
+                                    : null,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                // Bottom action buttons
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        spreadRadius: 1,
+                        blurRadius: 10,
+                        offset: const Offset(0, -5),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
-                    );
-                  }).toList(),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            // Validate inputs
+                            if (bankController.text.isEmpty ||
+                                cardNumberController.text.isEmpty ||
+                                holderNameController.text.isEmpty ||
+                                expiryController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please fill all required fields')),
+                              );
+                              return;
+                            }
+                            
+                            // Update the card using the provider
+                            final updatedCard = {
+                              'bank': bankController.text,
+                              'cardType': cardTypeController.text,
+                              'cardNumber': cardNumberController.text,
+                              'holderName': holderNameController.text.toUpperCase(),
+                              'expiry': expiryController.text,
+                              'cvv': cvvController.text,
+                              'color': selectedColor,
+                              'logo': card['logo'], // Keep the existing logo
+                              'balance': balanceController.text.isEmpty 
+                                  ? '₹0' 
+                                  : '₹${balanceController.text}',
+                              'limit': limitController.text.isEmpty 
+                                ? '₹0' 
+                                  : '₹${limitController.text}',
+                              'dueDate': dueDateController.text.isEmpty 
+                                  ? 'N/A' 
+                                  : dueDateController.text,
+                              'entries': card['entries'],
+                            };
+                              
+                            updateCard(cardIndex, updatedCard);
+                            Navigator.pop(context);
+                            
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Card updated successfully')),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: selectedColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Save Changes',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                // Validate inputs
-                if (bankController.text.isEmpty ||
-                    holderNameController.text.isEmpty ||
-                    expiryController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please fill all required fields')),
-                  );
-                  return;
-                }
-                
-                // Update the card using the provider
-                final updatedCard = {
-                    'bank': bankController.text,
-                  'cardType': 'Credit Card',
-                  'cardNumber': cardNumberController.text,
-                    'holderName': holderNameController.text.toUpperCase(),
-                    'expiry': expiryController.text,
-                    'cvv': cvvController.text,
-                    'color': selectedColor,
-                  'logo': card['logo'], // Keep the existing logo
-                    'balance': balanceController.text.isEmpty 
-                        ? '₹0' 
-                        : '₹${balanceController.text}',
-                    'limit': limitController.text.isEmpty 
-                      ? '₹0' 
-                        : '₹${limitController.text}',
-                    'dueDate': dueDateController.text.isEmpty 
-                        ? 'N/A' 
-                        : dueDateController.text,
-                  'entries': card['entries'],
-                };
-                  
-                updateCard(cardIndex, updatedCard);
-                Navigator.pop(context);
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Card updated successfully')),
-                );
-              },
-              child: const Text('Save Changes'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

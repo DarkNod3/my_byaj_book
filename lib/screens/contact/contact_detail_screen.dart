@@ -1918,6 +1918,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       // Prepare data for PDF summary card
       final balance = _calculateBalance();
       final isPositive = balance >= 0;
+      final isWithInterest = widget.contact['type'] != null || widget.contact['interestRate'] != null;
+      
+      // Create a more detailed summary with contact information
       final List<Map<String, dynamic>> summaryItems = [
         {
           'label': 'Name:',
@@ -1925,26 +1928,117 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         },
         {
           'label': 'Phone:',
-          'value': widget.contact['phone'] ?? 'N/A',
+          'value': widget.contact['displayPhone'] ?? widget.contact['phone'] ?? 'N/A',
         },
         {
           'label': isPositive ? 'YOU WILL GET' : 'YOU WILL GIVE',
-          'value': 'Rs. ${PdfTemplateService.formatCurrency(balance.abs())}',
+          'value': 'Rs. ' + PdfTemplateService.formatCurrency(balance.abs()),
           'highlight': true,
           'isPositive': isPositive,
         },
       ];
       
       // Add interest information if applicable
-      if (widget.contact['type'] != null && widget.contact['type'].toString().isNotEmpty) {
+      if (isWithInterest) {
+        final contactType = widget.contact['type'] ?? '';
+        final interestRate = widget.contact['interestRate'] ?? 0.0;
+        final isMonthly = widget.contact['interestPeriod'] == 'monthly';
+        
         summaryItems.addAll([
           {
             'label': 'Interest Rate:',
-            'value': '${widget.contact['interestRate']}% ${widget.contact['interestPeriod'] == 'monthly' ? 'p.m.' : 'p.a.'}',
+            'value': '$interestRate% ${isMonthly ? 'per month' : 'per annum'}',
           },
           {
-            'label': 'Type:',
-            'value': StringUtils.capitalizeFirstLetter(widget.contact['type'] ?? ''),
+            'label': 'Relationship:',
+            'value': contactType.isNotEmpty 
+                ? '${StringUtils.capitalizeFirstLetter(contactType)} (${contactType == 'borrower' ? 'They borrow from you' : 'You borrow from them'})'
+                : 'Not specified',
+          },
+        ]);
+        
+        // Calculate interest values 
+        if (contactType.isNotEmpty && transactions.isNotEmpty) {
+          // Calculate principal and interest amounts
+          double principalAmount = 0.0;
+          double interestDue = 0.0;
+          double interestPerDay = 0.0;
+          
+          // Calculate based on current balance and interest rate
+          principalAmount = balance.abs(); // Use the balance as principal for simplicity
+          
+          // Calculate monthly interest
+          double monthlyInterest = 0.0;
+          if (isMonthly) {
+            monthlyInterest = principalAmount * (interestRate / 100);
+          } else {
+            // Convert annual rate to monthly
+            double monthlyRate = interestRate / 12;
+            monthlyInterest = principalAmount * (monthlyRate / 100);
+          }
+          
+          // Calculate daily interest based on days in current month
+          final daysInMonth = DateTime(DateTime.now().year, DateTime.now().month + 1, 0).day;
+          interestPerDay = monthlyInterest / daysInMonth;
+          
+          // Estimate interest due as one month's interest
+          interestDue = monthlyInterest;
+          
+          summaryItems.addAll([
+            {
+              'label': 'Estimated Principal:',
+              'value': 'Rs. ' + PdfTemplateService.formatCurrency(principalAmount),
+            },
+            {
+              'label': 'Est. Monthly Interest:',
+              'value': 'Rs. ' + PdfTemplateService.formatCurrency(monthlyInterest),
+            },
+            {
+              'label': 'Est. Daily Interest:',
+              'value': 'Rs. ' + PdfTemplateService.formatCurrency(interestPerDay),
+            },
+          ]);
+        }
+      }
+      
+      // Add transaction stats
+      if (transactions.isNotEmpty) {
+        final totalPaid = transactions
+            .where((tx) => tx['type'] == 'gave')
+            .fold(0.0, (sum, tx) => sum + (tx['amount'] as double));
+            
+        final totalReceived = transactions
+            .where((tx) => tx['type'] == 'got')
+            .fold(0.0, (sum, tx) => sum + (tx['amount'] as double));
+            
+        final earliestDate = transactions
+            .map((tx) => tx['date'] as DateTime)
+            .reduce((a, b) => a.isBefore(b) ? a : b);
+            
+        final latestDate = transactions
+            .map((tx) => tx['date'] as DateTime)
+            .reduce((a, b) => a.isAfter(b) ? a : b);
+            
+        summaryItems.addAll([
+          {
+            'label': 'Total Transactions:',
+            'value': '${transactions.length}',
+          },
+          {
+            'label': 'Total Paid:',
+            'value': 'Rs. ' + PdfTemplateService.formatCurrency(totalPaid),
+          },
+          {
+            'label': 'Total Received:',
+            'value': 'Rs. ' + PdfTemplateService.formatCurrency(totalReceived),
+          },
+          {
+            'label': 'First Transaction:',
+            'value': DateFormat('dd MMM yyyy').format(earliestDate),
+          },
+          {
+            'label': 'Latest Transaction:',
+            'value': DateFormat('dd MMM yyyy').format(latestDate),
           },
         ]);
       }
@@ -1953,13 +2047,22 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       final List<String> tableColumns = ['Date', 'Note', 'Amount', 'Type'];
       final List<List<String>> tableRows = [];
       
-      for (var transaction in transactions) {
+      // Sort transactions by date (newest first)
+      final sortedTransactions = List<Map<String, dynamic>>.from(transactions);
+      sortedTransactions.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+      
+      for (var transaction in sortedTransactions) {
         final date = transaction['date'] != null
-            ? DateFormat('dd MMM yyyy').format(DateTime.parse(transaction['date']))
+            ? DateFormat('dd MMM yyyy').format(transaction['date'] as DateTime)
             : 'N/A';
-        final note = transaction['note'] ?? '';
-        final amount = 'Rs. ${PdfTemplateService.formatCurrency(transaction['amount'])}';
-        final type = transaction['type'] == 'credit' ? 'Received' : 'Given';
+        
+        String note = transaction['note'] ?? '';
+        if (note.isEmpty) {
+          note = transaction['type'] == 'gave' ? 'Payment sent' : 'Payment received';
+        }
+        
+        final amount = 'Rs. ' + PdfTemplateService.formatCurrency(transaction['amount'] as double);
+        final type = transaction['type'] == 'gave' ? 'You Paid' : 'You Received';
         
         tableRows.add([date, note, amount, type]);
       }
@@ -1979,9 +2082,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           columns: tableColumns,
           rows: tableRows,
           columnWidths: [
-            const pw.FlexColumnWidth(2),  // Date
-            const pw.FlexColumnWidth(3),  // Note
-            const pw.FlexColumnWidth(1.5),  // Amount
+            const pw.FlexColumnWidth(2),    // Date
+            const pw.FlexColumnWidth(3.5),  // Note
+            const pw.FlexColumnWidth(2),    // Amount
             const pw.FlexColumnWidth(1.5),  // Type
           ],
         ),
@@ -1990,12 +2093,19 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       // Generate the PDF document
       final contactName = widget.contact['name'].toString().replaceAll(RegExp(r'[^\w\s]+'), '').replaceAll(' ', '_');
       final date = DateFormat('yyyy_MM_dd').format(DateTime.now());
-      final fileName = '${contactName}_report_$date.pdf';
+      final timestamp = DateFormat('HH_mm_ss').format(DateTime.now());
+      final random = DateTime.now().millisecondsSinceEpoch % 10000; // Add random component
+      final fileName = '${contactName}_report_${date}_${timestamp}_$random.pdf';
+      
+      print('Generating PDF report with unique filename: $fileName');
       
       final pdf = await PdfTemplateService.createDocument(
         title: widget.contact['name'],
         subtitle: 'Transaction Report',
         content: content,
+        metadata: {
+          'keywords': 'transaction, report, ${widget.contact['name']}, balance, my byaj book',
+        },
       );
       
       // Save and open the PDF
@@ -2004,13 +2114,35 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       // Show success message
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PDF report generated successfully')),
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('PDF report generated successfully'),
+              Text(
+                'Filename: $fileName',
+                style: TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'OK',
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ),
       );
     } catch (e) {
       // Show error message
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating PDF report: $e')),
+        SnackBar(
+          content: Text('Error generating PDF report: $e'),
+          duration: const Duration(seconds: 5),
+        ),
       );
     }
   }

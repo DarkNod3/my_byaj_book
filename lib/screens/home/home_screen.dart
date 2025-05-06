@@ -137,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Create a map of screen IDs to screen widgets
     final Map<String, Widget> screenMap = {
       'home': const HomeContent(),
-      'loans': const LoanScreen(),
+      'loans': const LoanScreen(showAppBar: false),
       'cards': const CardScreen(),
       'bill_diary': const BillDiaryScreen(showAppBar: false),
       'milk_diary': const MilkDiaryScreen(showAppBar: false),

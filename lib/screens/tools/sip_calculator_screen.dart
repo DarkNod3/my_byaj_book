@@ -183,11 +183,18 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
         _isGeneratingPdf = true;
       });
       
-      // Create PDF content
+      // Recalculate values based on current inputs to ensure latest data
+      _calculateSIP();
+      
+      // Create PDF content with current values
       final content = await _createPdfContent();
       
+      // Create a unique filename with date, time, and random component
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final random = DateTime.now().millisecondsSinceEpoch % 10000; // Add random component
+      final fileName = 'sip_report_${timestamp}_$random.pdf';
+      
       // Create the PDF
-      final fileName = 'sip_calculation_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final pdf = await PdfTemplateService.createDocument(
         title: 'SIP Calculator',
         subtitle: 'Investment Report',
@@ -206,9 +213,9 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
               children: [
                 const Text('PDF report generated successfully!'),
                 const SizedBox(height: 4),
-                const Text(
-                  'If the PDF didn\'t open automatically, it was saved to your device\'s temporary folder.',
-                  style: TextStyle(fontSize: 12),
+                Text(
+                  'Filename: $fileName',
+                  style: const TextStyle(fontSize: 12),
                 ),
               ],
             ),
@@ -281,8 +288,6 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                 _buildResultCard(),
                 const SizedBox(height: 16),
                 _buildCalculatorCard(),
-                const SizedBox(height: 16),
-                _buildPdfButton(),
                 const SizedBox(height: 16),
                 _buildInvestmentSchedule(),
                 const SizedBox(height: 16),
@@ -487,32 +492,6 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
               onChanged: (_) => _calculateSIP(),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPdfButton() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: _isGeneratingPdf ? null : _generatePdfReport,
-        icon: _isGeneratingPdf 
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.picture_as_pdf),
-        label: Text(_isGeneratingPdf ? 'GENERATING PDF...' : 'GENERATE PDF REPORT'),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          backgroundColor: Colors.teal.shade700,
-          foregroundColor: Colors.white,
         ),
       ),
     );
@@ -800,7 +779,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   }
 
   Future<List<pw.Widget>> _createPdfContent() async {
-    // Get values from current state or calculate them
+    // Get values from current state or calculate them fresh
     final double monthlyInvestment = double.tryParse(_monthlyInvestmentController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
     final int years = int.tryParse(_investmentPeriodController.text) ?? 0;
     final double expectedReturn = double.tryParse(_expectedReturnController.text) ?? 0;
@@ -809,8 +788,9 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
     final double totalInvested = monthlyInvestment * 12 * years;
     final double totalValue = _calculateSIPValue(monthlyInvestment, expectedReturn, years);
     final double estimatedReturns = totalValue - totalInvested;
+    final double growthPercentage = totalInvested > 0 ? (estimatedReturns / totalInvested) * 100 : 0;
     
-    // Prepare summary data 
+    // Prepare summary data - ensure we use "Rs." instead of rupee symbol
     final List<Map<String, dynamic>> summaryItems = [
       {'label': 'Monthly Investment', 'value': 'Rs. ${PdfTemplateService.formatCurrency(monthlyInvestment)}'},
       {'label': 'Time Period', 'value': '$years Years'},
@@ -823,7 +803,13 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
         'isPositive': true,
       },
       {
-        'label': 'Total Value', 
+        'label': 'Growth Percentage', 
+        'value': '${growthPercentage.toStringAsFixed(1)}%',
+        'highlight': true,
+        'isPositive': true,
+      },
+      {
+        'label': 'Total Maturity Value', 
         'value': 'Rs. ${PdfTemplateService.formatCurrency(totalValue)}',
         'highlight': true,
         'isPositive': true,
@@ -834,7 +820,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
     final List<String> tableColumns = ['Year', 'Amount Invested', 'Est. Returns', 'Total Value'];
     final List<List<String>> tableRows = [];
     
-    // Add yearly breakdown data
+    // Add yearly breakdown data - ensure we use "Rs." instead of rupee symbol
     for (int year = 1; year <= years; year++) {
       final double amountInvested = monthlyInvestment * 12 * year;
       final double totalValue = _calculateSIPValue(monthlyInvestment, expectedReturn, year);
@@ -863,6 +849,52 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
         title: 'Year-wise Breakdown',
         columns: tableColumns,
         rows: tableRows,
+      ),
+      
+      pw.SizedBox(height: 20),
+      
+      // Add an investment breakdown chart explanation
+      pw.Container(
+        padding: const pw.EdgeInsets.all(10),
+        decoration: pw.BoxDecoration(
+          color: PdfTemplateService.lightBackgroundColor,
+          borderRadius: PdfTemplateService.roundedBorder,
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              'Investment Breakdown',
+              style: pw.TextStyle(
+                fontSize: 14,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfTemplateService.primaryColor,
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('Total Investment: Rs. ${PdfTemplateService.formatCurrency(totalInvested)}'),
+                    pw.SizedBox(height: 4),
+                    pw.Text('Estimated Returns: Rs. ${PdfTemplateService.formatCurrency(estimatedReturns)}'),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('Investment: ${(totalInvested / totalValue * 100).toStringAsFixed(0)}%'),
+                    pw.SizedBox(height: 4),
+                    pw.Text('Returns: ${(estimatedReturns / totalValue * 100).toStringAsFixed(0)}%'),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
       
       pw.SizedBox(height: 20),

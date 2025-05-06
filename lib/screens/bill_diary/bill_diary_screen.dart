@@ -261,9 +261,10 @@ class _BillDiaryScreenState extends State<BillDiaryScreen> with SingleTickerProv
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          note.content,
+                          note.content.isEmpty ? "No details provided" : note.content,
                           style: TextStyle(
-                            color: Colors.grey.shade700,
+                            color: note.content.isEmpty ? Colors.grey.shade500 : Colors.grey.shade700,
+                            fontStyle: note.content.isEmpty ? FontStyle.italic : FontStyle.normal,
                             decoration: note.isCompleted 
                                 ? TextDecoration.lineThrough 
                                 : null,
@@ -397,7 +398,7 @@ class _NewNoteBottomSheetState extends State<_NewNoteBottomSheet> {
       
       await Provider.of<BillNoteProvider>(context, listen: false).addNote(
         _titleController.text.trim(),
-        _contentController.text.trim(),
+        _contentController.text.trim().isEmpty ? "" : _contentController.text.trim(),
         _category,
         reminderDate: _reminderDate,
         amount: amount,
@@ -463,17 +464,11 @@ class _NewNoteBottomSheetState extends State<_NewNoteBottomSheet> {
               TextFormField(
                 controller: _contentController,
                 decoration: const InputDecoration(
-                  labelText: 'Content',
+                  labelText: 'Content (Optional)',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
                 maxLines: 3,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter content';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 16),
               TextFormField(

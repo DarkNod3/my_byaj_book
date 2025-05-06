@@ -52,15 +52,35 @@ class PdfTemplateService {
       'keywords': metadata?['keywords'] ?? '',
     }).then((pdf) async {
       // We can't return the document with content directly since pw.Widget isn't serializable
-      // So we'll add content on the main thread, but the document setup is in background
-      for (var widget in content) {
-        pdf.addPage(
-          pw.Page(
-            margin: const pw.EdgeInsets.all(24),
-            build: (pw.Context context) => widget,
-          ),
-        );
-      }
+      // Add all content to a single page rather than creating multiple pages
+      pdf.addPage(
+        pw.Page(
+          margin: const pw.EdgeInsets.all(24),
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Add the header
+                buildHeader(
+                  title: title,
+                  subtitle: subtitle,
+                  metadata: metadata,
+                ),
+                pw.SizedBox(height: 20),
+                
+                // Main content - all widgets in a single column
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: content,
+                ),
+                
+                // Add the footer
+                buildFooter(context, showPageNumbers: showPageNumbers),
+              ],
+            );
+          },
+        ),
+      );
       return pdf;
     });
   }
@@ -79,24 +99,56 @@ class PdfTemplateService {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+          pw.Row(
             children: [
-              pw.Text(
-                'My Byaj Book',
-                style: pw.TextStyle(
-                  fontSize: 24,
-                  fontWeight: pw.FontWeight.bold,
+              // Simple logo placeholder
+              pw.Container(
+                width: 40,
+                height: 40,
+                decoration: pw.BoxDecoration(
                   color: primaryColor,
+                  shape: pw.BoxShape.circle,
+                ),
+                alignment: pw.Alignment.center,
+                child: pw.Text(
+                  'MB',
+                  style: pw.TextStyle(
+                    color: PdfColors.white,
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                subtitle,
-                style: pw.TextStyle(
-                  fontSize: 14,
-                  color: neutralColor,
-                ),
+              pw.SizedBox(width: 10),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'My Byaj Book',
+                    style: pw.TextStyle(
+                      fontSize: 24,
+                      fontWeight: pw.FontWeight.bold,
+                      color: primaryColor,
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    title,
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                      color: neutralColor,
+                    ),
+                  ),
+                  pw.SizedBox(height: 2),
+                  pw.Text(
+                    subtitle,
+                    style: pw.TextStyle(
+                      fontSize: 14,
+                      color: neutralColor,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -117,6 +169,22 @@ class PdfTemplateService {
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
+              pw.SizedBox(height: 8),
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: pw.BoxDecoration(
+                  color: primaryColor,
+                  borderRadius: pw.BorderRadius.circular(4),
+                ),
+                child: pw.Text(
+                  'OFFICIAL REPORT',
+                  style: pw.TextStyle(
+                    color: PdfColors.white,
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
             ],
           ),
         ],
@@ -128,22 +196,48 @@ class PdfTemplateService {
   static pw.Widget buildFooter(pw.Context context, {bool showPageNumbers = true}) {
     return pw.Container(
       margin: const pw.EdgeInsets.only(top: 10),
+      padding: const pw.EdgeInsets.only(top: 10),
+      decoration: pw.BoxDecoration(
+        border: pw.Border(top: pw.BorderSide(width: 0.5, color: separatorColor)),
+      ),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(
-            'Generated using My Byaj Book App',
-            style: pw.TextStyle(
-              fontSize: 10,
-              color: neutralLightColor,
-            ),
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'My Byaj Book - Personal Finance Manager',
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                  color: primaryColor,
+                ),
+              ),
+              pw.SizedBox(height: 2),
+              pw.Text(
+                'Generated using My Byaj Book App • mybyajbook.com',
+                style: pw.TextStyle(
+                  fontSize: 8,
+                  color: neutralLightColor,
+                ),
+              ),
+            ],
           ),
           if (showPageNumbers)
-            pw.Text(
-              'Page ${context.pageNumber} of ${context.pagesCount}',
-              style: pw.TextStyle(
-                fontSize: 10,
-                color: neutralLightColor,
+            pw.Container(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: pw.BoxDecoration(
+                color: lightBackgroundColor,
+                borderRadius: pw.BorderRadius.circular(4),
+              ),
+              child: pw.Text(
+                'Page ${context.pageNumber} of ${context.pagesCount}',
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                  color: neutralColor,
+                ),
               ),
             ),
         ],
@@ -339,7 +433,7 @@ class PdfTemplateService {
   /// Formats currency for PDF display (without the rupee symbol)
   static String formatCurrency(double amount) {
     // Format without currency symbol
-    return 'Rs. ' + amount.toStringAsFixed(2).replaceAllMapped(
+    return amount.toStringAsFixed(2).replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match match) => '${match[1]},'
     );
@@ -381,7 +475,26 @@ class PdfTemplateService {
       directory = await getTemporaryDirectory();
     }
     
-    final path = '${directory.path}/$fileName';
+    // Check if file already exists and create unique name if needed
+    String baseName = fileName;
+    String path = '${directory.path}/$fileName';
+    int counter = 1;
+    
+    // If file already exists, add counter to filename until unique
+    while (await File(path).exists()) {
+      // Extract extension (usually .pdf)
+      final lastDot = baseName.lastIndexOf('.');
+      final String nameWithoutExt = lastDot != -1 ? baseName.substring(0, lastDot) : baseName;
+      final String extension = lastDot != -1 ? baseName.substring(lastDot) : '';
+      
+      // Create new filename with counter
+      fileName = '${nameWithoutExt}_${counter}${extension}';
+      path = '${directory.path}/$fileName';
+      counter++;
+      
+      print('PDF with same name exists, trying new filename: $fileName');
+    }
+    
     return path;
   }
 } 
