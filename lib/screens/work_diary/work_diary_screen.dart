@@ -535,19 +535,6 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   _loadClients();
                 },
               ),
-              IconButton(
-                icon: Icon(Icons.notifications),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Notifications coming soon!')),
-                  );
-                },
-              ),
-              IconButton(
-                icon: Icon(Icons.picture_as_pdf),
-                onPressed: _generateAllClientsPDF,
-                tooltip: 'Generate PDF Report',
-              ),
             ],
             leading: IconButton(
               icon: Icon(Icons.arrow_back),
@@ -1190,14 +1177,6 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        // PDF icon button
-                        IconButton(
-                          icon: Icon(Icons.picture_as_pdf, size: 20, color: Colors.red),
-                          onPressed: () => _generateClientPDF(client),
-                          padding: EdgeInsets.zero,
-                          constraints: BoxConstraints(minWidth: 30),
-                          tooltip: 'Generate PDF Report',
                         ),
                       ],
                     ),
