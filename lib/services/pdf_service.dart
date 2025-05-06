@@ -6,7 +6,7 @@ import 'package:my_byaj_book/services/pdf_template_service.dart';
 
 /// Legacy PDF service - now refactored to use the standardized PdfTemplateService
 class PDFService {
-  static final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
+  static final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '');
   static final dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
   
   /// Generates a PDF report for a contact with their transaction history
@@ -26,7 +26,7 @@ class PDFService {
       {'label': 'Phone', 'value': contactPhone},
       {
         'label': isPositive ? 'YOU WILL GET' : 'YOU WILL GIVE',
-        'value': '₹${PdfTemplateService.formatCurrency(balance.abs())}',
+        'value': 'Rs. ${PdfTemplateService.formatCurrency(balance.abs())}',
         'highlight': true,
         'isPositive': isPositive,
       },
@@ -50,7 +50,7 @@ class PDFService {
           ? DateFormat('dd MMM yyyy').format(DateTime.parse(transaction['date']))
           : 'N/A';
       final note = transaction['note'] ?? '';
-      final amount = '₹${PdfTemplateService.formatCurrency(transaction['amount'])}';
+      final amount = 'Rs. ${PdfTemplateService.formatCurrency(transaction['amount'])}';
       final type = transaction['type'] == 'credit' ? 'Received' : 'Given';
       
       tableRows.add([date, note, amount, type]);

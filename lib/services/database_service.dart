@@ -1,195 +1,179 @@
 import 'dart:async';
-import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
-import '../models/khata.dart';
-import '../models/transaction.dart';
-import '../models/contact.dart';
+import 'package:flutter/foundation.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
+import '../models/customer_model.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
   static DatabaseService get instance => _instance;
   
+  bool _initialized = false;
+  late Box<Customer> _customersBox;
+  
   DatabaseService._internal();
   
-  Database? _database;
-  
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
-  }
-  
-  Future<Database> _initDatabase() async {
-    String path = join(await getDatabasesPath(), 'byaj_book.db');
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: _createDatabase,
-    );
-  }
-  
-  Future<void> _createDatabase(Database db, int version) async {
-    // Create contacts table
-    await db.execute('''
-      CREATE TABLE contacts(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        phone TEXT,
-        email TEXT,
-        address TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )
-    ''');
+  Future<void> init() async {
+    if (_initialized) return;
     
-    // Create khatas table
-    await db.execute('''
-      CREATE TABLE khatas(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        contact_id INTEGER NOT NULL,
-        type INTEGER NOT NULL,
-        interest_rate REAL,
-        note TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        FOREIGN KEY (contact_id) REFERENCES contacts (id) ON DELETE CASCADE
-      )
-    ''');
+    // Initialize Hive
+    final appDocumentDir = await getApplicationDocumentsDirectory();
+    Hive.init(appDocumentDir.path);
     
-    // Create transactions table
-    await db.execute('''
-      CREATE TABLE transactions(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        khata_id INTEGER NOT NULL,
-        type INTEGER NOT NULL,
-        amount REAL NOT NULL,
-        note TEXT,
-        date TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        FOREIGN KEY (khata_id) REFERENCES khatas (id) ON DELETE CASCADE
-      )
-    ''');
+    // Register adapters
+    Hive.registerAdapter(EntryTypeAdapter());
+    Hive.registerAdapter(CustomerEntryAdapter());
+    Hive.registerAdapter(CustomerAdapter());
+    
+    // Open boxes
+    _customersBox = await Hive.openBox<Customer>('customers');
+    
+    _initialized = true;
   }
   
-  // Contact methods
-  Future<int> insertContact(Contact contact) async {
-    final db = await database;
-    return await db.insert('contacts', {
-      'name': contact.name,
-      'phone': contact.phone,
-      'email': contact.email,
-      'address': contact.address,
-      'created_at': contact.createdAt.toIso8601String(),
-      'updated_at': contact.updatedAt.toIso8601String(),
+  // CRUD operations for Customers
+  
+  // Get all customers (optimized with compute function)
+  Future<List<Customer>> getAllCustomers() async {
+    if (!_initialized) await init();
+    
+    // Using compute to move this operation off the UI thread
+    return compute(_extractCustomers, _customersBox.values.toList());
+  }
+  
+  // Helper function to run in isolate
+  static List<Customer> _extractCustomers(List<Customer> customers) {
+    return customers;
+  }
+  
+  // Get customers for a specific date
+  Future<List<Customer>> getCustomersForDate(DateTime date) async {
+    final allCustomers = await getAllCustomers();
+    
+    return compute(_filterCustomersByDate, {
+      'customers': allCustomers, 
+      'year': date.year,
+      'month': date.month,
+      'day': date.day
     });
   }
   
-  Future<List<Contact>> getContacts() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('contacts');
+  // Helper function to run in isolate
+  static List<Customer> _filterCustomersByDate(Map<String, dynamic> params) {
+    final List<Customer> customers = params['customers'];
+    final int year = params['year'];
+    final int month = params['month'];
+    final int day = params['day'];
     
-    return List.generate(maps.length, (i) {
-      return Contact(
-        id: maps[i]['id'],
-        name: maps[i]['name'],
-        phone: maps[i]['phone'],
-        email: maps[i]['email'],
-        address: maps[i]['address'],
-        createdAt: DateTime.parse(maps[i]['created_at']),
-        updatedAt: DateTime.parse(maps[i]['updated_at']),
-      );
+    return customers.where((customer) {
+      return customer.date.year == year && 
+             customer.date.month == month && 
+             customer.date.day == day;
+    }).toList();
+  }
+  
+  // Add a customer
+  Future<void> addCustomer(Customer customer) async {
+    if (!_initialized) await init();
+    
+    await _customersBox.put(customer.id, customer);
+  }
+  
+  // Update a customer
+  Future<void> updateCustomer(Customer customer) async {
+    if (!_initialized) await init();
+    
+    await _customersBox.put(customer.id, customer);
+  }
+  
+  // Delete a customer
+  Future<void> deleteCustomer(String customerId) async {
+    if (!_initialized) await init();
+    
+    await _customersBox.delete(customerId);
+  }
+  
+  // Calculate summaries (optimized with compute function)
+  Future<Map<String, dynamic>> calculateTotals() async {
+    final allCustomers = await getAllCustomers();
+    
+    return compute(_calculateTotals, allCustomers);
+  }
+  
+  // Helper function to run in isolate
+  static Map<String, dynamic> _calculateTotals(List<Customer> customers) {
+    int totalCups = 0;
+    double totalAmount = 0;
+    double collectedAmount = 0;
+    double remainingAmount = 0;
+    
+    for (var customer in customers) {
+      totalCups += customer.cups;
+      totalAmount += customer.totalAmount;
+      collectedAmount += customer.paymentsMade;
+    }
+    
+    remainingAmount = totalAmount - collectedAmount;
+    
+    return {
+      'totalCups': totalCups,
+      'totalAmount': totalAmount,
+      'collectedAmount': collectedAmount,
+      'remainingAmount': remainingAmount
+    };
+  }
+  
+  // Search for customers by name
+  Future<List<Customer>> searchCustomersByName(String query) async {
+    final allCustomers = await getAllCustomers();
+    
+    return compute(_searchCustomers, {
+      'customers': allCustomers,
+      'query': query.toLowerCase(),
     });
   }
   
-  // Khata methods
-  Future<int> insertKhata(Khata khata) async {
-    final db = await database;
-    return await db.insert('khatas', {
-      'contact_id': khata.contactId,
-      'type': khata.type.index,
-      'interest_rate': khata.interestRate,
-      'note': khata.note,
-      'created_at': khata.createdAt.toIso8601String(),
-      'updated_at': khata.updatedAt.toIso8601String(),
+  // Helper function to run in isolate
+  static List<Customer> _searchCustomers(Map<String, dynamic> params) {
+    final List<Customer> customers = params['customers'];
+    final String query = params['query'];
+    
+    if (query.isEmpty) return customers;
+    
+    return customers
+      .where((customer) => customer.name.toLowerCase().contains(query))
+      .toList();
+  }
+  
+  // Sort customers (optimized with compute function)
+  Future<List<Customer>> sortCustomers(List<Customer> customers, String sortBy) async {
+    return compute(_sortCustomers, {
+      'customers': customers,
+      'sortBy': sortBy,
     });
   }
   
-  Future<List<Khata>> getKhatasByType(KhataType type) async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'khatas',
-      where: 'type = ?',
-      whereArgs: [type.index],
-    );
+  // Helper function to run in isolate
+  static List<Customer> _sortCustomers(Map<String, dynamic> params) {
+    final List<Customer> customers = List.from(params['customers']);
+    final String sortBy = params['sortBy'];
     
-    return List.generate(maps.length, (i) {
-      return Khata(
-        id: maps[i]['id'],
-        contactId: maps[i]['contact_id'],
-        type: KhataType.values[maps[i]['type']],
-        interestRate: maps[i]['interest_rate'],
-        note: maps[i]['note'],
-        createdAt: DateTime.parse(maps[i]['created_at']),
-        updatedAt: DateTime.parse(maps[i]['updated_at']),
-      );
-    });
-  }
-  
-  Future<Khata?> getKhataById(int id) async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'khatas',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    switch (sortBy) {
+      case 'recent':
+        customers.sort((a, b) => b.lastUpdated.compareTo(a.lastUpdated));
+        break;
+      case 'name':
+        customers.sort((a, b) => a.name.compareTo(b.name));
+        break;
+      case 'amount':
+        customers.sort((a, b) => (b.pendingAmount).compareTo(a.pendingAmount));
+        break;
+      case 'cups':
+        customers.sort((a, b) => b.cups.compareTo(a.cups));
+        break;
+    }
     
-    if (maps.isEmpty) return null;
-    
-    return Khata(
-      id: maps[0]['id'],
-      contactId: maps[0]['contact_id'],
-      type: KhataType.values[maps[0]['type']],
-      interestRate: maps[0]['interest_rate'],
-      note: maps[0]['note'],
-      createdAt: DateTime.parse(maps[0]['created_at']),
-      updatedAt: DateTime.parse(maps[0]['updated_at']),
-    );
-  }
-  
-  // Transaction methods
-  Future<int> insertTransaction(Transaction transaction) async {
-    final db = await database;
-    return await db.insert('transactions', {
-      'khata_id': transaction.khataId,
-      'type': transaction.type.index,
-      'amount': transaction.amount,
-      'note': transaction.note,
-      'date': transaction.date.toIso8601String(),
-      'created_at': transaction.createdAt.toIso8601String(),
-      'updated_at': transaction.updatedAt.toIso8601String(),
-    });
-  }
-  
-  Future<List<Transaction>> getTransactionsByKhataId(int khataId) async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'transactions',
-      where: 'khata_id = ?',
-      whereArgs: [khataId],
-    );
-    
-    return List.generate(maps.length, (i) {
-      return Transaction(
-        id: maps[i]['id'],
-        khataId: maps[i]['khata_id'],
-        type: TransactionType.values[maps[i]['type']],
-        amount: maps[i]['amount'],
-        note: maps[i]['note'],
-        date: DateTime.parse(maps[i]['date']),
-        createdAt: DateTime.parse(maps[i]['created_at']),
-        updatedAt: DateTime.parse(maps[i]['updated_at']),
-      );
-    });
+    return customers;
   }
 } 

@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:isolate';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/services.dart';
 import 'package:open_file/open_file.dart';
+import 'package:intl/intl.dart';
 
 /// A standardized service for generating PDF documents throughout the app
 /// with consistent styling, fonts, and layouts.
@@ -43,25 +45,24 @@ class PdfTemplateService {
     Map<String, dynamic>? metadata,
     bool showPageNumbers = true,
   }) async {
-    final pdf = pw.Document(
-      title: title,
-      author: 'My Byaj Book',
-      creator: 'My Byaj Book App',
-      subject: subtitle,
-      keywords: 'My Byaj Book, $title, $subtitle',
-    );
-    
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        header: (context) => buildHeader(title: title, subtitle: subtitle, metadata: metadata),
-        footer: (context) => buildFooter(context, showPageNumbers: showPageNumbers),
-        build: (context) => content,
-      )
-    );
-    
-    return pdf;
+    // Using compute to run in background
+    return compute(_createPdfDocument, {
+      'title': title,
+      'subtitle': subtitle,
+      'keywords': metadata?['keywords'] ?? '',
+    }).then((pdf) async {
+      // We can't return the document with content directly since pw.Widget isn't serializable
+      // So we'll add content on the main thread, but the document setup is in background
+      for (var widget in content) {
+        pdf.addPage(
+          pw.Page(
+            margin: const pw.EdgeInsets.all(24),
+            build: (pw.Context context) => widget,
+          ),
+        );
+      }
+      return pdf;
+    });
   }
   
   /// Builds a standard header for PDF documents
@@ -309,16 +310,28 @@ class PdfTemplateService {
   /// Save and open a PDF document
   static Future<void> saveAndOpenPdf(pw.Document pdf, String fileName) async {
     try {
-      final output = await getTemporaryDirectory();
-      final file = File('${output.path}/$fileName');
-      await file.writeAsBytes(await pdf.save());
+      // Save the PDF using compute for background processing
+      final bytes = await pdf.save();
+      final savePath = await _getAndPrepareSavePath(fileName);
       
-      final result = await OpenFile.open(file.path);
+      // Save to file system
+      await compute(_saveBytesToFile, {
+        'bytes': bytes,
+        'path': savePath,
+      });
       
-      if (result.type != 'done') {
-        throw Exception('Could not open the file: ${result.message}');
+      // Log for debugging
+      print('PDF saved to: $savePath');
+      
+      // Try to open the PDF
+      final result = await OpenFile.open(savePath);
+      
+      if (result.type != ResultType.done) {
+        // Log if open failed
+        print('Could not open PDF automatically: ${result.message}');
       }
     } catch (e) {
+      print('Error saving or opening PDF: $e');
       rethrow;
     }
   }
@@ -330,5 +343,45 @@ class PdfTemplateService {
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match match) => '${match[1]},'
     );
+  }
+  
+  // Helper function to create PDF document in isolate
+  static pw.Document _createPdfDocument(Map<String, dynamic> params) {
+    final title = params['title'];
+    final subtitle = params['subtitle'];
+    final keywords = params['keywords'];
+    
+    return pw.Document(
+      title: title,
+      author: 'My Byaj Book',
+      keywords: keywords,
+      creator: 'My Byaj Book App',
+      subject: subtitle,
+      producer: 'My Byaj Book PDF Service',
+    );
+  }
+  
+  // Helper to save bytes to file in background
+  static void _saveBytesToFile(Map<String, dynamic> params) {
+    final bytes = params['bytes'] as List<int>;
+    final path = params['path'] as String;
+    final file = File(path);
+    file.writeAsBytesSync(bytes);
+  }
+  
+  // Helper to get the save path
+  static Future<String> _getAndPrepareSavePath(String fileName) async {
+    Directory? directory;
+    
+    try {
+      // Try to get the documents directory first
+      directory = await getApplicationDocumentsDirectory();
+    } catch (e) {
+      // Fallback to temporary directory if documents is not available
+      directory = await getTemporaryDirectory();
+    }
+    
+    final path = '${directory.path}/$fileName';
+    return path;
   }
 } 

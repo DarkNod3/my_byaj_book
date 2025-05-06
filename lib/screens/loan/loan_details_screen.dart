@@ -761,7 +761,7 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
           color: isPaid ? Colors.green.shade200 : Colors.grey.shade300,
-          width: 1,
+          width: isPaid ? 1.5 : 1,
         ),
       ),
       child: Padding(
@@ -780,17 +780,32 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: isPaid ? Colors.green.shade100 : Colors.orange.shade100,
                     borderRadius: BorderRadius.circular(12),
+                    border: isPaid ? Border.all(color: Colors.green.shade400, width: 1) : null,
                   ),
-                  child: Text(
-                    isPaid ? 'Paid' : 'Pending',
-                    style: TextStyle(
-                      color: isPaid ? Colors.green.shade800 : Colors.orange.shade800,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isPaid)
+                        Icon(
+                          Icons.check_circle,
+                          color: Colors.green.shade700,
+                          size: 16,
+                        ),
+                      if (isPaid)
+                        const SizedBox(width: 4),
+                      Text(
+                        isPaid ? 'EMI Paid' : 'Pending',
+                        style: TextStyle(
+                          color: isPaid ? Colors.green.shade800 : Colors.orange.shade800,
+                          fontWeight: FontWeight.w600,
+                          fontSize: isPaid ? 13 : 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

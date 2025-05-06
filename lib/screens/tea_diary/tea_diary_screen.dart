@@ -8,7 +8,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import 'dart:io'; // Use dart:io instead of file package
-import 'package:my_byaj_book/services/pdf_template_service.dart';
 
 class TeaDiaryScreen extends StatefulWidget {
   static const routeName = '/tea-diary';
@@ -1504,7 +1503,8 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
   }
   
   Future<pw.Document> _createPdf({required String title, required List<Customer> customers, required bool isOneDay}) async {
-    // Calculate totals
+    final pdf = pw.Document();
+    
     double totalCups = 0;
     double totalAmount = 0;
     double collectedAmount = 0;
@@ -1518,84 +1518,198 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     }
     remainingAmount = totalAmount - collectedAmount;
     
-    // Create summary items
-    final List<Map<String, dynamic>> summaryItems = [
-      {'label': 'Total Cups', 'value': totalCups.toInt().toString()},
-      {'label': 'Total Sales', 'value': '₹${PdfTemplateService.formatCurrency(totalAmount)}'},
-      {'label': 'Collected', 'value': '₹${PdfTemplateService.formatCurrency(collectedAmount)}'},
-      {
-        'label': 'Remaining', 
-        'value': '₹${PdfTemplateService.formatCurrency(remainingAmount)}',
-        'highlight': true,
-        'isPositive': false,
-      },
-    ];
-    
-    // Create table data
-    final List<String> tableColumns = ['Customer Name', 'Cups', 'Rate', 'Total', 'Balance'];
-    final List<List<String>> tableRows = [];
-    
-    for (var customer in customers) {
-      final pendingAmount = customer.totalAmount - customer.paymentsMade;
-      
-      tableRows.add([
-        customer.name,
-        customer.cups.toString(),
-        customer.teaRate.toStringAsFixed(1),
-        customer.totalAmount.toStringAsFixed(2),
-        pendingAmount.toStringAsFixed(2),
-      ]);
-    }
-    
-    // Create PDF content
-    final content = [
-      // Summary card
-      PdfTemplateService.buildSummaryCard(
-        title: 'Tea Sales Summary',
-        items: summaryItems,
+    pdf.addPage(
+      pw.Page(
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                color: PdfColors.teal50,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Text(
+                      'My Byaj Book - Tea Diary',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 5),
+                    pw.Text(
+                      title,
+                      style: const pw.TextStyle(
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(height: 20),
+              
+              // Summary section
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey300),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    _pdfSummaryItem('Total Cups', totalCups.toInt().toString()),
+                    _pdfSummaryItem('Total Sales', '${totalAmount.toStringAsFixed(2)}'),
+                    _pdfSummaryItem('Collected', '${collectedAmount.toStringAsFixed(2)}'),
+                    _pdfSummaryItem('Remaining', '${remainingAmount.toStringAsFixed(2)}'),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(height: 20),
+              
+              // Table header
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300),
+                children: [
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(color: PdfColors.teal100),
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(
+                          'Customer Name',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(
+                          'Cups',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          textAlign: pw.TextAlign.center,
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(
+                          'Rate',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          textAlign: pw.TextAlign.center,
       ),
-      
-      pw.SizedBox(height: 20),
-      
-      // Customers table
-      PdfTemplateService.buildDataTable(
-        title: 'Customer Details',
-        columns: tableColumns,
-        rows: tableRows,
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(
+                          'Total',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          textAlign: pw.TextAlign.center,
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(
+                          'Balance',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          textAlign: pw.TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  // Table data - all customers
+                  ...customers.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    Customer customer = entry.value;
+                    final pendingAmount = customer.totalAmount - customer.paymentsMade;
+                    
+                    return pw.TableRow(
+                      decoration: index % 2 == 0 
+                          ? const pw.BoxDecoration(color: PdfColors.grey100)
+                          : const pw.BoxDecoration(color: PdfColors.white),
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(5),
+                          child: pw.Text(customer.name),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(5),
+                          child: pw.Text(
+                            '${customer.cups}',
+                            textAlign: pw.TextAlign.center,
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(5),
+                          child: pw.Text(
+                            '${customer.teaRate.toStringAsFixed(1)}',
+                            textAlign: pw.TextAlign.center,
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(5),
+                          child: pw.Text(
+                            '${customer.totalAmount.toStringAsFixed(2)}',
+                            textAlign: pw.TextAlign.center,
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(5),
+                          child: pw.Text(
+                            '${pendingAmount.toStringAsFixed(2)}',
+                            style: pendingAmount > 0
+                                ? const pw.TextStyle(color: PdfColors.red)
+                                : const pw.TextStyle(color: PdfColors.green),
+                            textAlign: pw.TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+              
+              pw.SizedBox(height: 20),
+              
+              // Footer
+              pw.Container(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Text(
+                  'Generated on ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey700,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
-    ];
-    
-    // Create and return the PDF document
-    return await PdfTemplateService.createDocument(
-      title: 'Tea Diary',
-      subtitle: title,
-      content: content,
     );
+    
+    return pdf;
   }
   
   pw.Widget _pdfSummaryItem(String title, String value) {
-    // This is now only used by the customer PDF, which we'll refactor separately
     return pw.Column(
       children: [
-        pw.Container(
-          padding: const pw.EdgeInsets.all(4),
-          decoration: pw.BoxDecoration(
-            color: PdfColors.teal50,
-            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(2)),
-          ),
-          child: pw.Text(
-            value,
-            style: pw.TextStyle(
-              fontSize: 14,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-        ),
-        pw.SizedBox(height: 2),
         pw.Text(
           title,
           style: const pw.TextStyle(
             fontSize: 10,
+            color: PdfColors.grey700,
+          ),
+        ),
+        pw.SizedBox(height: 2),
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            fontSize: 14,
+            fontWeight: pw.FontWeight.bold,
           ),
         ),
       ],

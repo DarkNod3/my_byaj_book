@@ -1929,7 +1929,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         },
         {
           'label': isPositive ? 'YOU WILL GET' : 'YOU WILL GIVE',
-          'value': '₹${PdfTemplateService.formatCurrency(balance.abs())}',
+          'value': 'Rs. ${PdfTemplateService.formatCurrency(balance.abs())}',
           'highlight': true,
           'isPositive': isPositive,
         },
@@ -1958,7 +1958,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
             ? DateFormat('dd MMM yyyy').format(DateTime.parse(transaction['date']))
             : 'N/A';
         final note = transaction['note'] ?? '';
-        final amount = '₹${PdfTemplateService.formatCurrency(transaction['amount'])}';
+        final amount = 'Rs. ${PdfTemplateService.formatCurrency(transaction['amount'])}';
         final type = transaction['type'] == 'credit' ? 'Received' : 'Given';
         
         tableRows.add([date, note, amount, type]);

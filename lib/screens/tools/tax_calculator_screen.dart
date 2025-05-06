@@ -31,6 +31,7 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
 
   // Tax regime selection
   bool _isOldRegime = true; // Default to old regime
+  bool _isGeneratingPdf = false; // Added for PDF generation status
 
   // Tax calculation results
   double _taxableIncome = 0;
@@ -304,93 +305,14 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
     }
   }
 
-  Future<void> _generatePDF() async {
+  Future<void> _generatePdfReport() async {
     try {
-      // Show a loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Generating PDF report...'),
-          duration: Duration(seconds: 1),
-        ),
-      );
+      setState(() {
+        _isGeneratingPdf = true;
+      });
       
-      // Get basic tax details for the report
-      double income = double.tryParse(_incomeController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 500000;
-      double investments = double.tryParse(_investmentsController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 50000;
-      double deductions = double.tryParse(_deductionsController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 50000;
-      String regime = _isOldRegime ? 'Old Tax Regime' : 'New Tax Regime';
-      
-      // Prepare summary card items
-      final List<Map<String, dynamic>> summaryItems = [
-        {'label': 'Total Income', 'value': '₹${PdfTemplateService.formatCurrency(income)}'},
-        {'label': 'Investments (Sec 80C)', 'value': '₹${PdfTemplateService.formatCurrency(investments)}'},
-        {'label': 'Other Deductions', 'value': '₹${PdfTemplateService.formatCurrency(deductions)}'},
-        {'label': 'Tax Regime', 'value': regime},
-        {'label': 'Taxable Income', 'value': '₹${PdfTemplateService.formatCurrency(_taxableIncome)}'},
-        {'label': 'Income Tax', 'value': '₹${PdfTemplateService.formatCurrency(_taxAmount)}'},
-        {'label': 'Cess (4%)', 'value': '₹${PdfTemplateService.formatCurrency(_cessAmount)}'},
-        {
-          'label': 'Total Tax Liability', 
-          'value': '₹${PdfTemplateService.formatCurrency(_totalTaxLiability)}',
-          'highlight': true,
-          'isPositive': false
-        },
-        {'label': 'Effective Tax Rate', 'value': '${_effectiveTaxRate.toStringAsFixed(2)}%'},
-      ];
-      
-      // Prepare tax slab breakdown table
-      final List<String> tableColumns = ['Income Slab', 'Tax Rate', 'Tax Amount'];
-      final List<List<String>> tableRows = [];
-      
-      for (var slab in _taxSlabBreakdown) {
-        if (slab['slab'] != null && slab['rate'] != null) {
-          double taxAmount = 0;
-          if (slab['tax'] != null) {
-            taxAmount = slab['tax'] is double ? slab['tax'] : slab['tax'].toDouble();
-          }
-          
-          tableRows.add([
-            slab['slab'].toString(),
-            slab['rate'].toString(),
-            '₹${PdfTemplateService.formatCurrency(taxAmount)}'
-          ]);
-        }
-      }
-      
-      // PDF content
-      final content = [
-        // Tax Summary
-        PdfTemplateService.buildSummaryCard(
-          title: 'Tax Summary',
-          items: summaryItems,
-        ),
-        
-        pw.SizedBox(height: 20),
-        
-        // Tax Slab Breakdown Table
-        PdfTemplateService.buildDataTable(
-          title: 'Tax Slab Breakdown',
-          columns: tableColumns,
-          rows: tableRows,
-        ),
-        
-        pw.SizedBox(height: 20),
-        
-        // Disclaimer
-        pw.Container(
-          padding: const pw.EdgeInsets.all(10),
-          decoration: pw.BoxDecoration(
-            color: PdfTemplateService.lightBackgroundColor,
-            borderRadius: PdfTemplateService.roundedBorder,
-          ),
-          child: pw.Text(
-            'Disclaimer: This is an approximate calculation based on the information provided. Actual tax liability may vary based on other deductions, exemptions, and income sources. Please consult a tax professional for personalized advice.',
-            style: const pw.TextStyle(
-              fontSize: 10,
-            ),
-          ),
-        ),
-      ];
+      // Create content for PDF
+      final content = await _createPdfContent();
       
       // Create the PDF
       final fileName = 'tax_calculation_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
@@ -405,9 +327,28 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF report generated and opened successfully!'),
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('PDF report generated successfully!'),
+                const SizedBox(height: 4),
+                const Text(
+                  'If the PDF didn\'t open automatically, it was saved to your device\'s temporary folder.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }
@@ -417,10 +358,99 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
           SnackBar(
             content: Text('Failed to generate PDF: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGeneratingPdf = false;
+        });
+      }
     }
+  }
+
+  Future<List<pw.Widget>> _createPdfContent() async {
+    // Get basic tax details for the report
+    double income = double.tryParse(_incomeController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 500000;
+    double investments = double.tryParse(_investmentsController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 50000;
+    double deductions = double.tryParse(_deductionsController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 50000;
+    String regime = _isOldRegime ? 'Old Tax Regime' : 'New Tax Regime';
+    
+    // Prepare summary card items
+    final List<Map<String, dynamic>> summaryItems = [
+      {'label': 'Total Income', 'value': 'Rs. ${PdfTemplateService.formatCurrency(income)}'},
+      {'label': 'Investments (Sec 80C)', 'value': 'Rs. ${PdfTemplateService.formatCurrency(investments)}'},
+      {'label': 'Other Deductions', 'value': 'Rs. ${PdfTemplateService.formatCurrency(deductions)}'},
+      {'label': 'Tax Regime', 'value': regime},
+      {'label': 'Taxable Income', 'value': 'Rs. ${PdfTemplateService.formatCurrency(_taxableIncome)}'},
+      {'label': 'Income Tax', 'value': 'Rs. ${PdfTemplateService.formatCurrency(_taxAmount)}'},
+      {'label': 'Cess (4%)', 'value': 'Rs. ${PdfTemplateService.formatCurrency(_cessAmount)}'},
+      {
+        'label': 'Total Tax Liability', 
+        'value': 'Rs. ${PdfTemplateService.formatCurrency(_totalTaxLiability)}',
+        'highlight': true,
+        'isPositive': false
+      },
+      {'label': 'Effective Tax Rate', 'value': '${_effectiveTaxRate.toStringAsFixed(2)}%'},
+    ];
+    
+    // Prepare tax slab breakdown table
+    final List<String> tableColumns = ['Income Slab', 'Tax Rate', 'Tax Amount'];
+    final List<List<String>> tableRows = [];
+    
+    for (var slab in _taxSlabBreakdown) {
+      if (slab['slab'] != null && slab['rate'] != null) {
+        double taxAmount = 0;
+        if (slab['tax'] != null) {
+          taxAmount = slab['tax'] is double ? slab['tax'] : slab['tax'].toDouble();
+        }
+        
+        tableRows.add([
+          slab['slab'].toString(),
+          slab['rate'].toString(),
+          'Rs. ${PdfTemplateService.formatCurrency(taxAmount)}'
+        ]);
+      }
+    }
+    
+    // PDF content
+    final content = [
+      // Tax Summary
+      PdfTemplateService.buildSummaryCard(
+        title: 'Tax Summary',
+        items: summaryItems,
+      ),
+      
+      pw.SizedBox(height: 20),
+      
+      // Tax Slab Breakdown Table
+      PdfTemplateService.buildDataTable(
+        title: 'Tax Slab Breakdown',
+        columns: tableColumns,
+        rows: tableRows,
+      ),
+      
+      pw.SizedBox(height: 20),
+      
+      // Disclaimer
+      pw.Container(
+        padding: const pw.EdgeInsets.all(10),
+        decoration: pw.BoxDecoration(
+          color: PdfTemplateService.lightBackgroundColor,
+          borderRadius: PdfTemplateService.roundedBorder,
+        ),
+        child: pw.Text(
+          'Disclaimer: This is an approximate calculation based on the information provided. Actual tax liability may vary based on other deductions, exemptions, and income sources. Please consult a tax professional for personalized advice.',
+          style: const pw.TextStyle(
+            fontSize: 10,
+          ),
+        ),
+      ),
+    ];
+    
+    return content;
   }
 
   void _resetCalculator() {
@@ -710,12 +740,22 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
   }
 
   Widget _buildPdfButton() {
-    return SizedBox(
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: _generatePDF,
-        icon: const Icon(Icons.picture_as_pdf),
-        label: const Text('GENERATE TAX REPORT'),
+        onPressed: _isGeneratingPdf ? null : _generatePdfReport,
+        icon: _isGeneratingPdf 
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.picture_as_pdf),
+        label: Text(_isGeneratingPdf ? 'GENERATING PDF...' : 'GENERATE TAX REPORT'),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.red.shade700,
           foregroundColor: Colors.white,

@@ -142,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'bill_diary': const BillDiaryScreen(showAppBar: false),
       'milk_diary': const MilkDiaryScreen(showAppBar: false),
       'work_diary': const WorkDiaryScreen(showAppBar: false),
-      'tea_diary': const TeaDiaryScreen(),
+      'tea_diary': const TeaDiaryScreen(showAppBar: false),
       'tools': const MoreToolsScreen(),
       'emi_calc': const EmiCalculatorScreen(showAppBar: false),
       'sip_calc': const SipCalculatorScreen(showAppBar: false),

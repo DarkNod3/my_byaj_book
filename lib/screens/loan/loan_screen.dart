@@ -383,7 +383,39 @@ class _LoanScreenState extends State<LoanScreen> {
   Widget _buildLoanCard(Map<String, dynamic> loan) {
     final Color loanColor = _getLoanColor(loan['loanType']);
     final IconData loanIcon = _getLoanIcon(loan['loanType']);
-    final bool isNextPaymentDue = _isPaymentDue(loan['firstPaymentDate']);
+    
+    // Check if current month's EMI is paid
+    bool isCurrentMonthEmiPaid = false;
+    DateTime? nextPaymentDate = loan['firstPaymentDate'];
+    
+    // If we have installments, determine next payment date and EMI paid status
+    if (loan.containsKey('installments') && loan['installments'] is List) {
+      final installments = loan['installments'] as List;
+      final now = DateTime.now();
+      final currentMonth = now.month;
+      final currentYear = now.year;
+      
+      // First check if current month's EMI is paid
+      for (var installment in installments) {
+        if (installment['dueDate'] is DateTime) {
+          final dueDate = installment['dueDate'] as DateTime;
+          if (dueDate.month == currentMonth && dueDate.year == currentYear) {
+            isCurrentMonthEmiPaid = installment['isPaid'] == true;
+            break;
+          }
+        }
+      }
+      
+      // Now find the next unpaid installment for payment date
+      for (var installment in installments) {
+        if (installment['isPaid'] != true && installment['dueDate'] is DateTime) {
+          nextPaymentDate = installment['dueDate'] as DateTime;
+          break;
+        }
+      }
+    }
+    
+    final bool isNextPaymentDue = _isPaymentDue(nextPaymentDate);
     
     return GestureDetector(
       onTap: () {
@@ -474,10 +506,11 @@ class _LoanScreenState extends State<LoanScreen> {
                     title: 'Monthly EMI',
                     value: _calculateEMI(loan),
                     color: Colors.blue,
+                    showCheckmark: isCurrentMonthEmiPaid,
                   ),
                   _buildLoanDetail(
                     title: 'Next Payment',
-                    value: _formatDate(loan['firstPaymentDate']),
+                    value: _formatDate(nextPaymentDate),
                     color: isNextPaymentDue ? Colors.red : Colors.orange,
                     badge: isNextPaymentDue ? 'Due' : null,
                     badgeColor: Colors.red,
@@ -677,6 +710,7 @@ class _LoanScreenState extends State<LoanScreen> {
     required String title,
     required String value,
     required Color color,
+    bool showCheckmark = false,
     String? badge,
     Color? badgeColor,
   }) {
@@ -701,6 +735,21 @@ class _LoanScreenState extends State<LoanScreen> {
                 fontSize: 14,
               ),
             ),
+            if (showCheckmark) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.check,
+                  color: Colors.green.shade700,
+                  size: 12,
+                ),
+              ),
+            ],
             if (badge != null) ...[
               const SizedBox(width: 4),
               Container(

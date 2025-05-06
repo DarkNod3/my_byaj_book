@@ -233,14 +233,45 @@ class LoanProvider extends ChangeNotifier {
     
     // Calculate the next due amount as double
     double dueAmount = 0.0;
+    final DateTime now = DateTime.now();
+    final int currentMonth = now.month;
+    final int currentYear = now.year;
+    
     for (var loan in activeLoans) {
-      double principal = double.tryParse(loan['loanAmount'] ?? '0') ?? 0.0;
-      double rate = (double.tryParse(loan['interestRate'] ?? '0') ?? 0.0) / 100 / 12;
-      int time = int.tryParse(loan['loanTerm'] ?? '0') ?? 0;
+      // Check if this loan has installments
+      bool emiBilledThisMonth = false;
       
-      if (rate > 0 && time > 0) {
-        double emi = principal * rate * _pow(1 + rate, time) / (_pow(1 + rate, time) - 1);
-        dueAmount += emi;
+      if (loan.containsKey('installments') && loan['installments'] is List) {
+        final installments = loan['installments'] as List;
+        
+        // Look for an installment due this month
+        for (final installment in installments) {
+          if (installment['dueDate'] is DateTime) {
+            final dueDate = installment['dueDate'] as DateTime;
+            
+            // If installment is due this month
+            if (dueDate.month == currentMonth && dueDate.year == currentYear) {
+              // If EMI is not paid, add it to due amount
+              if (installment['isPaid'] != true) {
+                dueAmount += installment['totalAmount'] as double? ?? 0.0;
+              }
+              emiBilledThisMonth = true;
+              break;
+            }
+          }
+        }
+      }
+      
+      // If no installment was found for this month, calculate EMI
+      if (!emiBilledThisMonth) {
+        double principal = double.tryParse(loan['loanAmount'] ?? '0') ?? 0.0;
+        double rate = (double.tryParse(loan['interestRate'] ?? '0') ?? 0.0) / 100 / 12;
+        int time = int.tryParse(loan['loanTerm'] ?? '0') ?? 0;
+        
+        if (rate > 0 && time > 0) {
+          double emi = principal * rate * _pow(1 + rate, time) / (_pow(1 + rate, time) - 1);
+          dueAmount += emi;
+        }
       }
     }
     

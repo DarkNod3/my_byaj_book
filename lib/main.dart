@@ -21,6 +21,10 @@ import 'services/notification_service.dart';
 import 'models/loan_notification.dart';
 import 'screens/loan/loan_details_screen.dart';
 import 'dart:io';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:my_byaj_book/providers/customer_provider.dart';
+import 'package:my_byaj_book/services/database_service.dart';
 
 // Global notification service
 final notificationService = NotificationService.instance;
@@ -29,6 +33,10 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Hive
+  await Hive.initFlutter();
+  await DatabaseService.instance.init();
   
   // Initialize notification service
   await notificationService.init();
@@ -45,7 +53,26 @@ void main() async {
     overlays: [SystemUiOverlay.top],
   );
   
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CustomerProvider()),
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ChangeNotifierProvider(create: (context) => NavPreferencesProvider()),
+        ChangeNotifierProvider(create: (context) => UserProvider()),
+        ChangeNotifierProvider(create: (context) => TransactionProvider()),
+        ChangeNotifierProvider(
+          create: (_) => LoanProvider(),
+          lazy: false, // Initialize immediately
+        ),
+        ChangeNotifierProvider(create: (_) => BillNoteProvider()),
+        ChangeNotifierProvider(create: (_) => DailyEntryProvider()),
+        ChangeNotifierProvider(create: (_) => MilkSellerProvider()),
+        ChangeNotifierProvider(create: (_) => CardProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -114,7 +141,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             routes: {
               BillDiaryScreen.routeName: (ctx) => const BillDiaryScreen(),
               NavSettingsScreen.routeName: (ctx) => const NavSettingsScreen(),
-              TeaDiaryScreen.routeName: (ctx) => const TeaDiaryScreen(),
+              TeaDiaryScreen.routeName: (ctx) => const TeaDiaryScreen(showAppBar: true),
               ProfileEditScreen.routeName: (ctx) => const ProfileEditScreen(),
             },
           );

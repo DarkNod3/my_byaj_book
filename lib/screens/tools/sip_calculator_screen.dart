@@ -26,7 +26,7 @@ class SipCalculatorScreen extends StatefulWidget {
 
 class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _monthlyInvestmentController = TextEditingController(text: '10000');
+  final _monthlyInvestmentController = TextEditingController(text: '5000');
   final _expectedReturnController = TextEditingController(text: '12');
   final _investmentPeriodController = TextEditingController(text: '10');
 
@@ -34,6 +34,8 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   double _totalReturns = 0;
   double _maturityValue = 0;
   bool _showResult = true; // Always show results
+  bool _isCalculating = false;
+  bool _isGeneratingPdf = false; // Added state variable for PDF generation
   
   // Format currency in Indian Rupees
   final _currencyFormat = NumberFormat.currency(
@@ -82,7 +84,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
       
       // Safe parsing of values with defaults
       double monthlyInvestment = _monthlyInvestmentController.text.isEmpty 
-          ? 10000 : double.tryParse(_monthlyInvestmentController.text) ?? 10000;
+          ? 5000 : double.tryParse(_monthlyInvestmentController.text) ?? 5000;
       
       double expectedReturnRate = _expectedReturnController.text.isEmpty 
           ? 12 : double.tryParse(_expectedReturnController.text) ?? 12;
@@ -175,98 +177,17 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
     }
   }
 
-  Future<void> _generatePDF() async {
+  Future<void> _generatePdfReport() async {
     try {
-      // Show loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Generating PDF report...')),
-      );
-      
-      // Get values from current state or calculate them
-      final double monthlyInvestment = double.tryParse(_monthlyInvestmentController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
-      final int years = int.tryParse(_investmentPeriodController.text) ?? 0;
-      final double expectedReturn = double.tryParse(_expectedReturnController.text) ?? 0;
-      
-      // Calculate key values
-      final double totalInvested = monthlyInvestment * 12 * years;
-      final double totalValue = _calculateSIPValue(monthlyInvestment, expectedReturn, years);
-      final double estimatedReturns = totalValue - totalInvested;
-      
-      // Prepare summary data 
-      final List<Map<String, dynamic>> summaryItems = [
-        {'label': 'Monthly Investment', 'value': '₹${PdfTemplateService.formatCurrency(monthlyInvestment)}'},
-        {'label': 'Time Period', 'value': '$years Years'},
-        {'label': 'Expected Return', 'value': '$expectedReturn% p.a.'},
-        {'label': 'Total Amount Invested', 'value': '₹${PdfTemplateService.formatCurrency(totalInvested)}'},
-        {
-          'label': 'Estimated Returns', 
-          'value': '₹${PdfTemplateService.formatCurrency(estimatedReturns)}',
-          'highlight': true,
-          'isPositive': true,
-        },
-        {
-          'label': 'Total Value', 
-          'value': '₹${PdfTemplateService.formatCurrency(totalValue)}',
-          'highlight': true,
-          'isPositive': true,
-        },
-      ];
-      
-      // Prepare yearly breakdown table
-      final List<String> tableColumns = ['Year', 'Amount Invested', 'Est. Returns', 'Total Value'];
-      final List<List<String>> tableRows = [];
-      
-      // Add yearly breakdown data
-      for (int year = 1; year <= years; year++) {
-        final double amountInvested = monthlyInvestment * 12 * year;
-        final double totalValue = _calculateSIPValue(monthlyInvestment, expectedReturn, year);
-        final double estimatedReturns = totalValue - amountInvested;
-        
-        tableRows.add([
-          year.toString(),
-          '₹${PdfTemplateService.formatCurrency(amountInvested)}',
-          '₹${PdfTemplateService.formatCurrency(estimatedReturns)}',
-          '₹${PdfTemplateService.formatCurrency(totalValue)}',
-        ]);
-      }
+      setState(() {
+        _isGeneratingPdf = true;
+      });
       
       // Create PDF content
-      final content = [
-        // SIP Summary
-        PdfTemplateService.buildSummaryCard(
-          title: 'SIP Investment Summary',
-          items: summaryItems,
-        ),
-        
-        pw.SizedBox(height: 20),
-        
-        // Yearly breakdown table
-        PdfTemplateService.buildDataTable(
-          title: 'Year-wise Breakdown',
-          columns: tableColumns,
-          rows: tableRows,
-        ),
-        
-        pw.SizedBox(height: 20),
-        
-        // Disclaimer
-        pw.Container(
-          padding: const pw.EdgeInsets.all(10),
-          decoration: pw.BoxDecoration(
-            color: PdfTemplateService.lightBackgroundColor,
-            borderRadius: PdfTemplateService.roundedBorder,
-          ),
-          child: pw.Text(
-            'Disclaimer: This is only an illustrative example. Actual returns may vary depending on market conditions and may not be guaranteed. Please consult a financial advisor before making investment decisions.',
-            style: const pw.TextStyle(
-              fontSize: 10,
-            ),
-          ),
-        ),
-      ];
+      final content = await _createPdfContent();
       
-      // Generate PDF
-      final fileName = 'sip_calculator_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      // Create the PDF
+      final fileName = 'sip_calculation_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final pdf = await PdfTemplateService.createDocument(
         title: 'SIP Calculator',
         subtitle: 'Investment Report',
@@ -276,23 +197,49 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
       // Save and open the PDF
       await PdfTemplateService.saveAndOpenPdf(pdf, fileName);
       
-      // Show success message
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('PDF report generated successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('PDF report generated successfully!'),
+                const SizedBox(height: 4),
+                const Text(
+                  'If the PDF didn\'t open automatically, it was saved to your device\'s temporary folder.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      }
     } catch (e) {
-      // Show error message
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error generating PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate PDF: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGeneratingPdf = false;
+        });
+      }
     }
   }
 
@@ -306,7 +253,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   }
 
   void _resetCalculator() {
-    _monthlyInvestmentController.text = '10000';
+    _monthlyInvestmentController.text = '5000';
     _expectedReturnController.text = '12';
     _investmentPeriodController.text = '10';
     
@@ -546,16 +493,26 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   }
 
   Widget _buildPdfButton() {
-    return SizedBox(
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: _generatePDF,
-        icon: const Icon(Icons.picture_as_pdf),
-        label: const Text('GENERATE PDF REPORT'),
+        onPressed: _isGeneratingPdf ? null : _generatePdfReport,
+        icon: _isGeneratingPdf 
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.picture_as_pdf),
+        label: Text(_isGeneratingPdf ? 'GENERATING PDF...' : 'GENERATE PDF REPORT'),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.indigo.shade700,
-          foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          backgroundColor: Colors.teal.shade700,
+          foregroundColor: Colors.white,
         ),
       ),
     );
@@ -840,5 +797,90 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
       }
     } catch (_) {}
     return null; // Return null if validation passes
+  }
+
+  Future<List<pw.Widget>> _createPdfContent() async {
+    // Get values from current state or calculate them
+    final double monthlyInvestment = double.tryParse(_monthlyInvestmentController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+    final int years = int.tryParse(_investmentPeriodController.text) ?? 0;
+    final double expectedReturn = double.tryParse(_expectedReturnController.text) ?? 0;
+    
+    // Calculate key values
+    final double totalInvested = monthlyInvestment * 12 * years;
+    final double totalValue = _calculateSIPValue(monthlyInvestment, expectedReturn, years);
+    final double estimatedReturns = totalValue - totalInvested;
+    
+    // Prepare summary data 
+    final List<Map<String, dynamic>> summaryItems = [
+      {'label': 'Monthly Investment', 'value': 'Rs. ${PdfTemplateService.formatCurrency(monthlyInvestment)}'},
+      {'label': 'Time Period', 'value': '$years Years'},
+      {'label': 'Expected Return', 'value': '$expectedReturn% p.a.'},
+      {'label': 'Total Amount Invested', 'value': 'Rs. ${PdfTemplateService.formatCurrency(totalInvested)}'},
+      {
+        'label': 'Estimated Returns', 
+        'value': 'Rs. ${PdfTemplateService.formatCurrency(estimatedReturns)}',
+        'highlight': true,
+        'isPositive': true,
+      },
+      {
+        'label': 'Total Value', 
+        'value': 'Rs. ${PdfTemplateService.formatCurrency(totalValue)}',
+        'highlight': true,
+        'isPositive': true,
+      },
+    ];
+    
+    // Prepare yearly breakdown table
+    final List<String> tableColumns = ['Year', 'Amount Invested', 'Est. Returns', 'Total Value'];
+    final List<List<String>> tableRows = [];
+    
+    // Add yearly breakdown data
+    for (int year = 1; year <= years; year++) {
+      final double amountInvested = monthlyInvestment * 12 * year;
+      final double totalValue = _calculateSIPValue(monthlyInvestment, expectedReturn, year);
+      final double estimatedReturns = totalValue - amountInvested;
+      
+      tableRows.add([
+        year.toString(),
+        'Rs. ${PdfTemplateService.formatCurrency(amountInvested)}',
+        'Rs. ${PdfTemplateService.formatCurrency(estimatedReturns)}',
+        'Rs. ${PdfTemplateService.formatCurrency(totalValue)}',
+      ]);
+    }
+    
+    // Create PDF content
+    return [
+      // SIP Summary
+      PdfTemplateService.buildSummaryCard(
+        title: 'SIP Investment Summary',
+        items: summaryItems,
+      ),
+      
+      pw.SizedBox(height: 20),
+      
+      // Yearly breakdown table
+      PdfTemplateService.buildDataTable(
+        title: 'Year-wise Breakdown',
+        columns: tableColumns,
+        rows: tableRows,
+      ),
+      
+      pw.SizedBox(height: 20),
+      
+      // Disclaimer
+      pw.Container(
+        padding: const pw.EdgeInsets.all(10),
+        decoration: pw.BoxDecoration(
+          color: PdfTemplateService.lightBackgroundColor,
+          borderRadius: PdfTemplateService.roundedBorder,
+        ),
+        child: pw.Text(
+          'Disclaimer: This is only an illustrative example. Actual returns may vary depending on market conditions and may not be guaranteed. Please consult a financial advisor before making investment decisions.',
+          style: const pw.TextStyle(
+            fontSize: 10,
+          ),
+        ),
+      ),
+    ];
   }
 } 
