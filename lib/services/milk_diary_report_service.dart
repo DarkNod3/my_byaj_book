@@ -7,6 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
 import '../models/milk_diary/daily_entry.dart';
 import '../models/milk_diary/milk_seller.dart';
+import '../models/milk_diary/milk_payment.dart';
 import '../providers/milk_diary/milk_seller_provider.dart';
 import '../providers/milk_diary/daily_entry_provider.dart';
 
@@ -23,10 +24,6 @@ class MilkDiaryReportService {
     final pdf = pw.Document();
     final entries = entryProvider.getEntriesForDate(date);
     
-    // Load font
-    final font = await rootBundle.load("assets/fonts/Roboto-Regular.ttf");
-    final ttf = pw.Font.ttf(font);
-    
     // Group entries by seller
     Map<String, List<DailyEntry>> entriesBySeller = {};
     for (var entry in entries) {
@@ -41,10 +38,10 @@ class MilkDiaryReportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         build: (context) => [
-          _buildHeader(date, ttf),
-          _buildSummary(entries, ttf),
+          _buildHeader(date),
+          _buildSummary(entries),
           ...entriesBySeller.entries.map(
-            (entry) => _buildSellerEntries(entry.key, entry.value, ttf)
+            (entry) => _buildSellerEntries(entry.key, entry.value)
           ),
         ],
       )
@@ -72,10 +69,6 @@ class MilkDiaryReportService {
                 entry.date.isBefore(endDate.add(const Duration(days: 1)))
     ).toList();
     
-    // Load font
-    final font = await rootBundle.load("assets/fonts/Roboto-Regular.ttf");
-    final ttf = pw.Font.ttf(font);
-    
     // Group by seller
     Map<String, List<DailyEntry>> entriesBySeller = {};
     for (var entry in entries) {
@@ -90,10 +83,10 @@ class MilkDiaryReportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         build: (context) => [
-          _buildMonthlyHeader(month, ttf),
-          _buildMonthlySummary(entries, ttf),
+          _buildMonthlyHeader(month),
+          _buildMonthlySummary(entries),
           ...entriesBySeller.entries.map(
-            (entry) => _buildSellerMonthlyEntries(entry.key, entry.value, ttf)
+            (entry) => _buildSellerMonthlyEntries(entry.key, entry.value)
           ),
         ],
       )
@@ -118,42 +111,138 @@ class MilkDiaryReportService {
                 entry.date.isBefore(toDate.add(const Duration(days: 1)))
     ).toList();
     
+    // Get all payments for this seller in the date range
+    final payments = sellerProvider.getPaymentsForSeller(seller.id).where(
+      (payment) => payment.date.isAfter(fromDate.subtract(const Duration(days: 1))) &&
+                  payment.date.isBefore(toDate.add(const Duration(days: 1)))
+    ).toList();
+    
     // Sort entries by date
-    entries.sort((a, b) => a.date.compareTo(b.date));
+    entries.sort((a, b) => b.date.compareTo(a.date)); // Most recent first
     
-    // Load font
-    final font = await rootBundle.load("assets/fonts/Roboto-Regular.ttf");
-    final ttf = pw.Font.ttf(font);
+    // Sort payments by date
+    payments.sort((a, b) => b.date.compareTo(a.date)); // Most recent first
     
-    // Create PDF content
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        build: (context) => [
-          _buildSellerReportHeader(seller, fromDate, toDate, ttf),
-          _buildSellerSummary(entries, ttf),
-          _buildSellerDetailTable(entries, ttf),
-        ],
-      )
-    );
+    // Calculate total amounts
+    final totalQuantity = entries.fold(0.0, (sum, entry) => sum + entry.quantity);
+    final totalAmount = entries.fold(0.0, (sum, entry) => sum + entry.amount);
+    final totalPaid = payments.fold(0.0, (sum, payment) => sum + payment.amount);
+    final amountDue = totalAmount - totalPaid;
     
-    // Save the PDF file
-    final output = await getTemporaryDirectory();
-    final file = File('${output.path}/seller_${seller.id}_${DateFormat('yyyyMMdd').format(fromDate)}_${DateFormat('yyyyMMdd').format(toDate)}.pdf');
-    await file.writeAsBytes(await pdf.save());
-    
-    // Open the PDF file
-    OpenFile.open(file.path);
+    try {
+      // Create PDF content
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          build: (context) => [
+            // App Name at the top
+            pw.Center(
+              child: pw.Text(
+                'My Byaj Book',
+                style: pw.TextStyle(
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.blue900,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 10),
+            
+            // Seller Report Header
+            _buildSellerReportHeader(seller, fromDate, toDate),
+            
+            // Summary section
+            pw.Container(
+              padding: const pw.EdgeInsets.all(10),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.blue50,
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'Summary',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 10),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildSummaryPdfItem('Total Milk', '${totalQuantity.toStringAsFixed(2)} L'),
+                      _buildSummaryPdfItem('Total Amount', 'Rs. ${totalAmount.toStringAsFixed(2)}'),
+                      _buildSummaryPdfItem('Total Paid', 'Rs. ${totalPaid.toStringAsFixed(2)}'),
+                      _buildSummaryPdfItem('Amount Due', 'Rs. ${amountDue.toStringAsFixed(2)}'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 15),
+            
+            // Milk Entries Table
+            pw.Text(
+              'Milk Entries',
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.SizedBox(height: 10),
+            _buildSellerDetailTable(entries),
+            pw.SizedBox(height: 20),
+            
+            // Payment History Table
+            pw.Text(
+              'Payment History',
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.SizedBox(height: 10),
+            _buildPaymentHistoryTable(payments),
+            
+            // Footer with generation date
+            pw.SizedBox(height: 20),
+            pw.Divider(),
+            pw.SizedBox(height: 5),
+            pw.Text(
+              'Generated on: ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
+              style: pw.TextStyle(
+                fontSize: 10,
+                color: PdfColors.grey700,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          ],
+        ),
+      );
+      
+      // Save the PDF file
+      final output = await getApplicationDocumentsDirectory(); // Use app documents directory instead of temp
+      final fileName = 'milk_diary_${seller.name.replaceAll(' ', '_')}_${DateFormat('yyyyMMdd').format(fromDate)}.pdf';
+      final file = File('${output.path}/$fileName');
+      await file.writeAsBytes(await pdf.save());
+      
+      // Open the PDF file
+      OpenFile.open(file.path);
+    } catch (e) {
+      print('Error generating PDF: $e');
+      rethrow; // Re-throw the exception to be handled by the calling code
+    }
   }
   
-  pw.Widget _buildHeader(DateTime date, pw.Font ttf) {
+  pw.Widget _buildHeader(DateTime date) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
           'Milk Diary Daily Report',
           style: pw.TextStyle(
-            font: ttf,
             fontSize: 20,
             fontWeight: pw.FontWeight.bold,
           ),
@@ -162,7 +251,6 @@ class MilkDiaryReportService {
         pw.Text(
           'Date: ${DateFormat('dd MMMM yyyy').format(date)}',
           style: pw.TextStyle(
-            font: ttf,
             fontSize: 14,
           ),
         ),
@@ -171,14 +259,13 @@ class MilkDiaryReportService {
     );
   }
   
-  pw.Widget _buildMonthlyHeader(DateTime month, pw.Font ttf) {
+  pw.Widget _buildMonthlyHeader(DateTime month) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
           'Milk Diary Monthly Report',
           style: pw.TextStyle(
-            font: ttf,
             fontSize: 20,
             fontWeight: pw.FontWeight.bold,
           ),
@@ -187,7 +274,6 @@ class MilkDiaryReportService {
         pw.Text(
           'Month: ${DateFormat('MMMM yyyy').format(month)}',
           style: pw.TextStyle(
-            font: ttf,
             fontSize: 14,
           ),
         ),
@@ -196,40 +282,91 @@ class MilkDiaryReportService {
     );
   }
   
-  pw.Widget _buildSellerReportHeader(MilkSeller seller, DateTime fromDate, DateTime toDate, pw.Font ttf) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'Seller Report: ${seller.name}',
-          style: pw.TextStyle(
-            font: ttf,
-            fontSize: 20,
-            fontWeight: pw.FontWeight.bold,
+  pw.Widget _buildSellerReportHeader(MilkSeller seller, DateTime fromDate, DateTime toDate) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey100,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'Milk Seller Report',
+            style: pw.TextStyle(
+              fontSize: 18,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.blue800,
+            ),
           ),
-        ),
-        pw.SizedBox(height: 5),
-        pw.Text(
-          'Period: ${DateFormat('dd MMM yyyy').format(fromDate)} to ${DateFormat('dd MMM yyyy').format(toDate)}',
-          style: pw.TextStyle(
-            font: ttf,
-            fontSize: 14,
+          pw.SizedBox(height: 8),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Seller: ${seller.name}',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 3),
+                    if (seller.mobile != null)
+                      pw.Text(
+                        'Mobile: ${seller.mobile}',
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                        ),
+                      ),
+                    if (seller.address != null)
+                      pw.Text(
+                        'Address: ${seller.address}',
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                        ),
+                      ),
+                    pw.SizedBox(height: 3),
+                    pw.Text(
+                      'Default Rate: Rs. ${seller.defaultRate}/L',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text(
+                    'Report Period:',
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 3),
+                  pw.Text(
+                    '${DateFormat('dd MMM yyyy').format(fromDate)} to ${DateFormat('dd MMM yyyy').format(toDate)}',
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ),
-        pw.SizedBox(height: 5),
-        pw.Text(
-          'Contact: ${seller.mobile ?? 'N/A'}',
-          style: pw.TextStyle(
-            font: ttf,
-            fontSize: 12,
-          ),
-        ),
-        pw.Divider(),
-      ],
+        ],
+      ),
     );
   }
   
-  pw.Widget _buildSummary(List<DailyEntry> entries, pw.Font ttf) {
+  pw.Widget _buildSummary(List<DailyEntry> entries) {
     final totalQuantity = entries.fold(0.0, (sum, entry) => sum + entry.quantity);
     final totalAmount = entries.fold(0.0, (sum, entry) => sum + entry.amount);
     final morningEntries = entries.where((e) => e.shift == EntryShift.morning);
@@ -245,7 +382,6 @@ class MilkDiaryReportService {
         pw.Text(
           'Summary',
           style: pw.TextStyle(
-            font: ttf,
             fontSize: 16,
             fontWeight: pw.FontWeight.bold,
           ),
@@ -254,18 +390,18 @@ class MilkDiaryReportService {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            _buildSummaryItem('Total Quantity', '$totalQuantity L', ttf),
-            _buildSummaryItem('Total Amount', '₹ ${totalAmount.toStringAsFixed(2)}', ttf),
-            _buildSummaryItem('Total Sellers', '$totalSellers', ttf),
+            _buildSummaryItem('Total Quantity', '$totalQuantity L'),
+            _buildSummaryItem('Total Amount', '₹ ${totalAmount.toStringAsFixed(2)}'),
+            _buildSummaryItem('Total Sellers', '$totalSellers'),
           ],
         ),
         pw.SizedBox(height: 10),
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.start,
           children: [
-            _buildSummaryItem('Morning', '$morningQty L', ttf),
+            _buildSummaryItem('Morning', '$morningQty L'),
             pw.SizedBox(width: 40),
-            _buildSummaryItem('Evening', '$eveningQty L', ttf),
+            _buildSummaryItem('Evening', '$eveningQty L'),
           ],
         ),
         pw.Divider(),
@@ -274,7 +410,7 @@ class MilkDiaryReportService {
     );
   }
   
-  pw.Widget _buildMonthlySummary(List<DailyEntry> entries, pw.Font ttf) {
+  pw.Widget _buildMonthlySummary(List<DailyEntry> entries) {
     final totalQuantity = entries.fold(0.0, (sum, entry) => sum + entry.quantity);
     final totalAmount = entries.fold(0.0, (sum, entry) => sum + entry.amount);
     final totalSellers = entries.map((e) => e.sellerId).toSet().length;
@@ -293,7 +429,6 @@ class MilkDiaryReportService {
         pw.Text(
           'Monthly Summary',
           style: pw.TextStyle(
-            font: ttf,
             fontSize: 16,
             fontWeight: pw.FontWeight.bold,
           ),
@@ -302,18 +437,18 @@ class MilkDiaryReportService {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            _buildSummaryItem('Total Quantity', '$totalQuantity L', ttf),
-            _buildSummaryItem('Total Amount', '₹ ${totalAmount.toStringAsFixed(2)}', ttf),
-            _buildSummaryItem('Total Sellers', '$totalSellers', ttf),
+            _buildSummaryItem('Total Quantity', '$totalQuantity L'),
+            _buildSummaryItem('Total Amount', '₹ ${totalAmount.toStringAsFixed(2)}'),
+            _buildSummaryItem('Total Sellers', '$totalSellers'),
           ],
         ),
         pw.SizedBox(height: 10),
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            _buildSummaryItem('Avg. Daily Quantity', '${avgDailyQty.toStringAsFixed(2)} L', ttf),
-            _buildSummaryItem('Cow Milk', '$cowQty L', ttf),
-            _buildSummaryItem('Buffalo Milk', '$buffaloQty L', ttf),
+            _buildSummaryItem('Avg. Daily Quantity', '${avgDailyQty.toStringAsFixed(2)} L'),
+            _buildSummaryItem('Cow Milk', '$cowQty L'),
+            _buildSummaryItem('Buffalo Milk', '$buffaloQty L'),
           ],
         ),
         pw.Divider(),
@@ -322,7 +457,7 @@ class MilkDiaryReportService {
     );
   }
   
-  pw.Widget _buildSellerSummary(List<DailyEntry> entries, pw.Font ttf) {
+  pw.Widget _buildSellerSummary(List<DailyEntry> entries) {
     final totalQuantity = entries.fold(0.0, (sum, entry) => sum + entry.quantity);
     final totalAmount = entries.fold(0.0, (sum, entry) => sum + entry.amount);
     final avgRate = entries.isEmpty ? 0.0 : totalAmount / totalQuantity;
@@ -333,7 +468,6 @@ class MilkDiaryReportService {
         pw.Text(
           'Seller Summary',
           style: pw.TextStyle(
-            font: ttf,
             fontSize: 16,
             fontWeight: pw.FontWeight.bold,
           ),
@@ -342,9 +476,9 @@ class MilkDiaryReportService {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            _buildSummaryItem('Total Quantity', '$totalQuantity L', ttf),
-            _buildSummaryItem('Total Amount', '₹ ${totalAmount.toStringAsFixed(2)}', ttf),
-            _buildSummaryItem('Avg. Rate', '₹ ${avgRate.toStringAsFixed(2)}/L', ttf),
+            _buildSummaryItem('Total Quantity', '$totalQuantity L'),
+            _buildSummaryItem('Total Amount', '₹ ${totalAmount.toStringAsFixed(2)}'),
+            _buildSummaryItem('Avg. Rate', '₹ ${avgRate.toStringAsFixed(2)}/L'),
           ],
         ),
         pw.SizedBox(height: 10),
@@ -352,14 +486,13 @@ class MilkDiaryReportService {
     );
   }
   
-  pw.Widget _buildSummaryItem(String label, String value, pw.Font ttf) {
+  pw.Widget _buildSummaryItem(String label, String value) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
           label,
           style: pw.TextStyle(
-            font: ttf,
             fontSize: 10,
             color: PdfColors.grey700,
           ),
@@ -368,7 +501,6 @@ class MilkDiaryReportService {
         pw.Text(
           value,
           style: pw.TextStyle(
-            font: ttf,
             fontSize: 14,
             fontWeight: pw.FontWeight.bold,
           ),
@@ -377,7 +509,7 @@ class MilkDiaryReportService {
     );
   }
   
-  pw.Widget _buildSellerEntries(String sellerId, List<DailyEntry> entries, pw.Font ttf) {
+  pw.Widget _buildSellerEntries(String sellerId, List<DailyEntry> entries) {
     final seller = sellerProvider.getSellerById(sellerId);
     final sellerName = seller?.name ?? 'Unknown Seller';
     final totalQuantity = entries.fold(0.0, (sum, entry) => sum + entry.quantity);
@@ -396,7 +528,6 @@ class MilkDiaryReportService {
         pw.Text(
           sellerName,
           style: pw.TextStyle(
-            font: ttf,
             fontSize: 14,
             fontWeight: pw.FontWeight.bold,
           ),
@@ -409,43 +540,39 @@ class MilkDiaryReportService {
             pw.TableRow(
               decoration: const pw.BoxDecoration(color: PdfColors.grey200),
               children: [
-                _buildTableCell('Shift', ttf, isHeader: true),
-                _buildTableCell('Quantity (L)', ttf, isHeader: true),
-                _buildTableCell('Rate (₹)', ttf, isHeader: true),
-                _buildTableCell('Amount (₹)', ttf, isHeader: true),
+                _buildTableCell('Shift', isHeader: true),
+                _buildTableCell('Quantity (L)', isHeader: true),
+                _buildTableCell('Rate (₹)', isHeader: true),
+                _buildTableCell('Amount (₹)', isHeader: true),
               ],
             ),
             // Morning Row
             pw.TableRow(
               children: [
-                _buildTableCell('Morning', ttf),
-                _buildTableCell(morningQty.toStringAsFixed(2), ttf),
+                _buildTableCell('Morning'),
+                _buildTableCell(morningQty.toStringAsFixed(2)),
                 _buildTableCell(
                   morningEntries.isNotEmpty 
                     ? (morningEntries.first.rate.toStringAsFixed(2)) 
-                    : '-', 
-                  ttf
+                    : '-'
                 ),
                 _buildTableCell(
-                  morningEntries.fold(0.0, (sum, e) => sum + e.amount).toStringAsFixed(2), 
-                  ttf
+                  morningEntries.fold(0.0, (sum, e) => sum + e.amount).toStringAsFixed(2)
                 ),
               ],
             ),
             // Evening Row
             pw.TableRow(
               children: [
-                _buildTableCell('Evening', ttf),
-                _buildTableCell(eveningQty.toStringAsFixed(2), ttf),
+                _buildTableCell('Evening'),
+                _buildTableCell(eveningQty.toStringAsFixed(2)),
                 _buildTableCell(
                   eveningEntries.isNotEmpty 
                     ? (eveningEntries.first.rate.toStringAsFixed(2)) 
-                    : '-', 
-                  ttf
+                    : '-'
                 ),
                 _buildTableCell(
-                  eveningEntries.fold(0.0, (sum, e) => sum + e.amount).toStringAsFixed(2), 
-                  ttf
+                  eveningEntries.fold(0.0, (sum, e) => sum + e.amount).toStringAsFixed(2)
                 ),
               ],
             ),
@@ -453,10 +580,10 @@ class MilkDiaryReportService {
             pw.TableRow(
               decoration: const pw.BoxDecoration(color: PdfColors.grey100),
               children: [
-                _buildTableCell('Total', ttf, isBold: true),
-                _buildTableCell(totalQuantity.toStringAsFixed(2), ttf, isBold: true),
-                _buildTableCell('', ttf),
-                _buildTableCell(totalAmount.toStringAsFixed(2), ttf, isBold: true),
+                _buildTableCell('Total', isBold: true),
+                _buildTableCell(totalQuantity.toStringAsFixed(2), isBold: true),
+                _buildTableCell(''),
+                _buildTableCell(totalAmount.toStringAsFixed(2), isBold: true),
               ],
             ),
           ],
@@ -466,7 +593,7 @@ class MilkDiaryReportService {
     );
   }
   
-  pw.Widget _buildSellerMonthlyEntries(String sellerId, List<DailyEntry> entries, pw.Font ttf) {
+  pw.Widget _buildSellerMonthlyEntries(String sellerId, List<DailyEntry> entries) {
     final seller = sellerProvider.getSellerById(sellerId);
     final sellerName = seller?.name ?? 'Unknown Seller';
     final totalQuantity = entries.fold(0.0, (sum, entry) => sum + entry.quantity);
@@ -474,17 +601,18 @@ class MilkDiaryReportService {
     
     // Group by week
     Map<int, List<DailyEntry>> entriesByWeek = {};
-    for (var entry in entries) {
-      // Get ISO week number
-      final weekNumber = _getWeekNumber(entry.date);
-      if (!entriesByWeek.containsKey(weekNumber)) {
-        entriesByWeek[weekNumber] = [];
-      }
-      entriesByWeek[weekNumber]!.add(entry);
+    
+    // Initialize weeks data
+    for (int i = 1; i <= 5; i++) {
+      entriesByWeek[i] = [];
     }
     
-    // Sort keys
-    final sortedWeeks = entriesByWeek.keys.toList()..sort();
+    // Group entries by week of month
+    for (var entry in entries) {
+      int weekOfMonth = ((entry.date.day - 1) ~/ 7) + 1; // Week 1 starts on day 1
+      if (weekOfMonth > 5) weekOfMonth = 5; // Cap at 5 weeks
+      entriesByWeek[weekOfMonth]!.add(entry);
+    }
     
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -492,7 +620,6 @@ class MilkDiaryReportService {
         pw.Text(
           sellerName,
           style: pw.TextStyle(
-            font: ttf,
             fontSize: 14,
             fontWeight: pw.FontWeight.bold,
           ),
@@ -505,32 +632,31 @@ class MilkDiaryReportService {
             pw.TableRow(
               decoration: const pw.BoxDecoration(color: PdfColors.grey200),
               children: [
-                _buildTableCell('Week', ttf, isHeader: true),
-                _buildTableCell('Period', ttf, isHeader: true),
-                _buildTableCell('Quantity (L)', ttf, isHeader: true),
-                _buildTableCell('Amount (₹)', ttf, isHeader: true),
+                _buildTableCell('Week', isHeader: true),
+                _buildTableCell('Period', isHeader: true),
+                _buildTableCell('Quantity (L)', isHeader: true),
+                _buildTableCell('Amount (₹)', isHeader: true),
               ],
             ),
-            // Data Rows for each week
-            ...sortedWeeks.map((weekNum) {
-              final weekEntries = entriesByWeek[weekNum]!;
-              final weekQty = weekEntries.fold(0.0, (sum, e) => sum + e.quantity);
-              final weekAmount = weekEntries.fold(0.0, (sum, e) => sum + e.amount);
+            // Data Rows - Week wise
+            ...entriesByWeek.entries.where((e) => e.value.isNotEmpty).map((e) {
+              final weekNum = e.key;
+              final weekEntries = e.value;
+              final weekQty = weekEntries.fold(0.0, (sum, entry) => sum + entry.quantity);
+              final weekAmount = weekEntries.fold(0.0, (sum, entry) => sum + entry.amount);
               
-              // Find first and last day of entries this week
-              weekEntries.sort((a, b) => a.date.compareTo(b.date));
-              final firstDay = weekEntries.first.date;
-              final lastDay = weekEntries.last.date;
+              // Get first and last day of entries in this week
+              final firstDay = weekEntries.map((e) => e.date).reduce((a, b) => a.isBefore(b) ? a : b);
+              final lastDay = weekEntries.map((e) => e.date).reduce((a, b) => a.isAfter(b) ? a : b);
               
               return pw.TableRow(
                 children: [
-                  _buildTableCell('Week $weekNum', ttf),
+                  _buildTableCell('Week $weekNum'),
                   _buildTableCell(
-                    '${DateFormat('dd/MM').format(firstDay)} - ${DateFormat('dd/MM').format(lastDay)}', 
-                    ttf
+                    '${DateFormat('dd/MM').format(firstDay)} - ${DateFormat('dd/MM').format(lastDay)}'
                   ),
-                  _buildTableCell(weekQty.toStringAsFixed(2), ttf),
-                  _buildTableCell(weekAmount.toStringAsFixed(2), ttf),
+                  _buildTableCell(weekQty.toStringAsFixed(2)),
+                  _buildTableCell(weekAmount.toStringAsFixed(2)),
                 ],
               );
             }),
@@ -538,85 +664,81 @@ class MilkDiaryReportService {
             pw.TableRow(
               decoration: const pw.BoxDecoration(color: PdfColors.grey100),
               children: [
-                _buildTableCell('Total', ttf, isBold: true),
-                _buildTableCell('', ttf),
-                _buildTableCell(totalQuantity.toStringAsFixed(2), ttf, isBold: true),
-                _buildTableCell(totalAmount.toStringAsFixed(2), ttf, isBold: true),
+                _buildTableCell('Total', isBold: true),
+                _buildTableCell(''),
+                _buildTableCell(totalQuantity.toStringAsFixed(2), isBold: true),
+                _buildTableCell(totalAmount.toStringAsFixed(2), isBold: true),
               ],
             ),
           ],
-        ),
-        pw.SizedBox(height: 15),
-      ],
-    );
-  }
-  
-  pw.Widget _buildSellerDetailTable(List<DailyEntry> entries, pw.Font ttf) {
-    // Sort entries by date
-    entries.sort((a, b) => a.date.compareTo(b.date));
-    
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'Detailed Entries',
-          style: pw.TextStyle(
-            font: ttf,
-            fontSize: 16,
-            fontWeight: pw.FontWeight.bold,
-          ),
         ),
         pw.SizedBox(height: 10),
-        pw.Table(
-          border: pw.TableBorder.all(color: PdfColors.grey300),
+      ],
+    );
+  }
+  
+  pw.Widget _buildSellerDetailTable(List<DailyEntry> entries) {
+    // Check if entries list is empty
+    if (entries.isEmpty) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.symmetric(vertical: 20),
+        alignment: pw.Alignment.center,
+        child: pw.Text(
+          'No milk entries found',
+          style: pw.TextStyle(
+            fontSize: 12,
+            color: PdfColors.grey600,
+            fontStyle: pw.FontStyle.italic,
+          ),
+        ),
+      );
+    }
+    
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey300),
+      children: [
+        // Header Row
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey200),
           children: [
-            // Header Row
-            pw.TableRow(
-              decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-              children: [
-                _buildTableCell('Date', ttf, isHeader: true),
-                _buildTableCell('Shift', ttf, isHeader: true),
-                _buildTableCell('Qty (L)', ttf, isHeader: true),
-                _buildTableCell('Rate (₹)', ttf, isHeader: true),
-                _buildTableCell('Fat %', ttf, isHeader: true),
-                _buildTableCell('Amount (₹)', ttf, isHeader: true),
-              ],
+            _buildTableCell('Date', isHeader: true),
+            _buildTableCell('Shift', isHeader: true),
+            _buildTableCell('Qty (L)', isHeader: true),
+            _buildTableCell('Rate (Rs.)', isHeader: true),
+            _buildTableCell('Fat %', isHeader: true),
+            _buildTableCell('Amount (Rs.)', isHeader: true),
+          ],
+        ),
+        // Data Rows
+        ...entries.map((entry) {
+          return pw.TableRow(
+            children: [
+              _buildTableCell(DateFormat('dd/MM/yy').format(entry.date)),
+              _buildTableCell(
+                entry.shift == EntryShift.morning ? 'Morning' : 'Evening'
+              ),
+              _buildTableCell(entry.quantity.toStringAsFixed(2)),
+              _buildTableCell(entry.rate.toStringAsFixed(2)),
+              _buildTableCell(entry.fat != null ? entry.fat!.toStringAsFixed(1) : '-'),
+              _buildTableCell(entry.amount.toStringAsFixed(2)),
+            ],
+          );
+        }),
+        // Total Row
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+          children: [
+            _buildTableCell('Total', isBold: true),
+            _buildTableCell(''),
+            _buildTableCell(
+              entries.fold(0.0, (sum, e) => sum + e.quantity).toStringAsFixed(2),
+              isBold: true
             ),
-            // Data Rows
-            ...entries.map((entry) {
-              return pw.TableRow(
-                children: [
-                  _buildTableCell(DateFormat('dd/MM/yy').format(entry.date), ttf),
-                  _buildTableCell(
-                    entry.shift == EntryShift.morning ? 'Morning' : 'Evening',
-                    ttf
-                  ),
-                  _buildTableCell(entry.quantity.toStringAsFixed(2), ttf),
-                  _buildTableCell(entry.rate.toStringAsFixed(2), ttf),
-                  _buildTableCell(entry.fat != null ? entry.fat!.toStringAsFixed(1) : '-', ttf),
-                  _buildTableCell(entry.amount.toStringAsFixed(2), ttf),
-                ],
-              );
-            }),
-            // Total Row
-            pw.TableRow(
-              decoration: const pw.BoxDecoration(color: PdfColors.grey100),
-              children: [
-                _buildTableCell('Total', ttf, isBold: true),
-                _buildTableCell('', ttf),
-                _buildTableCell(
-                  entries.fold(0.0, (sum, e) => sum + e.quantity).toStringAsFixed(2), 
-                  ttf, 
-                  isBold: true
-                ),
-                _buildTableCell('', ttf),
-                _buildTableCell('', ttf),
-                _buildTableCell(
-                  entries.fold(0.0, (sum, e) => sum + e.amount).toStringAsFixed(2), 
-                  ttf, 
-                  isBold: true
-                ),
-              ],
+            _buildTableCell(''),
+            _buildTableCell(''),
+            _buildTableCell(
+              entries.fold(0.0, (sum, e) => sum + e.amount).toStringAsFixed(2),
+              isBold: true
             ),
           ],
         ),
@@ -624,13 +746,12 @@ class MilkDiaryReportService {
     );
   }
   
-  pw.Widget _buildTableCell(String text, pw.Font ttf, {bool isHeader = false, bool isBold = false}) {
+  pw.Widget _buildTableCell(String text, {bool isHeader = false, bool isBold = false}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(4),
       child: pw.Text(
         text,
         style: pw.TextStyle(
-          font: ttf,
           fontSize: 10,
           fontWeight: (isHeader || isBold) ? pw.FontWeight.bold : null,
         ),
@@ -663,5 +784,84 @@ class MilkDiaryReportService {
   // Helper to check if a year is a leap year
   bool _isLeapYear(int year) {
     return (year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0));
+  }
+  
+  // Helper method to build summary item for PDF
+  pw.Widget _buildSummaryPdfItem(String title, String value) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        pw.Text(
+          title,
+          style: pw.TextStyle(
+            fontSize: 12,
+            color: PdfColors.grey700,
+          ),
+        ),
+        pw.SizedBox(height: 5),
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            fontSize: 14,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+  
+  // Helper method to build payment history table
+  pw.Widget _buildPaymentHistoryTable(List<MilkPayment> payments) {
+    if (payments.isEmpty) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.symmetric(vertical: 20),
+        alignment: pw.Alignment.center,
+        child: pw.Text(
+          'No payment records found',
+          style: pw.TextStyle(
+            fontSize: 12,
+            color: PdfColors.grey600,
+            fontStyle: pw.FontStyle.italic,
+          ),
+        ),
+      );
+    }
+    
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey300),
+      children: [
+        // Header Row
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.green100),
+          children: [
+            _buildTableCell('Date', isHeader: true),
+            _buildTableCell('Amount (Rs.)', isHeader: true),
+            _buildTableCell('Note', isHeader: true),
+          ],
+        ),
+        // Data Rows
+        ...payments.map((payment) {
+          return pw.TableRow(
+            children: [
+              _buildTableCell(DateFormat('dd/MM/yyyy').format(payment.date)),
+              _buildTableCell(payment.amount.toStringAsFixed(2)),
+              _buildTableCell(payment.note ?? '-'),
+            ],
+          );
+        }),
+        // Total Row
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.green50),
+          children: [
+            _buildTableCell('Total', isBold: true),
+            _buildTableCell(
+              payments.fold(0.0, (sum, p) => sum + p.amount).toStringAsFixed(2),
+              isBold: true
+            ),
+            _buildTableCell(''),
+          ],
+        ),
+      ],
+    );
   }
 } 

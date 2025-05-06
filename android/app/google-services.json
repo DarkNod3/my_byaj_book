@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "586549083907",
+    "project_id": "my-byaj-book",
+    "storage_bucket": "my-byaj-book.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:586549083907:android:1e440fdfd5589676aa7336",
+        "android_client_info": {
+          "package_name": "com.rjinnovativemedia.mybyajbook"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyzvrHynsUE5ziad_Se-1IQxyLXptKu3A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

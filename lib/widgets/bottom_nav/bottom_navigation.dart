@@ -398,13 +398,13 @@ class ToolsPopup extends StatelessWidget {
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const BillDiaryScreen()));
         break;
       case 'milk_diary':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const MilkDiaryScreen(showAppBar: false)));
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const MilkDiaryScreen(showAppBar: true)));
         break;
       case 'work_diary':
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const WorkDiaryScreen()));
         break;
       case 'tea_diary':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const TeaDiaryScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const TeaDiaryScreen(showAppBar: true)));
         break;
       case 'loans':
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const LoanScreen()));

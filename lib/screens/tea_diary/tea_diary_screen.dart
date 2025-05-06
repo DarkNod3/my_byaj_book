@@ -11,8 +11,9 @@ import 'dart:io'; // Use dart:io instead of file package
 
 class TeaDiaryScreen extends StatefulWidget {
   static const routeName = '/tea-diary';
+  final bool showAppBar;
 
-  const TeaDiaryScreen({Key? key}) : super(key: key);
+  const TeaDiaryScreen({Key? key, this.showAppBar = true}) : super(key: key);
 
   @override
   State<TeaDiaryScreen> createState() => _TeaDiaryScreenState();
@@ -1810,6 +1811,15 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     final screenWidth = MediaQuery.of(context).size.width;
     
     return Scaffold(
+      appBar: widget.showAppBar ? AppBar(
+        backgroundColor: Colors.teal,
+        title: const Text('Tea Diary'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        elevation: 2,
+      ) : null,
       body: SafeArea(
         child: Column(
           children: [

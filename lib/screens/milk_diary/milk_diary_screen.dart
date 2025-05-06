@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:uuid/uuid.dart';
 import 'dart:io';
+import 'dart:math';
 import 'package:open_file/open_file.dart';
 import '../../models/milk_diary/daily_entry.dart';
 import '../../models/milk_diary/milk_seller.dart';
@@ -353,10 +354,12 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
           payment.date.isBefore(lastDayOfMonth.add(const Duration(days: 1)))
         ).toList();
         
+        // Calculate total paid amount for the current month with proper rounding
         final totalPaid = paymentsForMonth.isEmpty ? 0.0 :
           double.parse(paymentsForMonth.fold(0.0, (sum, payment) => sum + payment.amount).toStringAsFixed(2));
         
-        final amountDue = monthlyAmount - totalPaid;
+        // Ensure due amount is correctly calculated
+        final amountDue = max(0.0, monthlyAmount - totalPaid);
         
         return Column(
           children: [
@@ -588,46 +591,95 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
             
                   const SizedBox(width: 8),
                   
-            // Add Seller Button
+            // Payment Actions Card
                   Expanded(
               flex: 2,
               child: SizedBox(
                 height: 100,
                 child: Card(
-                  color: Colors.green[100],
+                  color: Colors.green[50],
                   elevation: 2,
-                        shape: RoundedRectangleBorder(
+                  shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: InkWell(
-                    onTap: () {
-                      // Show add payment dialog for any seller
-                      _showAddPaymentDialog(context);
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.payments,
-                            color: Colors.green[800],
-                            size: 28,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Add Payment',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green[800],
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // Add Payment Button
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            // Show add payment dialog for any seller
+                            _showAddPaymentDialog(context);
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.payments,
+                                  color: Colors.green[800],
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Add Payment',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green[800],
+                                  ),
+                                ),
+                              ],
                             ),
-                            textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const Divider(height: 1, thickness: 1, indent: 8, endIndent: 8),
+                      
+                      // Payment History Button
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            // Navigate to payment history screen
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const MilkPaymentsScreen(),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.history,
+                                  color: Colors.blue[800],
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Payment History',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue[800],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1099,11 +1151,11 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Row(
                         children: [
-                          // Menu icon
+                          // Back button when shown from More Tools
                           IconButton(
-                            icon: const Icon(Icons.menu, color: Colors.white),
+                            icon: const Icon(Icons.arrow_back, color: Colors.white),
                             onPressed: () {
-                              Scaffold.of(context).openDrawer();
+                              Navigator.pop(context);
                             },
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
@@ -1119,30 +1171,8 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          // Empty space to push title to left side
                           const Spacer(),
-                  
-                  // History button
-                          IconButton(
-                            icon: const Icon(Icons.history, color: Colors.white),
-                            onPressed: () {
-                              // Show transaction history
-                            },
-                            tooltip: 'History',
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                          const SizedBox(width: 16),
-                  
-                  // Notifications button
-                          IconButton(
-                            icon: const Icon(Icons.notifications, color: Colors.white),
-                            onPressed: () {
-                              // Show notifications
-                            },
-                            tooltip: 'Notifications',
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
                         ],
                       ),
                     ),
@@ -1532,18 +1562,27 @@ class MilkPaymentsScreen extends StatelessWidget {
       ),
       body: Consumer2<MilkSellerProvider, DailyEntryProvider>(
         builder: (context, sellerProvider, entryProvider, child) {
+          // Always get the latest payments data
           final payments = sellerProvider.payments;
-          final entries = entryProvider.entries;
           
-          if (payments.isEmpty) {
+          // Filter valid payments that have existing sellerIds 
+          final validPayments = payments.where((payment) {
+            // Only include payments where we can find the seller
+            return sellerProvider.getSellerById(payment.sellerId) != null;
+          }).toList();
+          
+          if (validPayments.isEmpty) {
             return const Center(
               child: Text('No payments found'),
             );
           }
           
-          // Group payments by month
+          // Get all entries
+          final entries = entryProvider.entries;
+          
+          // Group valid payments by month
           final Map<String, List<MilkPayment>> paymentsByMonth = {};
-          for (final payment in payments) {
+          for (final payment in validPayments) {
             final month = DateFormat('MMMM yyyy').format(payment.date);
             if (!paymentsByMonth.containsKey(month)) {
               paymentsByMonth[month] = [];
@@ -1551,15 +1590,16 @@ class MilkPaymentsScreen extends StatelessWidget {
             paymentsByMonth[month]!.add(payment);
           }
           
-          // Calculate total amount from all entries
+          // Calculate total amount from all entries with proper rounding
           final totalEntriesAmount = entries.isEmpty ? 0.0 :
-            entries.fold(0.0, (sum, entry) => sum + entry.amount);
+            double.parse(entries.fold(0.0, (sum, entry) => sum + entry.amount).toStringAsFixed(2));
             
-          // Calculate total payment amount
-          final totalPaidAmount = payments.fold(0.0, (sum, payment) => sum + payment.amount);
+          // Calculate total payment amount from valid payments with proper rounding
+          final totalPaidAmount = validPayments.isEmpty ? 0.0 :
+            double.parse(validPayments.fold(0.0, (sum, payment) => sum + payment.amount).toStringAsFixed(2));
           
-          // Calculate amount due
-          final amountDue = totalEntriesAmount - totalPaidAmount;
+          // Calculate amount due (never negative)
+          final amountDue = max(0.0, totalEntriesAmount - totalPaidAmount);
           
           return Column(
             children: [
@@ -1571,108 +1611,126 @@ class MilkPaymentsScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 color: Colors.green[50],
-        child: Padding(
+                child: Padding(
                   padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
                           Icon(Icons.account_balance_wallet, color: Colors.green[700]),
                           const SizedBox(width: 8),
-                  Text(
+                          Text(
                             'Total Payments',
                             style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                               color: Colors.green[700],
-                    ),
-                  ),
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
-                  Row(
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
+                        children: [
                           _buildPaymentStat('Total', '₹${totalEntriesAmount.toStringAsFixed(0)}'),
                           _buildPaymentStat('Paid', '₹${totalPaidAmount.toStringAsFixed(0)}'),
                           _buildPaymentStat('Due', '₹${amountDue.toStringAsFixed(0)}'),
+                        ],
+                      ),
                     ],
-                  ),
-                ],
                   ),
                 ),
               ),
               
               // Payments list
               Expanded(
-                child: ListView.builder(
-                  itemCount: paymentsByMonth.length,
-                  itemBuilder: (context, index) {
-                    final month = paymentsByMonth.keys.elementAt(index);
-                    final monthlyPayments = paymentsByMonth[month]!;
-                    
-                    // Calculate total for this month
-                    final monthlyTotal = monthlyPayments.fold(0.0, (sum, payment) => sum + payment.amount);
-                    
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Month header
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                      Text(
-                                month,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                child: paymentsByMonth.isEmpty 
+                  ? const Center(child: Text('No payment records found'))
+                  : ListView.builder(
+                    itemCount: paymentsByMonth.length,
+                    itemBuilder: (context, index) {
+                      final month = paymentsByMonth.keys.elementAt(index);
+                      final monthlyPayments = paymentsByMonth[month]!;
+                      
+                      // Calculate total for this month
+                      final monthlyTotal = monthlyPayments.fold(0.0, (sum, payment) => sum + payment.amount);
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Month header
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  month,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  '₹${monthlyTotal.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green[700],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Payments for this month
+                          ...monthlyPayments.map((payment) {
+                            // Get seller - we already filtered for valid sellers above
+                            final seller = sellerProvider.getSellerById(payment.sellerId)!;
+                                                        
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.green,
+                                child: Text(
+                                  seller.name[0].toUpperCase(), 
+                                  style: const TextStyle(color: Colors.white)
                                 ),
                               ),
-                      Text(
-                                '₹${monthlyTotal.toStringAsFixed(0)}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                                  color: Colors.green[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                        ),
-                        
-                        // Payments for this month
-                        ...monthlyPayments.map((payment) {
-                          final seller = sellerProvider.getSellerById(payment.sellerId);
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.green,
-                              child: seller != null
-                                  ? Text(seller.name[0].toUpperCase(), style: const TextStyle(color: Colors.white))
-                                  : const Icon(Icons.person, color: Colors.white),
-                            ),
-                            title: Text(seller?.name ?? 'Unknown Seller'),
-                            subtitle: Text(DateFormat('dd MMM yyyy').format(payment.date)),
-                            trailing: Text(
-                              '₹${payment.amount.toStringAsFixed(2)}',
-                    style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green[700],
+                              title: Text(seller.name),
+                              subtitle: Text(DateFormat('dd MMM yyyy').format(payment.date)),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '₹${payment.amount.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green[700],
+                                    ),
+                                  ),
+                                  // Add delete option
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                    onPressed: () {
+                                      // Show confirmation dialog
+                                      _confirmDeletePayment(context, payment);
+                                    },
+                                  ),
+                                ],
                               ),
-                            ),
-                          );
-                        }).toList(),
-                        
-                        const Divider(),
-                      ],
-                    );
-                  },
-                    ),
+                            );
+                          }).toList(),
+                          
+                          const Divider(),
+                        ],
+                      );
+                    },
                   ),
-                ],
+              ),
+            ],
           );
         },
       ),
@@ -1684,6 +1742,64 @@ class MilkPaymentsScreen extends StatelessWidget {
         backgroundColor: Colors.green,
         child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  // Method to confirm deletion of a payment
+  void _confirmDeletePayment(BuildContext context, MilkPayment payment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Payment'),
+        content: Text('Are you sure you want to delete this payment of ₹${payment.amount.toStringAsFixed(2)}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              // Close the dialog
+              Navigator.of(context).pop();
+              
+              // Delete the payment
+              final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
+              sellerProvider.deletePayment(payment.id);
+              
+              // Show confirmation
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Payment deleted successfully'),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentStat(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1744,7 +1860,7 @@ class MilkPaymentsScreen extends StatelessWidget {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-      children: [
+          children: [
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
@@ -1753,9 +1869,9 @@ class MilkPaymentsScreen extends StatelessWidget {
                   const SizedBox(width: 8),
                   const Text(
                     'Select Seller for Payment',
-          style: TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
-            fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
@@ -1794,9 +1910,9 @@ class MilkPaymentsScreen extends StatelessWidget {
               child: TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Cancel'),
-          ),
-        ),
-      ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1949,11 +2065,11 @@ class MilkPaymentsScreen extends StatelessWidget {
               
               // Show success message
               Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
                   content: Text('Payment of ₹${amount.toStringAsFixed(2)} added successfully'),
                   backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
+                  duration: const Duration(seconds: 2),
                 ),
               );
             },
@@ -1961,27 +2077,6 @@ class MilkPaymentsScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildPaymentStat(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -2083,16 +2178,16 @@ class SellerProfileScreen extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 16),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
                         seller.name,
                         style: const TextStyle(
                           fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       if (seller.mobile != null)
                         Text('Phone: ${seller.mobile}'),
                       if (seller.address != null)
@@ -2122,120 +2217,91 @@ class SellerProfileScreen extends StatelessWidget {
                 ),
               ),
 
-              // Payment button
+              // Payment and PDF buttons in one row
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    // Show add payment dialog for this seller
-                    _showAddPaymentDialog(context);
-                  },
-                  icon: const Icon(Icons.payments),
-                  label: const Text('ADD PAYMENT'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    elevation: 2,
-                  ),
-                ),
-              ),
-              
-              // Entry history title
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text(
-                  'Entry History',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              
-              // Entry history
-              if (entries.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Text('No entries found for this seller'),
-                  ),
-                )
-              else
-                ...entries.map((entry) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    title: Row(
-                      children: [
-                        Text('${entry.quantity}L @ ₹${entry.rate}/L'),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: entry.shift == EntryShift.morning ? Colors.orange[100] : Colors.blue[100],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            entry.shift == EntryShift.morning ? 'Morning' : 'Evening',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: entry.shift == EntryShift.morning ? Colors.orange[800] : Colors.blue[800],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    subtitle: Text(
-                      DateFormat('dd MMM yyyy, hh:mm a').format(entry.date),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '₹${entry.amount.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert, size: 20),
-                          onSelected: (value) {
-                            if (value == 'edit') {
-                              _editEntry(context, entry);
-                            } else if (value == 'delete') {
-                              _confirmDeleteEntry(context, entry);
-                            }
+                child: Row(
+                  children: [
+                    // Add Payment Button - 50% width
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // Show add payment dialog for this seller
+                            _showAddPaymentDialog(context);
                           },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem<String>(
-                              value: 'edit',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.edit, size: 20, color: Colors.blue),
-                                  SizedBox(width: 8),
-                                  Text('Edit Entry'),
-                                ],
-                              ),
+                          icon: const Icon(Icons.payments),
+                          label: const Text('ADD PAYMENT'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            const PopupMenuItem<String>(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.delete, size: 20, color: Colors.red),
-                                  SizedBox(width: 8),
-                                  Text('Delete Entry'),
-                                ],
-                              ),
-                            ),
-                          ],
+                            elevation: 2,
+                          ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                )).toList(),
+                    
+                    // Generate PDF Button - 50% width
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            _generateSellerReport(context, seller.id);
+                          },
+                          icon: const Icon(Icons.picture_as_pdf),
+                          label: const Text('GENERATE PDF'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red.shade700,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // History Section Tabs
+              DefaultTabController(
+                length: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TabBar(
+                      tabs: const [
+                        Tab(text: 'Entry History'),
+                        Tab(text: 'Payment History'),
+                      ],
+                      labelColor: Colors.purple,
+                      unselectedLabelColor: Colors.grey,
+                      indicatorColor: Colors.purple,
+                    ),
+                    SizedBox(
+                      height: 300, // Fixed height for the tab content
+                      child: TabBarView(
+                        children: [
+                          // Entry History Tab
+                          _buildEntryHistoryTab(context, entries),
+                          
+                          // Payment History Tab
+                          _buildPaymentHistoryTab(context, payments),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           );
         },
@@ -2279,6 +2345,262 @@ class SellerProfileScreen extends StatelessWidget {
     );
   }
   
+  // Method to generate PDF report for a seller
+  void _generateSellerReport(BuildContext context, String sellerId) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+      
+      final entryProvider = Provider.of<DailyEntryProvider>(context, listen: false);
+      final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
+      
+      // Get the seller object
+      final seller = sellerProvider.getSellerById(sellerId);
+      if (seller == null) {
+        throw Exception("Seller not found");
+      }
+      
+      final reportService = MilkDiaryReportService(
+        entryProvider: entryProvider,
+        sellerProvider: sellerProvider,
+      );
+      
+      // Get the date range for the report (current month by default)
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month, 1);
+      final endDate = DateTime(now.year, now.month + 1, 0);
+      
+      // Generate seller-specific report
+      await reportService.generateSellerReport(
+        seller,  // Pass the seller object
+        startDate,
+        endDate,
+      );
+      
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Seller report generated successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+        
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating report: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+  
+  // Entry History Tab
+  Widget _buildEntryHistoryTab(BuildContext context, List<DailyEntry> entries) {
+    if (entries.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Text('No entries found for this seller'),
+        ),
+      );
+    }
+    
+    // Sort entries by date - most recent first
+    entries.sort((a, b) => b.date.compareTo(a.date));
+    
+    return ListView.builder(
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            title: Row(
+              children: [
+                Text('${entry.quantity}L'),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: entry.shift == EntryShift.morning ? Colors.orange[100] : Colors.blue[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    entry.shift == EntryShift.morning ? 'Morning' : 'Evening',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: entry.shift == EntryShift.morning ? Colors.orange[800] : Colors.blue[800],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            subtitle: Text(
+              DateFormat('dd MMM yyyy, hh:mm a').format(entry.date),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '₹${entry.amount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _editEntry(context, entry);
+                    } else if (value == 'delete') {
+                      _confirmDeleteEntry(context, entry);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem<String>(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit, size: 20, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Text('Edit Entry'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, size: 20, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Delete Entry'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  // Payment History Tab
+  Widget _buildPaymentHistoryTab(BuildContext context, List<MilkPayment> payments) {
+    if (payments.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Text('No payments found for this seller'),
+        ),
+      );
+    }
+    
+    // Sort payments by date - most recent first
+    payments.sort((a, b) => b.date.compareTo(a.date));
+    
+    return ListView.builder(
+      itemCount: payments.length,
+      itemBuilder: (context, index) {
+        final payment = payments[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          color: Colors.green[50],
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: Colors.green,
+              child: const Icon(Icons.payments, color: Colors.white, size: 20),
+            ),
+            title: Text('₹${payment.amount.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(DateFormat('dd MMM yyyy').format(payment.date)),
+                if (payment.note != null && payment.note!.isNotEmpty)
+                  Text(
+                    payment.note!,
+                    style: const TextStyle(
+                      fontStyle: FontStyle.italic,
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () {
+                _confirmDeletePayment(context, payment);
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  // Method to confirm deletion of a payment
+  void _confirmDeletePayment(BuildContext context, MilkPayment payment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Payment'),
+        content: Text('Are you sure you want to delete this payment of ₹${payment.amount.toStringAsFixed(2)}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _deletePayment(context, payment);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Method to delete a payment
+  void _deletePayment(BuildContext context, MilkPayment payment) {
+    final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
+    sellerProvider.deletePayment(payment.id);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Payment deleted successfully'),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   // Show payment dialog for this seller
   void _showAddPaymentDialog(BuildContext context) {
     final amountController = TextEditingController();

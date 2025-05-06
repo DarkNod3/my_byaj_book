@@ -25,6 +25,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   int _currentStep = 0;
   bool _isLoading = false;
   String? _errorMessage;
+  String? _nameError;
+  FocusNode _otpFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -40,6 +42,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       ),
     );
     _animationController.forward();
+    
+    _nameController.addListener(_validateNameField);
   }
 
   @override
@@ -48,7 +52,27 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     _otpController.dispose();
     _nameController.dispose();
     _animationController.dispose();
+    _otpFocusNode.dispose();
     super.dispose();
+  }
+
+  void _validateNameField() {
+    final nameText = _nameController.text;
+    if (nameText.isNotEmpty) {
+      if (RegExp(r'[^a-zA-Z\s]').hasMatch(nameText)) {
+        setState(() {
+          _nameError = 'Only alphabetic characters are allowed, no numbers or special symbols';
+        });
+      } else {
+        setState(() {
+          _nameError = null;
+        });
+      }
+    } else {
+      setState(() {
+        _nameError = null;
+      });
+    }
   }
 
   void _transitionToNextStep() {
@@ -64,8 +88,26 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   void _verifyMobile() {
     if (_formKey.currentState!.validate()) {
-      _transitionToNextStep();
-      // In a real app, this would trigger an API call to send the OTP
+      // Hide keyboard before transition
+      FocusScope.of(context).unfocus();
+      
+      // Show loading indicator briefly
+      setState(() {
+        _isLoading = true;
+      });
+      
+      // Delay to simulate OTP sending
+      Future.delayed(const Duration(milliseconds: 800), () {
+        _transitionToNextStep();
+        setState(() {
+          _isLoading = false;
+        });
+        
+        // Focus on OTP field and show keyboard
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _otpFocusNode.requestFocus();
+        });
+      });
     }
   }
 
@@ -555,6 +597,15 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             }
             return null;
           },
+          onChanged: (value) {
+            // Force exactly 10 digits
+            if (value.length > 10) {
+              _mobileController.text = value.substring(0, 10);
+              _mobileController.selection = TextSelection.fromPosition(
+                TextPosition(offset: 10),
+              );
+            }
+          },
         ),
         const SizedBox(height: 20),
         const Text(
@@ -588,6 +639,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         const SizedBox(height: 20),
         TextFormField(
           controller: _otpController,
+          focusNode: _otpFocusNode,
           keyboardType: TextInputType.number,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 15),
           textAlign: TextAlign.center,
@@ -619,6 +671,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             }
             return null;
           },
+          onChanged: (value) {
+            // Auto-submit when 6 digits are entered
+            if (value.length == 6) {
+              // Hide keyboard
+              FocusScope.of(context).unfocus();
+            }
+          },
+          autofocus: true,
         ),
         const SizedBox(height: 20),
         Row(
@@ -697,13 +757,20 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               borderSide: BorderSide(color: Colors.blue.shade700, width: 1.5),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            errorText: _nameError,
           ),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+          ],
           validator: (value) {
             if (value == null || value.isEmpty) {
               return 'Please enter your name';
             }
             if (value.length < 3) {
               return 'Name must be at least 3 characters';
+            }
+            if (RegExp(r'[^a-zA-Z\s]').hasMatch(value)) {
+              return 'Only alphabetic characters are allowed';
             }
             return null;
           },
