@@ -206,19 +206,21 @@ class _HomeScreenState extends State<HomeScreen> {
                               ];
                               final int month = monthNames.indexOf(monthName) + 1;
                               
-                              // Create date for current month's due date
-                              final now = DateTime.now();
-                              DateTime dueDate = DateTime(now.year, now.month, day);
-                              
-                              // If the day has already passed, use next month
-                              if (dueDate.isBefore(now)) {
-                                dueDate = DateTime(now.year, now.month + 1, day);
-                              }
-                              
-                              // Check if the due date is within the next 5 days
-                              final difference = dueDate.difference(now).inDays;
-                              if (difference >= 0 && difference <= 5) {
-                                upcomingCardDueDates++;
+                              if (month > 0) { // Ensure valid month was found
+                                // Create date for current month's due date
+                                final now = DateTime.now();
+                                DateTime dueDate = DateTime(now.year, now.month, day);
+                                
+                                // If the day has already passed, use next month
+                                if (dueDate.isBefore(now)) {
+                                  dueDate = DateTime(now.year, now.month + 1, day);
+                                }
+                                
+                                // Check if the due date is within the next 5 days
+                                final difference = dueDate.difference(now).inDays;
+                                if (difference >= 0 && difference <= 5) {
+                                  upcomingCardDueDates++;
+                                }
                               }
                             }
                           } catch (e) {
@@ -275,21 +277,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       // Return the appropriate icon with a badge if needed
                       if (totalUpcomingDueDates > 0) {
                         return Stack(
+                          clipBehavior: Clip.none,
                           alignment: Alignment.center,
                           children: [
                             const Icon(Icons.notifications, color: Colors.white, size: 24),
                             Positioned(
-                              right: 0,
-                              top: 0,
+                              right: -4,
+                              top: -4,
                               child: Container(
                                 padding: const EdgeInsets.all(2),
                                 decoration: BoxDecoration(
                                   color: Colors.red,
                                   borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 1,
+                                      spreadRadius: 0,
+                                    ),
+                                  ],
                                 ),
                                 constraints: const BoxConstraints(
-                                  minWidth: 14,
-                                  minHeight: 14,
+                                  minWidth: 16,
+                                  minHeight: 16,
                                 ),
                                 child: Text(
                                   '$totalUpcomingDueDates',
@@ -311,12 +321,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   tooltip: 'Reminders',
                   onPressed: () {
+                    // Get upcoming notification count to pass to the ReminderScreen
+                    final cardProvider = Provider.of<CardProvider>(context, listen: false);
+                    final loanProvider = Provider.of<LoanProvider>(context, listen: false);
+                    
+                    // Navigate to reminder screen
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const ReminderScreen(),
                       ),
-                    );
+                    ).then((_) {
+                      // Refresh notification status when returning from ReminderScreen
+                      setState(() {
+                        // Force a refresh of the notification icon
+                      });
+                    });
                   },
                 ),
               ],
@@ -355,12 +375,12 @@ class _HomeScreenState extends State<HomeScreen> {
           },
             borderRadius: BorderRadius.circular(30),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
                         shape: BoxShape.circle,
@@ -368,16 +388,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: const Icon(
                         Icons.person_add,
                         color: Colors.white,
-                        size: 20,
+                        size: 18,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     const Text(
-                      'Add New Person',
+                      'Add Person',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 14,
                       ),
                     ),
                   ],

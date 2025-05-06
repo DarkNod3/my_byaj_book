@@ -3,6 +3,7 @@ import 'package:my_byaj_book/screens/settings/nav_settings_screen.dart';
 import 'package:my_byaj_book/constants/app_theme.dart';
 import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
+import 'package:my_byaj_book/screens/loan/loan_screen.dart';
 
 class MoreToolsScreen extends StatelessWidget {
   const MoreToolsScreen({super.key});
@@ -50,6 +51,56 @@ class MoreToolsScreen extends StatelessWidget {
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
       children: [
+        _buildToolItem(
+          context,
+          title: 'Loans',
+          icon: Icons.account_balance_wallet,
+          color: Colors.indigo,
+          onTap: () {
+            // Navigate to Loan Screen with error handling
+            try {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) {
+                    // Wrap in try-catch to catch any exceptions during build
+                    try {
+                      return const LoanScreen();
+                    } catch (e) {
+                      print('Error building LoanScreen: $e');
+                      // Show a fallback UI instead of crashing
+                      return Scaffold(
+                        appBar: AppBar(title: const Text('Loans')),
+                        body: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                              const SizedBox(height: 16),
+                              const Text('Error loading loans', style: TextStyle(fontSize: 18)),
+                              const SizedBox(height: 8),
+                              Text('Error details: $e', style: TextStyle(color: Colors.grey[600])),
+                              const SizedBox(height: 24),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Go Back'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              );
+            } catch (e) {
+              print('Error navigating to LoanScreen: $e');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: $e')),
+              );
+            }
+          },
+        ),
         _buildToolItem(
           context,
           title: 'EMI Calculator',

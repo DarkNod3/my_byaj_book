@@ -16,6 +16,15 @@ class LoanScreen extends StatefulWidget {
 
 class _LoanScreenState extends State<LoanScreen> {
   String _selectedCategory = 'All';
+  
+  // Helper function to calculate power of a number
+  static double _pow(double x, int y) {
+    double result = 1.0;
+    for (int i = 0; i < y; i++) {
+      result *= x;
+    }
+    return result;
+  }
 
   @override
   void initState() {
@@ -97,36 +106,103 @@ class _LoanScreenState extends State<LoanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<LoanProvider>(
-      builder: (context, loanProvider, _) {
-        // Get user provider to pass to loan summary
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
-        
-        // Get loan summary data with user info, filtered by category
-        final summaryData = _getCategorySummary(loanProvider, userProvider);
-        
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                LoanSummaryCard(
-                  userName: summaryData['userName'] ?? 'User',
-                  activeLoans: summaryData['activeLoans'] ?? 0,
-                  totalAmount: summaryData['totalAmount'] ?? 0,
-                  dueAmount: summaryData['dueAmount'] ?? 0,
+    // Wrap everything in a try-catch to identify errors
+    try {
+      return Consumer<LoanProvider>(
+        builder: (context, loanProvider, _) {
+          try {
+            // Get user provider to pass to loan summary
+            final userProvider = Provider.of<UserProvider>(context, listen: false);
+            
+            // Get loan summary data with user info, filtered by category
+            final summaryData = _getCategorySummary(loanProvider, userProvider);
+            
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Loans'),
+                backgroundColor: AppTheme.primaryColor,
+              ),
+              body: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LoanSummaryCard(
+                        userName: summaryData['userName'] ?? 'User',
+                        activeLoans: summaryData['activeLoans'] ?? 0,
+                        totalAmount: summaryData['totalAmount'] ?? 0,
+                        dueAmount: summaryData['dueAmount'] ?? 0,
+                      ),
+                      const SizedBox(height: 24),
+                      _buildLoanTypeFilters(),
+                      const SizedBox(height: 24),
+                      _buildActiveLoansList(loanProvider),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 24),
-                _buildLoanTypeFilters(),
-                const SizedBox(height: 24),
-                _buildActiveLoansList(loanProvider),
-              ],
-            ),
+              ),
+            );
+          } catch (e) {
+            print('Error in LoanScreen build: $e');
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Loans'),
+                backgroundColor: AppTheme.primaryColor,
+              ),
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                    const SizedBox(height: 16),
+                    const Text('Error loading loan data', style: TextStyle(fontSize: 18)),
+                    const SizedBox(height: 8),
+                    Text('${e.toString()}', style: TextStyle(color: Colors.grey[600])),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Go Back'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+        },
+      );
+    } catch (e) {
+      print('Fatal error in LoanScreen: $e');
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Loans'),
+          backgroundColor: Colors.red,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 48),
+              const SizedBox(height: 16),
+              const Text('Critical Error', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text('${e.toString()}', 
+                  style: TextStyle(color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Go Back'),
+              ),
+            ],
           ),
-        );
-      }
-    );
+        ),
+      );
+    }
   }
 
   Widget _buildLoanTypeFilters() {
@@ -715,14 +791,6 @@ class _LoanScreenState extends State<LoanScreen> {
     double remainingAmount = totalAmount * (1 - progress);
     
     return '₹${remainingAmount.toStringAsFixed(2)}';
-  }
-
-  double _pow(double x, int y) {
-    double result = 1.0;
-    for (int i = 0; i < y; i++) {
-      result *= x;
-    }
-    return result;
   }
 
   String _formatDate(DateTime? date) {

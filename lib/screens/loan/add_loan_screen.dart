@@ -217,7 +217,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   controller: _loanAmountController,
                   label: 'Loan Amount',
                   prefix: '₹',
-                  icon: Icons.currency_rupee,
+                  icon: Icons.money,
                   keyboardType: TextInputType.number,
                   inputFormatters: [
                         _loanAmountFormatter,
@@ -247,7 +247,6 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                       child: _buildTextField(
                         controller: _interestRateController,
                         label: 'Interest Rate (%)',
-                        prefix: '%',
                         icon: Icons.percent,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         inputFormatters: [
