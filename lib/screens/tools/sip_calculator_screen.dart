@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:my_byaj_book/services/pdf_template_service.dart';
 
 class SipCalculatorScreen extends StatefulWidget {
   static const routeName = '/sip-calculator';
@@ -175,278 +176,133 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   }
 
   Future<void> _generatePDF() async {
-    // Ensure we have the most up-to-date calculations
-    _calculateSIP();
-    
-    final pdf = pw.Document();
-    
-    // Create a currency format without the rupee symbol for the PDF report
-    final pdfCurrencyFormat = NumberFormat.currency(
-      locale: 'en_IN',
-      symbol: 'Rs. ',  // Use "Rs. " as prefix instead of rupee symbol
-      decimalDigits: 0,
-    );
-    
-    // Get basic investment details for the report
-    double monthlyInvestment = double.tryParse(_monthlyInvestmentController.text) ?? 10000;
-    double expectedReturn = double.tryParse(_expectedReturnController.text) ?? 12;
-    int years = int.tryParse(_investmentPeriodController.text) ?? 10;
-    
-    // Create a PDF document
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        header: (pw.Context context) {
-          return pw.Container(
-            padding: const pw.EdgeInsets.only(bottom: 20),
-            decoration: const pw.BoxDecoration(
-              border: pw.Border(bottom: pw.BorderSide(width: 1, color: PdfColors.grey300)),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      'My Byaj Book',
-              style: pw.TextStyle(
-                fontSize: 24,
-                fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.indigo600,
-                      ),
-                    ),
-                    pw.SizedBox(height: 4),
-                    pw.Text(
-                      'SIP Investment Report',
-                      style: const pw.TextStyle(
-                        fontSize: 14,
-                        color: PdfColors.grey700,
-                      ),
-                    ),
-                  ],
-                ),
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      'Generated on',
-                      style: const pw.TextStyle(
-                        fontSize: 12,
-                        color: PdfColors.grey700,
-                      ),
-                    ),
-                    pw.Text(
-                      DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now()),
-                      style: const pw.TextStyle(
-                        fontSize: 12,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                  ],
-              ),
-              ],
-            ),
-          );
-        },
-        footer: (pw.Context context) {
-          return pw.Container(
-            margin: const pw.EdgeInsets.only(top: 10),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'Generated using My Byaj Book App',
-                  style: const pw.TextStyle(
-                    fontSize: 10,
-                    color: PdfColors.grey600,
-                  ),
-                ),
-                pw.Text(
-              'Page ${context.pageNumber} of ${context.pagesCount}',
-              style: const pw.TextStyle(
-                fontSize: 10,
-                    color: PdfColors.grey600,
-              ),
-                ),
-              ],
-            ),
-          );
-        },
-        build: (pw.Context context) {
-          return [
-            // Investment Summary Section
-            pw.Container(
-              padding: const pw.EdgeInsets.all(15),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(width: 1),
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(
-                    'Investment Summary',
-                    style: pw.TextStyle(
-                      fontSize: 18,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                  pw.SizedBox(height: 15),
-                  _buildPdfSummaryRow('Monthly Investment', '${pdfCurrencyFormat.format(monthlyInvestment)}'),
-                  _buildPdfSummaryRow('Expected Return Rate', '$expectedReturn% per annum'),
-                  _buildPdfSummaryRow('Investment Period', '$years Years'),
-                  _buildPdfSummaryRow('Total Investment', '${pdfCurrencyFormat.format(_totalInvestment)}'),
-                  _buildPdfSummaryRow('Total Returns', '${pdfCurrencyFormat.format(_totalReturns)}'),
-                  _buildPdfSummaryRow('Maturity Value', '${pdfCurrencyFormat.format(_maturityValue)}'),
-                ],
-              ),
-            ),
-            
-            pw.SizedBox(height: 20),
-            
-            // Investment Schedule Section
-            pw.Text(
-              'Year-wise Growth',
-              style: pw.TextStyle(
-                fontSize: 18,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-            pw.SizedBox(height: 10),
-            
-            // Investment Schedule Table
-            pw.Table(
-              border: pw.TableBorder.all(),
-              columnWidths: {
-                0: const pw.FlexColumnWidth(1),
-                1: const pw.FlexColumnWidth(2),
-                2: const pw.FlexColumnWidth(2),
-                3: const pw.FlexColumnWidth(2),
-              },
-              children: [
-                // Table Header
-                pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: PdfColors.grey300),
-                  children: [
-                    _buildPdfTableHeader('Year'),
-                    _buildPdfTableHeader('Amount Invested'),
-                    _buildPdfTableHeader('Est. Returns'),
-                    _buildPdfTableHeader('Est. Value'),
-                  ],
-                ),
-                
-                // Table Rows
-                ..._investmentSchedule.map((investment) {
-                  return pw.TableRow(
-                    children: [
-                      _buildPdfTableCell('${investment['year']}'),
-                      _buildPdfTableCell('${pdfCurrencyFormat.format(investment['investedAmount'])}'),
-                      _buildPdfTableCell('${pdfCurrencyFormat.format(investment['estimatedReturns'])}'),
-                      _buildPdfTableCell('${pdfCurrencyFormat.format(investment['estimatedValue'])}'),
-                    ],
-                  );
-                }).toList(),
-              ],
-            ),
-            
-            pw.SizedBox(height: 20),
-            
-            // Disclaimer
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.grey100,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
-              ),
-              child: pw.Text(
-                'Disclaimer: This is an approximate calculation based on the provided interest rate compounded monthly. Actual returns may vary based on market conditions, fees, and tax implications. This report is for informational purposes only and should not be considered as investment advice.',
-                style: const pw.TextStyle(
-                  fontSize: 10,
-                ),
-              ),
-            ),
-          ];
-        },
-      ),
-    );
-    
     try {
-      // Save the PDF with a unique timestamp
-      final output = await getApplicationDocumentsDirectory(); // Use app documents directory instead of temp
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final file = File('${output.path}/sip_investment_report_$timestamp.pdf');
-      await file.writeAsBytes(await pdf.save());
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generating PDF report...')),
+      );
       
-      // Open the PDF
-      await OpenFile.open(file.path);
+      // Get values from current state or calculate them
+      final double monthlyInvestment = double.tryParse(_monthlyInvestmentController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+      final int years = int.tryParse(_investmentPeriodController.text) ?? 0;
+      final double expectedReturn = double.tryParse(_expectedReturnController.text) ?? 0;
+      
+      // Calculate key values
+      final double totalInvested = monthlyInvestment * 12 * years;
+      final double totalValue = _calculateSIPValue(monthlyInvestment, expectedReturn, years);
+      final double estimatedReturns = totalValue - totalInvested;
+      
+      // Prepare summary data 
+      final List<Map<String, dynamic>> summaryItems = [
+        {'label': 'Monthly Investment', 'value': '₹${PdfTemplateService.formatCurrency(monthlyInvestment)}'},
+        {'label': 'Time Period', 'value': '$years Years'},
+        {'label': 'Expected Return', 'value': '$expectedReturn% p.a.'},
+        {'label': 'Total Amount Invested', 'value': '₹${PdfTemplateService.formatCurrency(totalInvested)}'},
+        {
+          'label': 'Estimated Returns', 
+          'value': '₹${PdfTemplateService.formatCurrency(estimatedReturns)}',
+          'highlight': true,
+          'isPositive': true,
+        },
+        {
+          'label': 'Total Value', 
+          'value': '₹${PdfTemplateService.formatCurrency(totalValue)}',
+          'highlight': true,
+          'isPositive': true,
+        },
+      ];
+      
+      // Prepare yearly breakdown table
+      final List<String> tableColumns = ['Year', 'Amount Invested', 'Est. Returns', 'Total Value'];
+      final List<List<String>> tableRows = [];
+      
+      // Add yearly breakdown data
+      for (int year = 1; year <= years; year++) {
+        final double amountInvested = monthlyInvestment * 12 * year;
+        final double totalValue = _calculateSIPValue(monthlyInvestment, expectedReturn, year);
+        final double estimatedReturns = totalValue - amountInvested;
+        
+        tableRows.add([
+          year.toString(),
+          '₹${PdfTemplateService.formatCurrency(amountInvested)}',
+          '₹${PdfTemplateService.formatCurrency(estimatedReturns)}',
+          '₹${PdfTemplateService.formatCurrency(totalValue)}',
+        ]);
+      }
+      
+      // Create PDF content
+      final content = [
+        // SIP Summary
+        PdfTemplateService.buildSummaryCard(
+          title: 'SIP Investment Summary',
+          items: summaryItems,
+        ),
+        
+        pw.SizedBox(height: 20),
+        
+        // Yearly breakdown table
+        PdfTemplateService.buildDataTable(
+          title: 'Year-wise Breakdown',
+          columns: tableColumns,
+          rows: tableRows,
+        ),
+        
+        pw.SizedBox(height: 20),
+        
+        // Disclaimer
+        pw.Container(
+          padding: const pw.EdgeInsets.all(10),
+          decoration: pw.BoxDecoration(
+            color: PdfTemplateService.lightBackgroundColor,
+            borderRadius: PdfTemplateService.roundedBorder,
+          ),
+          child: pw.Text(
+            'Disclaimer: This is only an illustrative example. Actual returns may vary depending on market conditions and may not be guaranteed. Please consult a financial advisor before making investment decisions.',
+            style: const pw.TextStyle(
+              fontSize: 10,
+            ),
+          ),
+        ),
+      ];
+      
+      // Generate PDF
+      final fileName = 'sip_calculator_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final pdf = await PdfTemplateService.createDocument(
+        title: 'SIP Calculator',
+        subtitle: 'Investment Report',
+        content: content,
+      );
+      
+      // Save and open the PDF
+      await PdfTemplateService.saveAndOpenPdf(pdf, fileName);
       
       // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF report generated successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('PDF report generated successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to generate PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Show error message
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error generating PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
-  
-  pw.Widget _buildPdfSummaryRow(String label, String value) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 5),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(
-            label,
-            style: const pw.TextStyle(fontSize: 12),
-          ),
-          pw.Text(
-            value,
-            style: pw.TextStyle(
-              fontSize: 12,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  pw.Widget _buildPdfTableHeader(String text) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(5),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontWeight: pw.FontWeight.bold,
-          fontSize: 10,
-        ),
-        textAlign: pw.TextAlign.center,
-      ),
-    );
-  }
-  
-  pw.Widget _buildPdfTableCell(String text) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(5),
-      child: pw.Text(
-        text,
-        style: const pw.TextStyle(fontSize: 9),
-        textAlign: pw.TextAlign.center,
-      ),
-    );
+
+  double _calculateSIPValue(double monthlyInvestment, double expectedReturn, int year) {
+    // Calculate the SIP maturity value for a specific year
+    double monthlyRate = expectedReturn / (12 * 100);
+    int months = year * 12;
+    
+    // Formula: P × ((1 + r)^n - 1) / r × (1 + r)
+    return monthlyInvestment * ((pow(1 + monthlyRate, months) - 1) / monthlyRate) * (1 + monthlyRate);
   }
 
   void _resetCalculator() {

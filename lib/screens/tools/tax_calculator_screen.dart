@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
+import 'package:my_byaj_book/services/pdf_template_service.dart';
 
 class TaxCalculatorScreen extends StatefulWidget {
   static const routeName = '/tax-calculator';
@@ -313,255 +314,113 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
         ),
       );
       
-      final pdf = pw.Document();
-      
-      // Create a custom formatter for the PDF report without the Rupee symbol
-      String formatCurrencyForPdf(double amount) {
-        return '${amount.toStringAsFixed(0).replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},'
-        )}';
-      }
-      
       // Get basic tax details for the report
       double income = double.tryParse(_incomeController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 500000;
       double investments = double.tryParse(_investmentsController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 50000;
       double deductions = double.tryParse(_deductionsController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 50000;
       String regime = _isOldRegime ? 'Old Tax Regime' : 'New Tax Regime';
       
-      // Create a PDF document
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          header: (pw.Context context) {
-            return pw.Container(
-              alignment: pw.Alignment.center,
-              margin: const pw.EdgeInsets.only(bottom: 20),
-              child: pw.Text(
-                'Income Tax Calculation Report',
-                style: pw.TextStyle(
-                  fontSize: 24,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-            );
-          },
-          footer: (pw.Context context) {
-            return pw.Container(
-              alignment: pw.Alignment.centerRight,
-              margin: const pw.EdgeInsets.only(top: 10),
-              child: pw.Text(
-                'Page ${context.pageNumber} of ${context.pagesCount}',
-                style: const pw.TextStyle(
-                  fontSize: 10,
-                ),
-              ),
-            );
-          },
-          build: (pw.Context context) {
-            return [
-              // Tax Summary Section
-              pw.Container(
-                padding: const pw.EdgeInsets.all(15),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(width: 1),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      'Tax Summary',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                    pw.SizedBox(height: 15),
-                    _buildPdfSummaryRow('Total Income', formatCurrencyForPdf(income)),
-                    _buildPdfSummaryRow('Investments (Sec 80C)', formatCurrencyForPdf(investments)),
-                    _buildPdfSummaryRow('Other Deductions', formatCurrencyForPdf(deductions)),
-                    _buildPdfSummaryRow('Tax Regime', regime),
-                    _buildPdfSummaryRow('Taxable Income', formatCurrencyForPdf(_taxableIncome)),
-                    _buildPdfSummaryRow('Income Tax', formatCurrencyForPdf(_taxAmount)),
-                    _buildPdfSummaryRow('Cess (4%)', formatCurrencyForPdf(_cessAmount)),
-                    _buildPdfSummaryRow('Total Tax Liability', formatCurrencyForPdf(_totalTaxLiability)),
-                    _buildPdfSummaryRow('Effective Tax Rate', '${_effectiveTaxRate.toStringAsFixed(2)}%'),
-                  ],
-                ),
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Tax Slab Breakdown Section
-              pw.Text(
-                'Tax Slab Breakdown',
-                style: pw.TextStyle(
-                  fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 10),
-              
-              // Tax Slab Table
-              pw.Table(
-                border: pw.TableBorder.all(),
-                columnWidths: {
-                  0: const pw.FlexColumnWidth(1),
-                  1: const pw.FlexColumnWidth(1),
-                  2: const pw.FlexColumnWidth(1),
-                },
-                children: [
-                  // Table Header
-                  pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.grey300),
-                    children: [
-                      _buildPdfTableHeader('Income Slab'),
-                      _buildPdfTableHeader('Tax Rate'),
-                      _buildPdfTableHeader('Tax Amount'),
-                    ],
-                  ),
-                  
-                  // Table Rows for valid slabs only
-                  ..._taxSlabBreakdown.where((slab) => slab['slab'] != null && slab['rate'] != null).map((slab) {
-                    double taxAmount = 0;
-                    if (slab['tax'] != null) {
-                      taxAmount = slab['tax'] is double ? slab['tax'] : slab['tax'].toDouble();
-                    }
-                    return pw.TableRow(
-                      children: [
-                        _buildPdfTableCell(slab['slab'].toString()),
-                        _buildPdfTableCell(slab['rate'].toString()),
-                        _buildPdfTableCell(formatCurrencyForPdf(taxAmount)),
-                      ],
-                    );
-                  }).toList(),
-                ],
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Disclaimer
-              pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
-                  color: PdfColors.grey100,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
-                ),
-                child: pw.Text(
-                  'Disclaimer: This is an approximate calculation based on the information provided. Actual tax liability may vary based on other deductions, exemptions, and income sources. Please consult a tax professional for personalized advice.',
-                  style: const pw.TextStyle(
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-            ];
-          },
-        ),
-      );
+      // Prepare summary card items
+      final List<Map<String, dynamic>> summaryItems = [
+        {'label': 'Total Income', 'value': '₹${PdfTemplateService.formatCurrency(income)}'},
+        {'label': 'Investments (Sec 80C)', 'value': '₹${PdfTemplateService.formatCurrency(investments)}'},
+        {'label': 'Other Deductions', 'value': '₹${PdfTemplateService.formatCurrency(deductions)}'},
+        {'label': 'Tax Regime', 'value': regime},
+        {'label': 'Taxable Income', 'value': '₹${PdfTemplateService.formatCurrency(_taxableIncome)}'},
+        {'label': 'Income Tax', 'value': '₹${PdfTemplateService.formatCurrency(_taxAmount)}'},
+        {'label': 'Cess (4%)', 'value': '₹${PdfTemplateService.formatCurrency(_cessAmount)}'},
+        {
+          'label': 'Total Tax Liability', 
+          'value': '₹${PdfTemplateService.formatCurrency(_totalTaxLiability)}',
+          'highlight': true,
+          'isPositive': false
+        },
+        {'label': 'Effective Tax Rate', 'value': '${_effectiveTaxRate.toStringAsFixed(2)}%'},
+      ];
       
-      // Get the temporary directory where we can save the PDF
-      final output = await getTemporaryDirectory();
-      final fileName = 'tax_calculation_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final filePath = '${output.path}/$fileName';
-      final file = File(filePath);
+      // Prepare tax slab breakdown table
+      final List<String> tableColumns = ['Income Slab', 'Tax Rate', 'Tax Amount'];
+      final List<List<String>> tableRows = [];
       
-      // Save the PDF to the file
-      final pdfBytes = await pdf.save();
-      await file.writeAsBytes(pdfBytes);
-      
-      // Try to open the PDF with the platform's default PDF viewer
-      final result = await OpenFile.open(filePath);
-      
-      if (result.type == 'done') {
-        // PDF opened successfully
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF report generated and opened successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        // PDF generated but couldn't be opened
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('PDF generated but could not be opened: ${result.message}'),
-              backgroundColor: Colors.orange,
-              action: SnackBarAction(
-                label: 'OK',
-                onPressed: () {},
-              ),
-            ),
-          );
+      for (var slab in _taxSlabBreakdown) {
+        if (slab['slab'] != null && slab['rate'] != null) {
+          double taxAmount = 0;
+          if (slab['tax'] != null) {
+            taxAmount = slab['tax'] is double ? slab['tax'] : slab['tax'].toDouble();
+          }
+          
+          tableRows.add([
+            slab['slab'].toString(),
+            slab['rate'].toString(),
+            '₹${PdfTemplateService.formatCurrency(taxAmount)}'
+          ]);
         }
       }
+      
+      // PDF content
+      final content = [
+        // Tax Summary
+        PdfTemplateService.buildSummaryCard(
+          title: 'Tax Summary',
+          items: summaryItems,
+        ),
+        
+        pw.SizedBox(height: 20),
+        
+        // Tax Slab Breakdown Table
+        PdfTemplateService.buildDataTable(
+          title: 'Tax Slab Breakdown',
+          columns: tableColumns,
+          rows: tableRows,
+        ),
+        
+        pw.SizedBox(height: 20),
+        
+        // Disclaimer
+        pw.Container(
+          padding: const pw.EdgeInsets.all(10),
+          decoration: pw.BoxDecoration(
+            color: PdfTemplateService.lightBackgroundColor,
+            borderRadius: PdfTemplateService.roundedBorder,
+          ),
+          child: pw.Text(
+            'Disclaimer: This is an approximate calculation based on the information provided. Actual tax liability may vary based on other deductions, exemptions, and income sources. Please consult a tax professional for personalized advice.',
+            style: const pw.TextStyle(
+              fontSize: 10,
+            ),
+          ),
+        ),
+      ];
+      
+      // Create the PDF
+      final fileName = 'tax_calculation_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final pdf = await PdfTemplateService.createDocument(
+        title: 'Income Tax',
+        subtitle: 'Calculation Report',
+        content: content,
+      );
+      
+      // Save and open the PDF
+      await PdfTemplateService.saveAndOpenPdf(pdf, fileName);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF report generated and opened successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      // Error during PDF generation or opening
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to generate PDF: $e'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'OK',
-              onPressed: () {},
-            ),
           ),
         );
       }
-      print('PDF generation error: $e');
     }
-  }
-  
-  pw.Widget _buildPdfSummaryRow(String label, String value) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 5),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(
-            label,
-            style: const pw.TextStyle(fontSize: 12),
-          ),
-          pw.Text(
-            value,
-            style: pw.TextStyle(
-              fontSize: 12,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  pw.Widget _buildPdfTableHeader(String text) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(5),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontWeight: pw.FontWeight.bold,
-          fontSize: 10,
-        ),
-        textAlign: pw.TextAlign.center,
-      ),
-    );
-  }
-  
-  pw.Widget _buildPdfTableCell(String text) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(5),
-      child: pw.Text(
-        text,
-        style: const pw.TextStyle(fontSize: 9),
-        textAlign: pw.TextAlign.center,
-      ),
-    );
   }
 
   void _resetCalculator() {

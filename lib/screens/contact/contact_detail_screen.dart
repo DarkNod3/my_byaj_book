@@ -11,7 +11,7 @@ import 'package:my_byaj_book/providers/transaction_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
-import 'package:my_byaj_book/services/pdf_service.dart';
+import 'package:my_byaj_book/services/pdf_template_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:installed_apps/installed_apps.dart';
@@ -1915,36 +1915,91 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       // Get transactions
       final transactions = _transactionProvider.getTransactionsForContact(_contactId);
       
-      // Create a PDF document
-      final pdf = pw.Document();
+      // Prepare data for PDF summary card
+      final balance = _calculateBalance();
+      final isPositive = balance >= 0;
+      final List<Map<String, dynamic>> summaryItems = [
+        {
+          'label': 'Name:',
+          'value': widget.contact['name'],
+        },
+        {
+          'label': 'Phone:',
+          'value': widget.contact['phone'] ?? 'N/A',
+        },
+        {
+          'label': isPositive ? 'YOU WILL GET' : 'YOU WILL GIVE',
+          'value': '₹${PdfTemplateService.formatCurrency(balance.abs())}',
+          'highlight': true,
+          'isPositive': isPositive,
+        },
+      ];
       
-      // Add pages to the PDF
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(32),
-          header: (context) => _buildPdfHeader(),
-          footer: (context) => _buildPdfFooter(context),
-          build: (context) => [
-            _buildPdfSummary(),
-            pw.SizedBox(height: 20),
-            _buildPdfTransactionTable(transactions),
+      // Add interest information if applicable
+      if (widget.contact['type'] != null && widget.contact['type'].toString().isNotEmpty) {
+        summaryItems.addAll([
+          {
+            'label': 'Interest Rate:',
+            'value': '${widget.contact['interestRate']}% ${widget.contact['interestPeriod'] == 'monthly' ? 'p.m.' : 'p.a.'}',
+          },
+          {
+            'label': 'Type:',
+            'value': StringUtils.capitalizeFirstLetter(widget.contact['type'] ?? ''),
+          },
+        ]);
+      }
+      
+      // Prepare data for transaction table
+      final List<String> tableColumns = ['Date', 'Note', 'Amount', 'Type'];
+      final List<List<String>> tableRows = [];
+      
+      for (var transaction in transactions) {
+        final date = transaction['date'] != null
+            ? DateFormat('dd MMM yyyy').format(DateTime.parse(transaction['date']))
+            : 'N/A';
+        final note = transaction['note'] ?? '';
+        final amount = '₹${PdfTemplateService.formatCurrency(transaction['amount'])}';
+        final type = transaction['type'] == 'credit' ? 'Received' : 'Given';
+        
+        tableRows.add([date, note, amount, type]);
+      }
+      
+      // Create PDF content
+      final content = [
+        // Contact Summary Section
+        PdfTemplateService.buildSummaryCard(
+          title: 'Contact Summary',
+          items: summaryItems,
+        ),
+        pw.SizedBox(height: 20),
+        
+        // Transaction Table
+        PdfTemplateService.buildDataTable(
+          title: 'Transaction History',
+          columns: tableColumns,
+          rows: tableRows,
+          columnWidths: [
+            const pw.FlexColumnWidth(2),  // Date
+            const pw.FlexColumnWidth(3),  // Note
+            const pw.FlexColumnWidth(1.5),  // Amount
+            const pw.FlexColumnWidth(1.5),  // Type
           ],
-        )
+        ),
+      ];
+      
+      // Generate the PDF document
+      final contactName = widget.contact['name'].toString().replaceAll(RegExp(r'[^\w\s]+'), '').replaceAll(' ', '_');
+      final date = DateFormat('yyyy_MM_dd').format(DateTime.now());
+      final fileName = '${contactName}_report_$date.pdf';
+      
+      final pdf = await PdfTemplateService.createDocument(
+        title: widget.contact['name'],
+        subtitle: 'Transaction Report',
+        content: content,
       );
       
-      // Save the PDF to a file
-      final output = await getTemporaryDirectory();
-      final contactName = widget.contact['name']
-          .toString()
-          .replaceAll(RegExp(r'[^\w\s]+'), '')
-          .replaceAll(' ', '_');
-      final date = DateFormat('yyyy_MM_dd').format(DateTime.now());
-      final file = File('${output.path}/${contactName}_report_$date.pdf');
-      await file.writeAsBytes(await pdf.save());
-      
-      // Open the PDF file
-      await OpenFile.open(file.path);
+      // Save and open the PDF
+      await PdfTemplateService.saveAndOpenPdf(pdf, fileName);
       
       // Show success message
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -1958,289 +2013,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         SnackBar(content: Text('Error generating PDF report: $e')),
       );
     }
-  }
-  
-  pw.Widget _buildPdfHeader() {
-    return pw.Container(
-      alignment: pw.Alignment.center,
-      margin: const pw.EdgeInsets.only(bottom: 20),
-      child: pw.Column(
-        children: [
-          pw.Text(
-            'My Byaj Book',
-            style: pw.TextStyle(
-              fontSize: 24,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-          pw.SizedBox(height: 5),
-          pw.Text(
-            'Transaction Report',
-            style: pw.TextStyle(
-              fontSize: 16,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  pw.Widget _buildPdfFooter(pw.Context context) {
-    return pw.Container(
-      alignment: pw.Alignment.centerRight,
-      margin: const pw.EdgeInsets.only(top: 10),
-      child: pw.Text(
-        'Page ${context.pageNumber} of ${context.pagesCount}',
-        style: const pw.TextStyle(
-          fontSize: 10,
-        ),
-      ),
-    );
-  }
-  
-  pw.Widget _buildPdfSummary() {
-    final balance = _calculateBalance();
-    final isPositive = balance >= 0;
-    
-    // Plain number format for PDF without rupee symbol
-    final pdfNumberFormat = NumberFormat.currency(locale: 'en_IN', symbol: '');
-    
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(10),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text(
-                'Contact Summary',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.Text(
-                DateFormat('dd MMM yyyy').format(DateTime.now()),
-                style: const pw.TextStyle(
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
-          pw.Divider(),
-          pw.SizedBox(height: 5),
-          pw.Text(
-            'Name: ${widget.contact['name']}',
-            style: const pw.TextStyle(fontSize: 12),
-          ),
-          pw.SizedBox(height: 5),
-          pw.Text(
-            'Phone: ${widget.contact['phone'] ?? 'N/A'}',
-            style: const pw.TextStyle(fontSize: 12),
-          ),
-          pw.SizedBox(height: 5),
-          
-          // Balance row
-          pw.Row(
-            children: [
-              pw.Text(
-                'Balance: ',
-                style: const pw.TextStyle(fontSize: 14),
-              ),
-              pw.Text(
-                pdfNumberFormat.format(balance.abs()),
-                style: pw.TextStyle(
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold,
-                  color: isPositive ? PdfColors.green : PdfColors.red,
-                ),
-              ),
-              pw.SizedBox(width: 5),
-              pw.Text(
-                isPositive ? '(You will get)' : '(You will give)',
-                style: pw.TextStyle(
-                  fontSize: 12,
-                  fontStyle: pw.FontStyle.italic,
-                  color: isPositive ? PdfColors.green : PdfColors.red,
-                ),
-              ),
-            ],
-          ),
-          
-          // Add interest information if applicable
-          if (widget.contact['type'] != null) ...[
-            pw.SizedBox(height: 10),
-            pw.Divider(color: PdfColors.grey300),
-            pw.SizedBox(height: 5),
-            pw.Text(
-              'Interest Information',
-              style: pw.TextStyle(
-                fontSize: 12,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-            pw.SizedBox(height: 5),
-            pw.Text(
-              'Interest Rate: ${widget.contact['interestRate']}% ${widget.contact['interestPeriod'] == 'monthly' ? 'p.m.' : 'p.a.'}',
-              style: const pw.TextStyle(fontSize: 12),
-            ),
-            pw.SizedBox(height: 5),
-            pw.Text(
-              'Type: ${StringUtils.capitalizeFirstLetter(widget.contact['type'] ?? '')}',
-              style: const pw.TextStyle(fontSize: 12),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-  
-  pw.Widget _buildPdfTransactionTable(List<Map<String, dynamic>> transactions) {
-    // Create header row
-    final headers = [
-      'Date',
-      'Description',
-      'Amount',
-      'Type',
-      'Balance',
-    ];
-    
-    // Plain number format for PDF without rupee symbol
-    final pdfNumberFormat = NumberFormat.currency(locale: 'en_IN', symbol: '');
-    
-    // Create data rows
-    final rows = <List<dynamic>>[];
-    final List<bool> isGaveList = [];
-    double runningBalance = 0;
-    
-    // Process transactions in reverse order (oldest first)
-    for (int i = transactions.length - 1; i >= 0; i--) {
-      final tx = transactions[i];
-      final isGave = tx['type'] == 'gave';
-      final type = isGave ? 'You Gave' : 'You Got';
-      final amount = tx['amount'] as double;
-      
-      // Update running balance
-      if (isGave) {
-        runningBalance += amount;
-      } else {
-        runningBalance -= amount;
-      }
-      
-      // Store transaction type for later use
-      isGaveList.add(isGave);
-      
-      // Store transaction data
-      rows.add([
-        DateFormat('dd/MM/yyyy').format(tx['date']),
-        tx['note'] ?? '',
-        pdfNumberFormat.format(amount),
-        type,
-        pdfNumberFormat.format(runningBalance.abs()),
-      ]);
-    }
-    
-    // Create the table with colored cells
-    final table = pw.Table(
-      border: null,
-      columnWidths: {
-        0: const pw.FractionColumnWidth(0.15), // Date
-        1: const pw.FractionColumnWidth(0.35), // Description
-        2: const pw.FractionColumnWidth(0.15), // Amount
-        3: const pw.FractionColumnWidth(0.15), // Type
-        4: const pw.FractionColumnWidth(0.20), // Balance
-      },
-      children: [
-        // Header row
-        pw.TableRow(
-          decoration: const pw.BoxDecoration(color: PdfColors.blue),
-          children: headers.map((header) => pw.Padding(
-            padding: const pw.EdgeInsets.all(5),
-            child: pw.Text(
-              header,
-              style: pw.TextStyle(
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.white,
-              ),
-              textAlign: header == 'Amount' || header == 'Balance' 
-                  ? pw.TextAlign.right 
-                  : header == 'Type' 
-                      ? pw.TextAlign.center 
-                      : pw.TextAlign.left,
-            ),
-          )).toList(),
-        ),
-        
-        // Data rows
-        ...List.generate(rows.length, (index) {
-          final isGave = isGaveList[index];
-          final isPositiveBalance = runningBalance >= 0;
-          
-          return pw.TableRow(
-            children: [
-              // Date
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(5),
-                child: pw.Text(rows[index][0], textAlign: pw.TextAlign.left),
-              ),
-              
-              // Description
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(5),
-                child: pw.Text(rows[index][1], textAlign: pw.TextAlign.left),
-              ),
-              
-              // Amount - colored based on transaction type
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(5),
-                child: pw.Text(
-                  rows[index][2],
-                  style: pw.TextStyle(
-                    color: isGave ? PdfColors.red : PdfColors.green,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                  textAlign: pw.TextAlign.right,
-                ),
-              ),
-              
-              // Type - colored based on transaction type
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(5),
-                child: pw.Text(
-                  rows[index][3],
-                  style: pw.TextStyle(
-                    color: isGave ? PdfColors.red : PdfColors.green,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                  textAlign: pw.TextAlign.center,
-                ),
-              ),
-              
-              // Balance - colored based on positive/negative
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(5),
-                child: pw.Text(
-                  rows[index][4],
-                  style: pw.TextStyle(
-                    color: isPositiveBalance ? PdfColors.green : PdfColors.red,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                  textAlign: pw.TextAlign.right,
-                ),
-              ),
-            ],
-          );
-        }),
-      ],
-    );
-    
-    return table;
   }
 
   void _setReminder() async {
