@@ -2803,7 +2803,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               ),
               
               // Add interest breakdown for with interest contacts
-              if (_isWithInterest && totalInterestDue > 0) ...[
+              if (_isWithInterest) ...[
                     const SizedBox(height: 10),
                 Container(
                   width: double.infinity,
