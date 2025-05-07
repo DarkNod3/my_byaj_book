@@ -32,11 +32,24 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Global notification service
 final notificationService = NotificationService.instance;
 // Global key for navigator to use in notification callbacks
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// Background message handler for FCM
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // If you're going to use other Firebase services in the background, such as Firestore,
+  // make sure you call `initializeApp` before using other Firebase services.
+  await Firebase.initializeApp();
+  print("Handling a background message: ${message.messageId}");
+  
+  // Process the message and potentially show a notification
+  await notificationService.handleBackgroundMessage(message);
+}
 
 void main() async {
   // Ensure Flutter is initialized
@@ -59,6 +72,9 @@ void main() async {
       ),
     );
     
+    // Setup FCM background message handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    
     // Initialize Firebase App Check - helps with security and app verification
     await FirebaseAppCheck.instance.activate(
       // Use debug provider for development, replace with proper provider for production
@@ -72,7 +88,34 @@ void main() async {
       await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
       // Set the app name for Firebase Auth services
       FirebaseAuth.instance.setLanguageCode('en'); // Set to your preferred language
-      print('Firebase App Check configured successfully');
+      
+      // Request notification permissions
+      if (Platform.isIOS || Platform.isMacOS) {
+        // Request permission for iOS and macOS
+        await FirebaseMessaging.instance.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+          provisional: false,
+        );
+      } else if (Platform.isAndroid) {
+        // For Android, permissions are handled in the manifest
+        // We request notification permission in newer Android versions
+        await FirebaseMessaging.instance.requestPermission();
+      }
+      
+      // Get FCM token for this device
+      String? token = await FirebaseMessaging.instance.getToken();
+      print('FCM Token: $token');
+      
+      // Configure FCM foreground notification presentation options
+      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      
+      print('Firebase App Check and FCM configured successfully');
     } catch (appCheckError) {
       print('Firebase App Check error: $appCheckError');
     }

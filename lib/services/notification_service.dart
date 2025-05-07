@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../providers/loan_provider.dart';
 import '../providers/card_provider.dart';
 import '../providers/transaction_provider.dart';
@@ -51,8 +52,110 @@ class NotificationService {
       initializationSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
+
+    // Setup FCM message handlers
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+  }
+
+  // Handle FCM messages that arrive when the app is in the foreground
+  void _handleForegroundMessage(RemoteMessage message) {
+    print('Got a message whilst in the foreground!');
+    print('Message data: ${message.data}');
+
+    if (message.notification != null) {
+      print('Message also contained a notification: ${message.notification}');
+      
+      // Show local notification
+      _showLocalNotificationFromFCM(message);
+    }
+  }
+
+  // Handle messages received in the background
+  Future<void> handleBackgroundMessage(RemoteMessage message) async {
+    print('Handling a background message: ${message.messageId}');
+    
+    // You could store the message data for later use when app is opened
+    // Or immediately show a notification using the local notifications plugin
+    
+    if (message.notification != null) {
+      await _showLocalNotificationFromFCM(message);
+    }
   }
   
+  Future<void> _showLocalNotificationFromFCM(RemoteMessage message) async {
+    // Extract message data
+    final notification = message.notification;
+    final data = message.data;
+    final notificationId = (message.messageId?.hashCode ?? Random().nextInt(1000)) & 0x3FFFFFFF;
+    
+    if (notification != null) {
+      // Create android notification details
+      final androidNotificationDetails = AndroidNotificationDetails(
+        'push_notification_channel',
+        'Push Notifications',
+        channelDescription: 'Channel for push notifications',
+        importance: Importance.max,
+        priority: Priority.high,
+        ticker: 'ticker',
+        visibility: NotificationVisibility.public,
+      );
+      
+      // Create iOS notification details
+      const iosNotificationDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+      
+      // Create platform-specific notification details
+      final platformChannelSpecifics = NotificationDetails(
+        android: androidNotificationDetails,
+        iOS: iosNotificationDetails,
+      );
+      
+      // Prepare payload based on notification type
+      String? payload;
+      if (data.containsKey('type')) {
+        final type = data['type'];
+        
+        if (type == 'loan') {
+          // Create loan notification payload
+          final loanNotification = {
+            'loanId': data['loanId'] ?? '',
+            'action': data['action'] ?? 'view_details',
+          };
+          payload = jsonEncode(loanNotification);
+        } else if (type == 'card') {
+          // Create card notification payload
+          final cardNotification = {
+            'cardId': data['cardId'] ?? '',
+            'action': data['action'] ?? 'view_details',
+          };
+          payload = jsonEncode(cardNotification);
+        } else if (type == 'reminder') {
+          // Create reminder notification payload
+          final reminderNotification = {
+            'reminderId': data['reminderId'] ?? '',
+            'action': data['action'] ?? 'view_details',
+          };
+          payload = jsonEncode(reminderNotification);
+        }
+      } else {
+        // Default payload with the raw data
+        payload = jsonEncode(data);
+      }
+      
+      // Show the notification
+      await _flutterLocalNotificationsPlugin.show(
+        notificationId,
+        notification.title,
+        notification.body,
+        platformChannelSpecifics,
+        payload: payload,
+      );
+    }
+  }
+
   void _onNotificationTapped(NotificationResponse response) {
     // Parse the payload to determine if it's a loan, card, or reminder notification
     if (response.payload != null) {
