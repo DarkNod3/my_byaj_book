@@ -67,7 +67,6 @@ class MoreToolsScreen extends StatelessWidget {
                     try {
                       return const LoanScreen();
                     } catch (e) {
-                      print('Error building LoanScreen: $e');
                       // Show a fallback UI instead of crashing
                       return Scaffold(
                         appBar: AppBar(title: const Text('Loans')),
@@ -94,7 +93,6 @@ class MoreToolsScreen extends StatelessWidget {
                 ),
               );
             } catch (e) {
-              print('Error navigating to LoanScreen: $e');
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Error: $e')),
               );

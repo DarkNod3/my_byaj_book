@@ -30,7 +30,7 @@ class MilkEntryProvider with ChangeNotifier {
       
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading milk entries: $e');
+      // Removed debug print
     }
   }
   
@@ -43,7 +43,7 @@ class MilkEntryProvider with ChangeNotifier {
       
       await prefs.setStringList('milk_entries', entriesJson);
     } catch (e) {
-      debugPrint('Error saving milk entries: $e');
+      // Removed debug print
     }
   }
   

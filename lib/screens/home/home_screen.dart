@@ -55,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _checkAndCreateAutomaticBackup();
     // Auto backup temporarily disabled
     // _setupAutomaticBackups();
   }
@@ -63,6 +64,16 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _backupTimer?.cancel();
     super.dispose();
+  }
+  
+  Future<void> _checkAndCreateAutomaticBackup() async {
+    try {
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      final result = await transactionProvider.createAutomaticBackup();
+      // Automatic backup created successfully
+    } catch (e) {
+      // Error during automatic backup - silent in release
+    }
   }
   
   // Setup automatic backup timer
@@ -90,12 +101,12 @@ class _HomeScreenState extends State<HomeScreen> {
       final success = await transactionProvider.createAutomaticBackup();
       
       if (success) {
-        debugPrint('Automatic backup created successfully');
+        // Removed debug print
       } else {
-        debugPrint('Failed to create automatic backup');
+        // Removed debug print
       }
     } catch (e) {
-      debugPrint('Error during automatic backup: $e');
+      // Removed debug print
     }
     */
   }
@@ -251,7 +262,7 @@ class _HomeScreenState extends State<HomeScreen> {
         bottomNavigationBar: BottomNavBar(
           currentIndex: _currentIndex,
           onTap: (index) {
-            print('Bottom nav onTap called with index: $index. Available screens: ${selectedScreens.length}');
+            // Removed debug print
             
             // Make sure we don't exceed the available screens
             if (index == 2) {
@@ -318,7 +329,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _getActiveScreen(List<Widget> screens) {
-    print('Getting active screen for index: $_currentIndex, available screens: ${screens.length}');
+    // Removed debug print
     
     // For the center button (index 2), show the tools screen
     if (_currentIndex == 2) {
@@ -338,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return screens[adjustedIndex];
     } else {
       // Handle the case where adjustedIndex is out of bounds
-      print('Warning: Adjusted index $adjustedIndex is out of bounds for screens list of length ${screens.length}. Using first screen instead.');
+      // Removed debug print
       return screens.isNotEmpty ? screens.first : const HomeContent();
     }
   }
@@ -3322,7 +3333,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         );
       }
     } catch (e) {
-      print('Error picking QR code: $e');
+      // Removed debug print
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error uploading QR code: $e')),
       );
@@ -3342,7 +3353,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         const SnackBar(content: Text('QR code deleted successfully')),
       );
     } catch (e) {
-      print('Error deleting QR code: $e');
+      // Removed debug print
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error deleting QR code: $e')),
       );
@@ -3446,7 +3457,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error checking contact permission: $e');
+      // Removed debug print
       setState(() {
         _hasPermission = false;
         _isLoading = false;
@@ -3484,7 +3495,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading contacts: $e');
+      // Removed debug print
       setState(() {
         _isLoading = false;
       });

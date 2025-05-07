@@ -64,7 +64,7 @@ class BillNoteProvider with ChangeNotifier {
         _notes.sort((a, b) => b.createdDate.compareTo(a.createdDate));
       }
     } catch (e) {
-      print('Error loading notes: $e');
+      // Removed debug print
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -77,7 +77,7 @@ class BillNoteProvider with ChangeNotifier {
       final notesData = jsonEncode(_notes.map((note) => note.toMap()).toList());
       await prefs.setString(_storageKey, notesData);
     } catch (e) {
-      print('Error saving notes: $e');
+      // Removed debug print
     }
   }
   
@@ -117,10 +117,18 @@ class BillNoteProvider with ChangeNotifier {
     }
   }
   
-  Future<void> deleteNote(String id) async {
-    _notes.removeWhere((note) => note.id == id);
-    await saveNotes();
-    notifyListeners();
+  Future<void> deleteNote(String noteId) async {
+    final index = _notes.indexWhere((note) => note.id == noteId);
+    if (index >= 0) {
+      // Remove from memory
+      _notes.removeAt(index);
+      
+      // Immediately save to storage to ensure permanent deletion
+      await saveNotes();
+      
+      // Notify listeners
+      notifyListeners();
+    }
   }
   
   // Statistics and summaries

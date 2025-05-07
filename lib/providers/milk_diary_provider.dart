@@ -32,7 +32,7 @@ class MilkDiaryProvider with ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading milk diary data: $e');
+      // Error loading milk diary data - silent in release
     }
   }
   
@@ -42,7 +42,7 @@ class MilkDiaryProvider with ChangeNotifier {
       final String sellersJson = jsonEncode(_sellers.map((s) => s.toJson()).toList());
       await prefs.setString('milk_sellers', sellersJson);
     } catch (e) {
-      debugPrint('Error saving milk diary data: $e');
+      // Error saving milk diary data - silent in release
     }
   }
   

@@ -101,7 +101,7 @@ class NavPreferencesProvider with ChangeNotifier {
       _isLoaded = true;
       notifyListeners();
     } catch (e) {
-      print('Error loading navigation preferences: $e');
+      // Removed debug print
     }
   }
 
@@ -110,7 +110,7 @@ class NavPreferencesProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList('selected_nav_items', _selectedNavItemIds);
     } catch (e) {
-      print('Error saving navigation preferences: $e');
+      // Removed debug print
     }
   }
 

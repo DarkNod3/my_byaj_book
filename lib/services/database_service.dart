@@ -91,7 +91,17 @@ class DatabaseService {
   Future<void> deleteCustomer(String customerId) async {
     if (!_initialized) await init();
     
-    await _customersBox.delete(customerId);
+    // First check if the customer exists
+    if (_customersBox.containsKey(customerId)) {
+      // Permanently delete from Hive box
+      await _customersBox.delete(customerId);
+      
+      // Compact the database to reclaim space after deletion
+      await _customersBox.compact();
+      
+      // Flush all pending writes to ensure changes are persisted
+      await _customersBox.flush();
+    }
   }
   
   // Calculate summaries (optimized with compute function)

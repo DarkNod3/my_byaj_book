@@ -343,7 +343,11 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
               Navigator.pop(context);
               // Implement actual logout
               Provider.of<UserProvider>(context, listen: false).logout().then((_) {
-                // Navigate to login screen
+                // Navigate to login screen after successful logout
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/login',
+                  (route) => false,
+                );
               });
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),

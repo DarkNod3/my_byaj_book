@@ -14,7 +14,6 @@ import 'dart:async';
 import 'package:my_byaj_book/services/pdf_template_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:installed_apps/installed_apps.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
@@ -1800,7 +1799,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           return;
         }
       } catch (e) {
-        print('Error making direct call: $e');
         // Continue to alternative methods
       }
     }
@@ -2097,8 +2095,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       final random = DateTime.now().millisecondsSinceEpoch % 10000; // Add random component
       final fileName = '${contactName}_report_${date}_${timestamp}_$random.pdf';
       
-      print('Generating PDF report with unique filename: $fileName');
-      
       final pdf = await PdfTemplateService.createDocument(
         title: widget.contact['name'],
         subtitle: 'Transaction Report',
@@ -2242,8 +2238,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       'Reminder set for $formattedDateTime: $body',
       notificationDetails,
     );
-    
-    print('Notification reminder set for: $scheduledDate');
   }
 
   void _handleSmsButton() async {
@@ -2299,7 +2293,7 @@ ${_getAppUserName()}
         return false;
       }
     } catch (e) {
-      print('Error opening WhatsApp: $e');
+      // Error opening WhatsApp
       return false;
     }
   }

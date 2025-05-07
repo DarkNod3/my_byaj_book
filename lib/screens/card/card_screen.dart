@@ -2348,8 +2348,8 @@ class _CardScreenState extends State<CardScreen> {
           initialDate = DateTime(year, month, day);
         }
       } catch (e) {
-        // If parsing fails, use current date
-        print('Error parsing date: $e');
+        // Removed debug print
+        // Continue with fallback logic
       }
     }
     

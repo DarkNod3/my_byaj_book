@@ -87,7 +87,7 @@ class NotificationService {
           }
         }
       } catch (e) {
-        debugPrint('Error parsing notification payload: $e');
+        // Error parsing notification payload - silent in release
       }
     }
   }
@@ -199,7 +199,7 @@ class NotificationService {
             }
           }
         } catch (e) {
-          debugPrint('Error scheduling card notification: $e');
+          // Error scheduling card notification - silent in release
         }
       }
     }
@@ -481,7 +481,7 @@ class NotificationService {
         payload: payload,
       );
     } catch (e) {
-      debugPrint('Error scheduling notification: $e');
+      // Error scheduling notification - silent in release
     }
   }
   

@@ -382,7 +382,6 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         _paymentSchedule = [];
         _showResult = true;
       });
-      print('Calculation error: $e');
     }
   }
   

@@ -285,7 +285,6 @@ class MilkDiaryReportService {
       // Open the PDF file
       OpenFile.open(file.path);
     } catch (e) {
-      print('Error generating PDF: $e');
       rethrow; // Re-throw the exception to be handled by the calling code
     }
   }

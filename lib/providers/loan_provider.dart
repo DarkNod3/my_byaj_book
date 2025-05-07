@@ -158,7 +158,7 @@ class LoanProvider extends ChangeNotifier {
       await prefs.setString('activeLoans', jsonEncode(activeLoansJson));
       await prefs.setString('completedLoans', jsonEncode(completedLoansJson));
     } catch (e) {
-      debugPrint('Error saving loans: $e');
+      // Error saving loans - silent in release
     }
   }
 
@@ -217,7 +217,7 @@ class LoanProvider extends ChangeNotifier {
         }).toList();
       }
     } catch (e) {
-      debugPrint('Error loading loans: $e');
+      // Error loading loans - silent in release
     }
   }
 

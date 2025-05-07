@@ -284,7 +284,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
         return;
       }
     } catch (e) {
-      debugPrint('Error deleting contact: $e');
+      // Removed debug print
     } finally {
       if (mounted) {
         setState(() {

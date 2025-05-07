@@ -81,8 +81,7 @@ class BottomNavBar extends StatelessWidget {
     
     return InkWell(
       onTap: () {
-        print('Nav item tapped: $index with label: $label');
-        onTap(index);
+        _onItemTapped(index, label);
       },
       child: Container(
         width: 60,
@@ -156,6 +155,10 @@ class BottomNavBar extends StatelessWidget {
       isScrollControlled: true,
       builder: (context) => ToolsPopup(),
     );
+  }
+
+  void _onItemTapped(int index, String label) {
+    onTap(index);
   }
 }
 

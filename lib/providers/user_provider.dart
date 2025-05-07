@@ -67,8 +67,6 @@ class UserProvider with ChangeNotifier {
       
       notifyListeners();
     } catch (e) {
-      // Handle login errors
-      print('Login error: $e');
       throw Exception('Failed to login: $e');
     }
   }
@@ -91,8 +89,6 @@ class UserProvider with ChangeNotifier {
       
       notifyListeners();
     } catch (e) {
-      // Handle registration errors
-      print('Registration error: $e');
       throw Exception('Failed to register: $e');
     }
   }
@@ -114,7 +110,6 @@ class UserProvider with ChangeNotifier {
       await _saveUserData();
       notifyListeners();
     } catch (e) {
-      print('Update profile error: $e');
       throw Exception('Failed to update profile: $e');
     }
   }
@@ -136,7 +131,6 @@ class UserProvider with ChangeNotifier {
         await prefs.setBool(_isLoggedInKey, true);
       }
     } catch (e) {
-      print('Error saving user data: $e');
     }
   }
 
@@ -163,7 +157,6 @@ class UserProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Error loading user data: $e');
     }
   }
 
@@ -188,7 +181,6 @@ class UserProvider with ChangeNotifier {
       
       notifyListeners();
     } catch (e) {
-      print('Logout error: $e');
     }
   }
 } 

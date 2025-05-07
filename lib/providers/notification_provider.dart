@@ -160,7 +160,7 @@ class NotificationProvider with ChangeNotifier {
             }
           }
         } catch (e) {
-          debugPrint('Error parsing card due date: $e');
+          // Removed debug print
         }
       }
     }
@@ -349,8 +349,7 @@ class NotificationProvider with ChangeNotifier {
       // Sort by due date
       _notifications.sort((a, b) => a.dueDate.compareTo(b.dueDate));
     } catch (e) {
-      debugPrint('Error loading notifications: $e');
-      _notifications = [];
+      // Removed debug print
     }
   }
   
@@ -361,7 +360,7 @@ class NotificationProvider with ChangeNotifier {
       final notificationsJson = _notifications.map((n) => n.toJson()).toList();
       await prefs.setStringList('notifications', notificationsJson);
     } catch (e) {
-      debugPrint('Error saving notifications: $e');
+      // Removed debug print
     }
   }
   
@@ -373,7 +372,7 @@ class NotificationProvider with ChangeNotifier {
       _isSoundEnabled = prefs.getBool('notification_sound_enabled') ?? true;
       _defaultSound = prefs.getString('notification_default_sound') ?? 'alert_sound.mp3';
     } catch (e) {
-      debugPrint('Error loading notification preferences: $e');
+      // Removed debug print
     }
   }
   
@@ -385,7 +384,7 @@ class NotificationProvider with ChangeNotifier {
       await prefs.setBool('notification_sound_enabled', _isSoundEnabled);
       await prefs.setString('notification_default_sound', _defaultSound);
     } catch (e) {
-      debugPrint('Error saving notification preferences: $e');
+      // Removed debug print
     }
   }
 } 

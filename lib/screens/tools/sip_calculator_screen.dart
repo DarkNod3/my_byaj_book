@@ -136,7 +136,6 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
         _investmentSchedule = [];
         _showResult = true;
       });
-      print('SIP calculation error: $e');
     }
   }
   

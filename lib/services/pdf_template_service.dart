@@ -414,18 +414,15 @@ class PdfTemplateService {
         'path': savePath,
       });
       
-      // Log for debugging
-      print('PDF saved to: $savePath');
-      
       // Try to open the PDF
       final result = await OpenFile.open(savePath);
       
       if (result.type != ResultType.done) {
         // Log if open failed
-        print('Could not open PDF automatically: ${result.message}');
+        // print('Could not open PDF automatically: ${result.message}');
       }
     } catch (e) {
-      print('Error saving or opening PDF: $e');
+      // print('Error saving or opening PDF: $e');
       rethrow;
     }
   }
@@ -492,7 +489,7 @@ class PdfTemplateService {
       path = '${directory.path}/$fileName';
       counter++;
       
-      print('PDF with same name exists, trying new filename: $fileName');
+      // print('PDF with same name exists, trying new filename: $fileName');
     }
     
     return path;

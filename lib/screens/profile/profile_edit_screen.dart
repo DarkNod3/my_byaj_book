@@ -138,7 +138,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       
       return targetPath;
     } catch (e) {
-      print('Error saving image: $e');
       return null;
     }
   }

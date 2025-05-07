@@ -38,11 +38,7 @@ class CardProvider extends ChangeNotifier {
       
       _isLoading = false;
       notifyListeners();
-      
-      // Debug print
-      _printSavedCards();
     } catch (e) {
-      print('Error loading cards: $e');
       _isLoading = false;
       notifyListeners();
     }
@@ -63,11 +59,8 @@ class CardProvider extends ChangeNotifier {
       
       final String cardsJson = jsonEncode(serializableCards);
       await prefs.setString('cards', cardsJson);
-      
-      // Debug print
-      _printSavedCards();
     } catch (e) {
-      print('Error saving cards: $e');
+      // Removed debug print
     }
   }
 
@@ -91,6 +84,7 @@ class CardProvider extends ChangeNotifier {
   // Delete a card
   Future<void> deleteCard(int index) async {
     if (index >= 0 && index < _cards.length) {
+      // Remove card from memory
       _cards.removeAt(index);
       
       // Update selected index if needed
@@ -100,8 +94,10 @@ class CardProvider extends ChangeNotifier {
         _selectedCardIndex = _cards.length - 1;
       }
       
-      notifyListeners();
+      // Save immediately to ensure deletion is persisted
       await saveCards();
+      
+      notifyListeners();
     }
   }
 
@@ -125,14 +121,16 @@ class CardProvider extends ChangeNotifier {
       if (_cards[cardIndex].containsKey('entries')) {
         List entries = _cards[cardIndex]['entries'];
         if (entryIndex >= 0 && entryIndex < entries.length) {
-          // Remove the entry
+          // Remove the entry from memory
           entries.removeAt(entryIndex);
           
           // Update the card with adjusted balance
           _cards[cardIndex] = updatedCard;
           
-          notifyListeners();
+          // Save immediately to ensure deletion is persisted
           await saveCards();
+          
+          notifyListeners();
         }
       }
     }
@@ -187,9 +185,9 @@ class CardProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cardsJson = prefs.getString('cards');
-      print('SAVED CARDS: $cardsJson');
+      // Removed debug print
     } catch (e) {
-      print('Error reading saved cards: $e');
+      // Removed debug print
     }
   }
 } 

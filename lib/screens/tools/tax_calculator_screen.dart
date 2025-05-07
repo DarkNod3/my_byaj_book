@@ -301,7 +301,6 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
         _effectiveTaxRate = 0;
         _taxSlabBreakdown = [];
       });
-      print('Tax calculation error: $e');
     }
   }
 

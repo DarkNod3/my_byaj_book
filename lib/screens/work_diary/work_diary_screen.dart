@@ -63,7 +63,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
     
     try {
       final prefs = await SharedPreferences.getInstance();
-      final clientsJson = prefs.getString('workDiaryClients');
+      final String? clientsJson = prefs.getString('work_diary_clients');
       
       if (clientsJson != null) {
         final List<dynamic> decoded = jsonDecode(clientsJson);
@@ -71,10 +71,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
         _filterClients();
       }
     } catch (e) {
-      print('Error loading clients: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading clients: $e')),
-      );
+      // Removed debug print
     } finally {
       setState(() {
         _isLoading = false;
@@ -85,13 +82,10 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
   Future<void> _saveClients() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final clientsJson = jsonEncode(_clients.map((c) => c.toJson()).toList());
-      await prefs.setString('workDiaryClients', clientsJson);
+      final String clientsJson = jsonEncode(_clients.map((c) => c.toJson()).toList());
+      await prefs.setString('work_diary_clients', clientsJson);
     } catch (e) {
-      print('Error saving clients: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving clients: $e')),
-      );
+      // Removed debug print
     }
   }
 

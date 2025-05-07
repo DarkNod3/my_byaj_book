@@ -35,7 +35,7 @@ class MilkSellerProvider with ChangeNotifier {
       _sellers.sort((a, b) => a.name.compareTo(b.name));
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading milk sellers: $e');
+      // Removed debug print
     }
   }
 
@@ -50,7 +50,7 @@ class MilkSellerProvider with ChangeNotifier {
       
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading milk payments: $e');
+      // Removed debug print
     }
   }
 
@@ -63,7 +63,7 @@ class MilkSellerProvider with ChangeNotifier {
       
       await prefs.setStringList(_sellersStorageKey, sellerJson);
     } catch (e) {
-      debugPrint('Error saving milk sellers: $e');
+      // Removed debug print
     }
   }
 
@@ -76,7 +76,7 @@ class MilkSellerProvider with ChangeNotifier {
       
       await prefs.setStringList(_paymentsStorageKey, paymentJson);
     } catch (e) {
-      debugPrint('Error saving milk payments: $e');
+      // Removed debug print
     }
   }
 
@@ -107,10 +107,17 @@ class MilkSellerProvider with ChangeNotifier {
   }
 
   Future<void> deleteSeller(String sellerId) async {
+    // First remove from memory
     _sellers.removeWhere((s) => s.id == sellerId);
     
-    notifyListeners();
+    // Also remove any associated payments for this seller
+    _payments.removeWhere((p) => p.sellerId == sellerId);
+    
+    // Save both sellers and payments to ensure complete deletion
     await _saveSellers();
+    await _savePayments();
+    
+    notifyListeners();
   }
 
   MilkSeller? getSellerById(String id) {

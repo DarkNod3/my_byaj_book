@@ -216,13 +216,13 @@ class TransactionProvider extends ChangeNotifier {
                 }
               }
             } catch (e) {
-              print('Error creating card reminder: $e');
+              // Removed debug print
             }
           }
         }
       });
     } catch (e) {
-      print('Error fetching cards for reminders: $e');
+      // Removed debug print
     }
     
     // Sort by due date (closest first)
@@ -370,32 +370,20 @@ class TransactionProvider extends ChangeNotifier {
   
   // Add a transaction
   Future<void> addTransaction(String contactId, Map<String, dynamic> transaction) async {
+    // Ensure transaction has createdAt timestamp
+    if (!transaction.containsKey('createdAt')) {
+      transaction['createdAt'] = DateTime.now().millisecondsSinceEpoch;
+    }
+    
+    // Initialize transaction list for this contact if needed
     if (!_contactTransactions.containsKey(contactId)) {
       _contactTransactions[contactId] = [];
     }
     
-    // Add to start of the list (newest first)
-    _contactTransactions[contactId]!.insert(0, transaction);
+    // Add to memory
+    _contactTransactions[contactId]!.add(transaction);
     
-    // Update lastEditedAt timestamp in the associated contact
-    final contactIndex = _contacts.indexWhere((contact) => contact['phone'] == contactId);
-    if (contactIndex != -1) {
-      final contact = _contacts[contactIndex];
-      
-      // Get the transaction date or use current time
-      final DateTime txDate = transaction['date'] is DateTime ? 
-                             transaction['date'] as DateTime : 
-                             DateTime.now();
-      
-      // Update lastEditedAt timestamp
-      contact['lastEditedAt'] = txDate;
-      
-      // Save the updated contact
-      _contacts[contactIndex] = contact;
-      await _saveContacts();
-    }
-    
-    // Save to preferences
+    // Save to preferences immediately to ensure persistence
     await _saveTransactions();
     
     // Notify listeners
@@ -433,9 +421,7 @@ class TransactionProvider extends ChangeNotifier {
     
     await addTransaction(contactId, transaction);
     
-    // Debug print after adding
-    // print('DEBUG - Added transaction to $contactId: $transaction');
-    // debugPrintAllTransactions();
+    // Removed debug print comments
   }
   
   // Update a transaction
@@ -471,10 +457,14 @@ class TransactionProvider extends ChangeNotifier {
     if (_contactTransactions.containsKey(contactId) && 
         index >= 0 && 
         index < _contactTransactions[contactId]!.length) {
+      // Remove from memory immediately
       _contactTransactions[contactId]!.removeAt(index);
       
-      // Save to preferences
+      // Save to preferences to ensure permanent deletion
       await _saveTransactions();
+      
+      // Create automatic backup to ensure consistency
+      await createAutomaticBackup();
       
       // Notify listeners
       notifyListeners();

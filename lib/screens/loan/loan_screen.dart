@@ -52,8 +52,7 @@ class _LoanScreenState extends State<LoanScreen> {
         final provider = Provider.of<LoanProvider>(context, listen: false);
         provider.loadLoans();
       } catch (e) {
-        print('Error loading loan data: $e');
-        // You could show a snackbar or other error message here
+        // Removed debug print
       }
     });
   }
@@ -146,7 +145,7 @@ class _LoanScreenState extends State<LoanScreen> {
               ),
             );
           } catch (e) {
-            print('Error in LoanScreen build: $e');
+            // Removed debug print
             return Scaffold(
               appBar: widget.showAppBar ? AppBar(
                 title: const Text('Loans'),
@@ -174,7 +173,7 @@ class _LoanScreenState extends State<LoanScreen> {
         },
       );
     } catch (e) {
-      print('Fatal error in LoanScreen: $e');
+      // Removed debug print
       return Scaffold(
         appBar: widget.showAppBar ? AppBar(
           title: const Text('Loans'),

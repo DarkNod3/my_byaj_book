@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'screens/splash_screen.dart';
 import 'constants/app_theme.dart';
 import 'package:provider/provider.dart';
@@ -21,11 +22,14 @@ import 'package:my_byaj_book/screens/reminder/reminder_screen.dart';
 import 'services/notification_service.dart';
 import 'models/loan_notification.dart';
 import 'screens/loan/loan_details_screen.dart';
+import 'screens/auth/login_screen.dart';
 import 'dart:io';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:my_byaj_book/providers/customer_provider.dart';
 import 'package:my_byaj_book/services/database_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 // Global notification service
 final notificationService = NotificationService.instance;
@@ -33,9 +37,61 @@ final notificationService = NotificationService.instance;
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
+  // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Hive
+  // Initialize Firebase with better error handling
+  try {
+    print('===== FIREBASE INIT =====');
+    print('Starting Firebase initialization...');
+    print('Platform: ${Platform.isAndroid ? 'Android' : Platform.isIOS ? 'iOS' : 'Other'}');
+    
+    // Restore Firebase initialization with options since firebase_options.dart hasn't been set up yet
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: 'AIzaSyCUp9dyle6Z5DmOmJsiPE4By71kei4-Epo',
+        appId: '1:123456789012:android:1234567890123456789012',
+        messagingSenderId: '123456789012',
+        projectId: 'my-byaj-book',
+      ),
+    );
+    
+    // Check if Firebase is actually initialized correctly
+    if (Firebase.apps.isEmpty) {
+      throw Exception('Firebase app initialization failed - no apps registered');
+    }
+    
+    // Enable Firebase Crashlytics in release mode
+    if (!kDebugMode) {
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
+      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
+    }
+    
+    print('Firebase initialized successfully!');
+    print('Firebase app name: ${Firebase.app().name}');
+    print('Firebase options: ${Firebase.app().options.projectId}');
+    print('Firebase API key: ${Firebase.app().options.apiKey}');
+    print('============================');
+  } catch (e, stackTrace) {
+    // More detailed error handling
+    print('===== FIREBASE INIT ERROR =====');
+    print('Failed to initialize Firebase: $e');
+    print('Stack trace: $stackTrace');
+    print('App will continue in local-only mode without Firebase.');
+    print('==============================');
+    
+    // Check if Firebase was partially initialized and needs cleanup
+    if (Firebase.apps.isNotEmpty) {
+      try {
+        await Firebase.app().delete();
+        print('Cleaned up partially initialized Firebase app');
+      } catch (cleanupError) {
+        print('Error cleaning up Firebase app: $cleanupError');
+      }
+    }
+  }
+  
+  // Initialize Hive for local storage
   await Hive.initFlutter();
   await DatabaseService.instance.init();
   
@@ -54,6 +110,7 @@ void main() async {
     overlays: [SystemUiOverlay.top],
   );
   
+  // Run the app in release mode with error handling
   runApp(
     MultiProvider(
       providers: [
@@ -149,6 +206,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               TeaDiaryScreen.routeName: (ctx) => const TeaDiaryScreen(showAppBar: true),
               ProfileEditScreen.routeName: (ctx) => const ProfileEditScreen(),
               ReminderScreen.routeName: (ctx) => const ReminderScreen(),
+              '/login': (ctx) => const LoginScreen(),
             },
           );
         },

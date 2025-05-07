@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../screens/home/home_screen.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -27,23 +28,62 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   String? _errorMessage;
   String? _nameError;
   FocusNode _otpFocusNode = FocusNode();
+  String? _verificationId;
+  int? _resendToken;
+  bool _canResendOtp = false;
+  int _resendCountdown = 0;
+  FirebaseAuth _auth = FirebaseAuth.instance;
+  bool _firebaseAvailable = true;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 500),
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeIn,
+        parent: _animationController, 
+        curve: Curves.easeInOut,
       ),
     );
     _animationController.forward();
     
     _nameController.addListener(_validateNameField);
+    
+    // Check if Firebase Auth is working properly
+    _firebaseAvailable = true; // Start assuming Firebase is available
+    try {
+      print("Checking Firebase Auth availability...");
+      _auth.authStateChanges().listen((user) {
+        print("Firebase Auth is working correctly: ${user == null ? 'No user signed in' : 'User signed in'}");
+      }, onError: (error) {
+        print("Firebase Auth error detected: $error");
+        setState(() {
+          _firebaseAvailable = false; // Firebase Auth has issues
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Using mock authentication - Firebase Auth error: $error'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      });
+    } catch (e) {
+      print("Firebase Auth initialization error: $e");
+      setState(() {
+        _firebaseAvailable = false; // Firebase Auth failed to initialize
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Using mock authentication - Firebase Auth initialization error'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
   @override
@@ -88,106 +128,158 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   void _verifyMobile() {
     if (_formKey.currentState!.validate()) {
-      // Hide keyboard before transition
-      FocusScope.of(context).unfocus();
-      
-      // Show loading indicator briefly
       setState(() {
         _isLoading = true;
+        _errorMessage = null;
       });
       
-      // Delay to simulate OTP sending
-      Future.delayed(const Duration(milliseconds: 800), () {
-        _transitionToNextStep();
-        setState(() {
-          _isLoading = false;
-        });
-        
-        // Focus on OTP field and show keyboard
-        Future.delayed(const Duration(milliseconds: 300), () {
-          _otpFocusNode.requestFocus();
-          
-          // Ensure the continue button is visible after focusing on OTP field
-          Future.delayed(const Duration(milliseconds: 100), () {
-            if (_currentStep == 1) {
-              // Scroll to make sure button is visible
-              Scrollable.ensureVisible(
-                _formKey.currentContext!,
-                alignment: 0.8,
-                duration: const Duration(milliseconds: 300),
-              );
-            }
-          });
-        });
-      });
-    }
-  }
-
-  void _verifyOTP() {
-    if (_formKey.currentState!.validate()) {
-      if (_otpController.text == '123456') { // Hardcoded test OTP
-        setState(() {
-          _isLoading = true;
-          _errorMessage = null;
-        });
-        
-        // Check if user is new or existing
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
-        userProvider.checkUserExists(_mobileController.text).then((exists) {
-          if (exists) {
-            // Existing user - login and go to home
-            userProvider.loginWithMobile(_mobileController.text).then((_) {
-              Navigator.pushReplacement(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(opacity: animation, child: child);
-                  },
-                  transitionDuration: const Duration(milliseconds: 300),
-                ),
-              );
-            });
-          } else {
-            // New user - request name
-            setState(() {
-              _isLoading = false;
-            });
-            _transitionToNextStep();
-          }
-        });
-      } else {
-        setState(() {
-          _errorMessage = 'Invalid OTP. Please try again.';
-        });
+      // If Firebase Auth is not available, use mock authentication
+      if (!_firebaseAvailable) {
+        _mockAuthentication();
+        return;
       }
+      
+      // Get the mobile number with country code
+      final phoneNumber = '+91${_mobileController.text.trim()}';
+      print("Verifying phone number: $phoneNumber");
+      
+      // Start the phone verification process
+      _auth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Auto-verification on Android (rare)
+          print("Auto verification completed");
+          await _signInWithCredential(credential);
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          print("Verification failed: ${e.message}");
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Verification failed: ${e.message}';
+          });
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          print("OTP code sent. VerificationId: $verificationId");
+          setState(() {
+            _isLoading = false;
+            _verificationId = verificationId;
+            _resendToken = resendToken;
+            _startResendTimer();
+          });
+          _transitionToNextStep();
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          // Auto-retrieval timeout
+          print("Code auto retrieval timeout");
+        },
+        forceResendingToken: _resendToken,
+      );
     }
   }
-
-  void _completeRegistration() {
+  
+  void _verifyOTP() {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
         _errorMessage = null;
       });
       
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      userProvider.registerUser(
-        mobile: _mobileController.text,
-        name: _nameController.text,
-      ).then((_) {
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 300),
-          ),
+      // If Firebase Auth is not available, use mock verification
+      if (!_firebaseAvailable) {
+        _mockVerifyOTP();
+        return;
+      }
+      
+      try {
+        print("Verifying OTP: ${_otpController.text.trim()}");
+        // Create credential with verification ID and OTP
+        final credential = PhoneAuthProvider.credential(
+          verificationId: _verificationId ?? '',
+          smsCode: _otpController.text.trim(),
         );
+        
+        _signInWithCredential(credential);
+      } catch (e) {
+        print("OTP verification error: $e");
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Invalid OTP. Please try again.';
+        });
+      }
+    }
+  }
+
+  Future<void> _signInWithCredential(PhoneAuthCredential credential) async {
+    try {
+      print("Signing in with credential...");
+      final userCredential = await _auth.signInWithCredential(credential);
+      final firebaseUser = userCredential.user;
+      
+      if (firebaseUser != null) {
+        print("Successfully signed in with phone number: ${firebaseUser.phoneNumber}");
+        // Successfully signed in
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        
+        // Check if user exists in your own database
+        final exists = await userProvider.checkUserExists(_mobileController.text);
+        
+        if (exists) {
+          print("Existing user found in database");
+          // Existing user - login and go to home
+          await userProvider.loginWithMobile(_mobileController.text);
+          _navigateToHome();
+        } else {
+          print("New user - requesting name");
+          // New user - request name
+          setState(() {
+            _isLoading = false;
+          });
+          _transitionToNextStep();
+        }
+      } else {
+        print("Sign-in failed: No user returned");
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Sign-in failed. Please try again.';
+        });
+      }
+    } on FirebaseAuthException catch (e) {
+      print("Firebase Auth Exception: ${e.code} - ${e.message}");
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Error: ${e.message}';
+      });
+    } catch (e) {
+      print("Unexpected error during sign in: $e");
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'An unexpected error occurred.';
       });
     }
+  }
+  
+  void _resendOTP() {
+    if (_canResendOtp) {
+      setState(() {
+        _otpController.clear();
+        _errorMessage = null;
+      });
+      _verifyMobile();
+    }
+  }
+
+  void _navigateToHome() {
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
   }
 
   @override
@@ -524,11 +616,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   String _getStepText() {
     switch (_currentStep) {
       case 0:
-        return 'Please enter your mobile number to continue';
+        return 'Enter your mobile number to continue';
       case 1:
-        return 'Enter the OTP sent to +91 ${_mobileController.text}';
+        return 'Enter the 6-digit code sent to your phone';
       case 2:
-        return 'Tell us your name to complete registration';
+        return 'Tell us your name to complete setup';
       default:
         return '';
     }
@@ -705,15 +797,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               style: TextStyle(color: Colors.grey.shade600),
             ),
             TextButton(
-              onPressed: () {
-                // For testing, just show a message
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Test OTP is 123456'),
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              },
+              onPressed: _resendOTP,
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
                 minimumSize: const Size(50, 30),
@@ -799,5 +883,112 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         ),
       ],
     );
+  }
+
+  void _completeRegistration() {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+      
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      userProvider.registerUser(
+        mobile: _mobileController.text,
+        name: _nameController.text,
+      ).then((_) {
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
+        );
+      });
+    }
+  }
+
+  void _startResendTimer() {
+    setState(() {
+      _canResendOtp = false;
+      _resendCountdown = 30; // 30 seconds countdown
+    });
+    
+    Future.delayed(Duration(seconds: 1), () {
+      if (mounted && _resendCountdown > 0) {
+        setState(() {
+          _resendCountdown--;
+        });
+        _startResendTimer();
+      } else if (mounted) {
+        setState(() {
+          _canResendOtp = true;
+          _resendCountdown = 0;
+        });
+      }
+    });
+  }
+
+  // Mock authentication for when Firebase is not available
+  void _mockAuthentication() {
+    print("Using mock authentication flow");
+    // Simulate network delay
+    Future.delayed(Duration(seconds: 1), () {
+      setState(() {
+        _isLoading = false;
+        _verificationId = 'mock-verification-id';
+        _startResendTimer();
+      });
+      
+      _transitionToNextStep();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Using mock authentication - enter any 6-digit OTP to proceed'),
+          duration: Duration(seconds: 5),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    });
+  }
+
+  // Mock OTP verification for when Firebase is not available
+  void _mockVerifyOTP() {
+    print("Using mock OTP verification");
+    // Simulate network delay
+    Future.delayed(Duration(seconds: 1), () {
+      final enteredOTP = _otpController.text.trim();
+      
+      // For testing, accept any 6-digit OTP
+      if (enteredOTP.length == 6 && int.tryParse(enteredOTP) != null) {
+        print("Mock OTP accepted: $enteredOTP");
+        // Check if user exists in the app's database
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        
+        // For demo, consider mobile number "9876543210" as existing user
+        if (_mobileController.text.trim() == "9876543210") {
+          print("Existing user detected: ${_mobileController.text.trim()}");
+          userProvider.loginWithMobile(_mobileController.text).then((_) {
+            _navigateToHome();
+          });
+        } else {
+          print("New user detected: ${_mobileController.text.trim()}");
+          // New user - request name
+          setState(() {
+            _isLoading = false;
+          });
+          _transitionToNextStep();
+        }
+      } else {
+        print("Invalid mock OTP format: $enteredOTP");
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Invalid OTP. Please enter a 6-digit number.';
+        });
+      }
+    });
   }
 }

@@ -35,7 +35,7 @@ class DailyEntryProvider with ChangeNotifier {
       
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading daily entries: $e');
+      // Removed debug print
     }
   }
 
@@ -48,7 +48,7 @@ class DailyEntryProvider with ChangeNotifier {
       
       await prefs.setStringList(_storageKey, entriesJson);
     } catch (e) {
-      debugPrint('Error saving daily entries: $e');
+      // Removed debug print
     }
   }
 
@@ -129,10 +129,21 @@ class DailyEntryProvider with ChangeNotifier {
   }
 
   Future<void> deleteEntry(String entryId) async {
-    _entries.removeWhere((e) => e.id == entryId);
-    
-    notifyListeners();
-    await _saveEntries();
+    // Remove entry from memory
+    final entryIndex = _entries.indexWhere((entry) => entry.id == entryId);
+    if (entryIndex != -1) {
+      _entries.removeAt(entryIndex);
+      
+      // Save changes to storage immediately
+      await _saveEntries();
+      
+      // Update any filtered entries if necessary
+      if (_isFiltered) {
+        _filteredEntries.removeWhere((entry) => entry.id == entryId);
+      }
+      
+      notifyListeners();
+    }
   }
 
   void _sortEntries() {

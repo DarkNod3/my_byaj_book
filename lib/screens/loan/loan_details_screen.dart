@@ -141,16 +141,6 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
         
         // Show date picker to select payment date
         _selectPaymentDate(index);
-      }).catchError((e) {
-        debugPrint('Error updating loan: $e');
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error marking payment as paid: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
       });
     });
   }
@@ -188,16 +178,6 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
             content: Text('Payment for Installment ${_installments[index]['installmentNumber']} was reset'),
             backgroundColor: Colors.blue,
             duration: const Duration(seconds: 2),
-          ),
-        );
-      }).catchError((e) {
-        debugPrint('Error updating loan: $e');
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error resetting payment: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
           ),
         );
       });
@@ -240,16 +220,6 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
               content: Text('Payment date updated successfully'),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
-            ),
-          );
-        }).catchError((e) {
-          debugPrint('Error updating payment date: $e');
-          // Show error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error updating payment date: $e'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
             ),
           );
         });
