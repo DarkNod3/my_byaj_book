@@ -707,7 +707,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
   
   void _showRateAppDialog(BuildContext context) {
     // Define the Play Store URL for the app
-    final Uri playStoreUrl = Uri.parse('https://play.google.com/store/apps/details?id=com.example.mybyajbook');
+    final Uri playStoreUrl = Uri.parse('https://play.google.com/store/apps/details?id=com.rjinnovativemedia.mybyajbook');
     
     // Launch the URL to open Play Store
     try {

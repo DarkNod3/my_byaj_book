@@ -1667,7 +1667,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                           'Rate',
                           style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                           textAlign: pw.TextAlign.center,
-                        ),
+      ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(5),
@@ -1767,27 +1767,27 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     return pw.Expanded(
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.center,
-        children: [
-          pw.Text(
-            title,
-            style: const pw.TextStyle(
-              fontSize: 10,
-              color: PdfColors.grey700,
-            ),
+      children: [
+        pw.Text(
+          title,
+          style: const pw.TextStyle(
+            fontSize: 10,
+            color: PdfColors.grey700,
           ),
+        ),
           pw.SizedBox(height: 4),
-          pw.Text(
-            value,
-            style: pw.TextStyle(
+        pw.Text(
+          value,
+          style: pw.TextStyle(
               fontSize: 12,
-              fontWeight: pw.FontWeight.bold,
-            ),
+            fontWeight: pw.FontWeight.bold,
           ),
-        ],
+        ),
+      ],
       ),
     );
   }
-  
+
   // Replace the improperly placed method with a proper class method at the class level
   // Add this method properly outside the build method
   void _showSelectCustomerForPaymentDialog() {
@@ -2549,7 +2549,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
+                children: [
                     // Total Cups
                     _buildSummaryItem(
                       'Total Cups',
@@ -2582,7 +2582,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                       Colors.red[700]!,
                     ),
                   ],
-                ),
+                    ),
               ),
               
               const Divider(height: 24),
@@ -2591,13 +2591,13 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Transaction History',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+              const Text(
+                'Transaction History',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
                   // Add payment button
                   TextButton.icon(
                     onPressed: () {
@@ -2735,21 +2735,21 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                 });
               }
             }
-            
-            return AlertDialog(
-              title: const Text('Add Payment'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
+        
+        return AlertDialog(
+          title: const Text('Add Payment'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    autofocus: true,
-                    decoration: const InputDecoration(labelText: 'Amount'),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      amount = double.tryParse(value) ?? 0;
-                    },
-                  ),
+            children: [
+              TextField(
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Amount'),
+                keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  amount = double.tryParse(value) ?? 0;
+                },
+              ),
                   const SizedBox(height: 16),
                   
                   // Date selector
@@ -2782,26 +2782,26 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                   ),
                   
                   const SizedBox(height: 16),
-                  Text('Current Balance: ₹${(customer.totalAmount - customer.paymentsMade).toStringAsFixed(2)}'),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      customer.paymentsMade += amount;
-                      
+              Text('Current Balance: ₹${(customer.totalAmount - customer.paymentsMade).toStringAsFixed(2)}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  customer.paymentsMade += amount;
+                  
                       // Add to history - use selected date
-                      customer.history.add(
-                        CustomerEntry(
-                          type: EntryType.payment,
-                          amount: amount,
+                  customer.history.add(
+                    CustomerEntry(
+                      type: EntryType.payment,
+                      amount: amount,
                           timestamp: DateTime(
                             selectedDate.year,
                             selectedDate.month,
@@ -2809,21 +2809,21 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                             DateTime.now().hour,
                             DateTime.now().minute,
                           ),
-                        ),
-                      );
-                      
-                      // Update timestamp
-                      customer.lastUpdated = DateTime.now();
-                      
-                      _updateTotals();
-                      _sortCustomers(); // Re-sort to put most recent at top
-                      _saveCustomers(); // Save changes
-                    });
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Add Payment'),
-                ),
-              ],
+                    ),
+                  );
+                  
+                  // Update timestamp
+                  customer.lastUpdated = DateTime.now();
+                  
+                  _updateTotals();
+                  _sortCustomers(); // Re-sort to put most recent at top
+                  _saveCustomers(); // Save changes
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('Add Payment'),
+            ),
+          ],
             );
           }
         );
@@ -3231,28 +3231,28 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
       
       // Show success message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
             content: Text('PDF exported successfully: $fileName'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+          duration: const Duration(seconds: 3),
+        ),
+      );
       }
     } catch (e) {
       // Show error message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
             content: Text('Error generating PDF: $e'),
-            backgroundColor: Colors.red,
+          backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
-          ),
-        );
+        ),
+      );
       }
     }
   }
-  
+
   // Create a PDF document for a customer with all transaction history
   Future<pw.Document> _createCustomerPdf(Customer customer) async {
     final pdf = pw.Document();
@@ -3269,50 +3269,50 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
         pageFormat: PdfPageFormat.a4,
         build: (context) => [
           // Header with app name and customer info
-          pw.Container(
+              pw.Container(
             padding: const pw.EdgeInsets.all(10),
-            color: PdfColors.teal50,
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.center,
-              children: [
-                pw.Text(
-                  'My Byaj Book - Tea Diary',
-                  style: pw.TextStyle(
-                    fontSize: 18,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-                pw.SizedBox(height: 5),
-                pw.Text(
+                color: PdfColors.teal50,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Text(
+                      'My Byaj Book - Tea Diary',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 5),
+                    pw.Text(
                   'Customer Transaction Report',
-                  style: const pw.TextStyle(
+                      style: const pw.TextStyle(
                     fontSize: 12,
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          
+              ),
+              
           pw.SizedBox(height: 15),
-          
+              
           // Customer information
-          pw.Container(
+              pw.Container(
             padding: const pw.EdgeInsets.all(10),
-            decoration: pw.BoxDecoration(
+                decoration: pw.BoxDecoration(
               border: pw.Border.all(color: PdfColors.grey300),
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  'Customer: ${customer.name}',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
                 ),
-                if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Customer: ${customer.name}',
+                      style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
                   pw.Text(
                     'Phone: ${customer.phoneNumber}',
                     style: const pw.TextStyle(
@@ -3326,7 +3326,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     fontSize: 12,
                   ),
                 ),
-                if (customer.coffeeRate > 0)
+                            if (customer.coffeeRate > 0)
                   pw.Text(
                     'Coffee Rate: Rs.${customer.coffeeRate.toStringAsFixed(2)}/cup',
                     style: const pw.TextStyle(
@@ -3334,14 +3334,14 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     ),
                   ),
                 if (customer.milkRate > 0)
-                  pw.Text(
+                            pw.Text(
                     'Milk Rate: Rs.${customer.milkRate.toStringAsFixed(2)}/cup',
                     style: const pw.TextStyle(
                       fontSize: 12,
-                    ),
-                  ),
-              ],
-            ),
+                              ),
+                            ),
+                          ],
+                        ),
           ),
           
           pw.SizedBox(height: 15),
@@ -3360,164 +3360,164 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                 _pdfSummaryItem('Total Amount', 'Rs.${customer.totalAmount.toStringAsFixed(2)}'),
                 _pdfSummaryItem('Paid Amount', 'Rs.${customer.paymentsMade.toStringAsFixed(2)}'),
                 _pdfSummaryItem('Due Amount', 'Rs.${totalDue.toStringAsFixed(2)}'),
-              ],
-            ),
-          ),
-          
-          pw.SizedBox(height: 20),
-          
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(height: 20),
+              
           // Transactions history section
-          pw.Text(
-            'Transaction History',
-            style: pw.TextStyle(
-              fontSize: 16,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-          
-          pw.SizedBox(height: 10),
-          
+              pw.Text(
+                'Transaction History',
+                style: pw.TextStyle(
+                  fontSize: 16, 
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              
+              pw.SizedBox(height: 10),
+              
           // Transaction history table
           sortedHistory.isEmpty
-              ? pw.Center(
+                ? pw.Center(
                   child: pw.Container(
                     padding: const pw.EdgeInsets.symmetric(vertical: 20),
-                    child: pw.Text(
-                      'No transaction history available',
-                      style: const pw.TextStyle(
-                        color: PdfColors.grey600, 
-                        fontStyle: pw.FontStyle.italic,
+                      child: pw.Text(
+                        'No transaction history available',
+                        style: const pw.TextStyle(
+                          color: PdfColors.grey600, 
+                          fontStyle: pw.FontStyle.italic,
+                        ),
                       ),
                     ),
-                  ),
-                )
-              : pw.Table(
-                  border: pw.TableBorder.all(color: PdfColors.grey300),
-                  children: [
-                    // Table header
-                    pw.TableRow(
-                      decoration: const pw.BoxDecoration(color: PdfColors.teal100),
-                      children: [
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text(
-                            'Date & Time',
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text(
-                            'Type',
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text(
-                            'Details',
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text(
-                            'Amount',
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                            textAlign: pw.TextAlign.right,
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    // Table data
-                    ...sortedHistory.asMap().entries.map((entry) {
-                      int index = entry.key;
-                      CustomerEntry historyItem = entry.value;
-                      bool isPayment = historyItem.type == EntryType.payment;
-                      
-                      return pw.TableRow(
-                        decoration: index % 2 == 0 
-                            ? const pw.BoxDecoration(color: PdfColors.grey100)
-                            : const pw.BoxDecoration(color: PdfColors.white),
+                  )
+                : pw.Table(
+                    border: pw.TableBorder.all(color: PdfColors.grey300),
+                    children: [
+                      // Table header
+                      pw.TableRow(
+                        decoration: const pw.BoxDecoration(color: PdfColors.teal100),
                         children: [
-                          // Date column
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(6),
                             child: pw.Text(
-                              DateFormat('dd MMM yyyy, hh:mm a').format(historyItem.timestamp),
-                              style: const pw.TextStyle(fontSize: 9),
+                              'Date & Time',
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                             ),
                           ),
-                          
-                          // Type column
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(6),
                             child: pw.Text(
-                              isPayment ? 'Payment' : 'Purchase',
-                              style: pw.TextStyle(
-                                color: isPayment ? PdfColors.green700 : PdfColors.red700,
-                              ),
+                              'Type',
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                             ),
                           ),
-                          
-                          // Details column
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(6),
                             child: pw.Text(
-                              isPayment 
-                                ? 'Payment received'
-                                : '${historyItem.cups} cups of ${historyItem.beverageType ?? 'tea'}',
+                              'Details',
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                             ),
                           ),
-                          
-                          // Amount column
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(6),
                             child: pw.Text(
-                              isPayment 
-                                ? '+ Rs.${historyItem.amount.toStringAsFixed(2)}'
-                                : '- Rs.${historyItem.amount.toStringAsFixed(2)}',
-                              style: pw.TextStyle(
-                                color: isPayment ? PdfColors.green700 : PdfColors.red700,
-                              ),
+                              'Amount',
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.right,
                             ),
                           ),
                         ],
-                      );
-                    }).toList(),
+                      ),
+                      
+                      // Table data
+                    ...sortedHistory.asMap().entries.map((entry) {
+                        int index = entry.key;
+                        CustomerEntry historyItem = entry.value;
+                        bool isPayment = historyItem.type == EntryType.payment;
+                        
+                        return pw.TableRow(
+                          decoration: index % 2 == 0 
+                              ? const pw.BoxDecoration(color: PdfColors.grey100)
+                              : const pw.BoxDecoration(color: PdfColors.white),
+                          children: [
+                            // Date column
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                DateFormat('dd MMM yyyy, hh:mm a').format(historyItem.timestamp),
+                                style: const pw.TextStyle(fontSize: 9),
+                              ),
+                            ),
+                            
+                            // Type column
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                isPayment ? 'Payment' : 'Purchase',
+                                style: pw.TextStyle(
+                                  color: isPayment ? PdfColors.green700 : PdfColors.red700,
+                                ),
+                              ),
+                            ),
+                            
+                            // Details column
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                isPayment 
+                                  ? 'Payment received'
+                                  : '${historyItem.cups} cups of ${historyItem.beverageType ?? 'tea'}',
+                              ),
+                            ),
+                            
+                            // Amount column
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                isPayment 
+                                ? '+ Rs.${historyItem.amount.toStringAsFixed(2)}'
+                                : '- Rs.${historyItem.amount.toStringAsFixed(2)}',
+                                style: pw.TextStyle(
+                                  color: isPayment ? PdfColors.green700 : PdfColors.red700,
+                                ),
+                                textAlign: pw.TextAlign.right,
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ],
+                  ),
+              
+              pw.Spacer(),
+              
+              // Footer
+              pw.Container(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                  'Generated on: ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
+                      style: const pw.TextStyle(
+                        fontSize: 10,
+                        color: PdfColors.grey600,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'My Byaj Book App',
+                      style: const pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.teal900,
+                      ),
+                    ),
                   ],
                 ),
-          
-          pw.Spacer(),
-          
-          // Footer
-          pw.Container(
-            alignment: pw.Alignment.centerRight,
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.end,
-              children: [
-                pw.Text(
-                  'Generated on: ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
-                  style: const pw.TextStyle(
-                    fontSize: 10,
-                    color: PdfColors.grey600,
-                  ),
-                ),
-                pw.SizedBox(height: 4),
-                pw.Text(
-                  'My Byaj Book App',
-                  style: const pw.TextStyle(
-                    fontSize: 10,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.teal900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
       ),
     );
     

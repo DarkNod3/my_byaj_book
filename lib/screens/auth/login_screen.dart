@@ -106,6 +106,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         // Focus on OTP field and show keyboard
         Future.delayed(const Duration(milliseconds: 300), () {
           _otpFocusNode.requestFocus();
+          
+          // Ensure the continue button is visible after focusing on OTP field
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (_currentStep == 1) {
+              // Scroll to make sure button is visible
+              Scrollable.ensureVisible(
+                _formKey.currentContext!,
+                alignment: 0.8,
+                duration: const Duration(milliseconds: 300),
+              );
+            }
+          });
         });
       });
     }
@@ -181,6 +193,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -335,7 +348,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             ),
                           ),
                           
-                          const SizedBox(height: 30),
+                          SizedBox(height: _currentStep == 1 ? 50 : 30),
                           FadeTransition(
                             opacity: _fadeAnimation,
                             child: _buildActionButton(),
@@ -555,6 +568,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             fontWeight: FontWeight.bold,
             color: Colors.black,
           ),
+          scrollPadding: const EdgeInsets.only(bottom: 240),
           decoration: InputDecoration(
             prefixText: '+91 ',
             prefixStyle: TextStyle(
@@ -618,6 +632,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Widget _buildOtpVerificationStep() {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         const Text(
           'Verification Code',
@@ -636,13 +651,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 15),
         TextFormField(
           controller: _otpController,
           focusNode: _otpFocusNode,
           keyboardType: TextInputType.number,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 15),
           textAlign: TextAlign.center,
+          scrollPadding: const EdgeInsets.only(bottom: 400),
           decoration: InputDecoration(
             hintText: '• • • • • •',
             hintStyle: TextStyle(
@@ -680,7 +696,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           },
           autofocus: true,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 15),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -743,6 +759,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           keyboardType: TextInputType.name,
           textCapitalization: TextCapitalization.words,
           style: const TextStyle(fontSize: 16),
+          scrollPadding: const EdgeInsets.only(bottom: 240),
           decoration: InputDecoration(
             labelText: 'Your Full Name',
             prefixIcon: Icon(Icons.person_outline, color: Colors.blue.shade700),

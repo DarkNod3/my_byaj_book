@@ -1,4 +1,4 @@
-package com.example.my_byaj_book
+package com.rjinnovativemedia.mybyajbook
 
 import io.flutter.embedding.android.FlutterActivity
 
