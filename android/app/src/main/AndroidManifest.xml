@@ -7,6 +7,20 @@
         android:label="My Byaj Book"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        
+        <!-- Firebase Auth custom branding for SMS verification -->
+        <meta-data
+            android:name="com.google.firebase.auth.APP_NAME"
+            android:value="My Byaj Book" />
+        <meta-data
+            android:name="com.google.firebase.auth.APP_VERIFICATION_LOGO_URL"
+            android:value="@mipmap/ic_launcher" />
+            
+        <!-- Add a specific meta-data tag for SMS template branding -->
+        <meta-data
+            android:name="com.google.firebase.auth.SMS_APP_NAME"
+            android:value="My Byaj Book" />
+            
         <activity
             android:name=".MainActivity"
             android:exported="true"

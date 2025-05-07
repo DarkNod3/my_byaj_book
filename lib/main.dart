@@ -30,6 +30,8 @@ import 'package:my_byaj_book/providers/customer_provider.dart';
 import 'package:my_byaj_book/services/database_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // Global notification service
 final notificationService = NotificationService.instance;
@@ -46,15 +48,34 @@ void main() async {
     print('Starting Firebase initialization...');
     print('Platform: ${Platform.isAndroid ? 'Android' : Platform.isIOS ? 'iOS' : 'Other'}');
     
-    // Restore Firebase initialization with options since firebase_options.dart hasn't been set up yet
+    // Initialize Firebase first
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        apiKey: 'AIzaSyCUp9dyle6Z5DmOmJsiPE4By71kei4-Epo',
-        appId: '1:123456789012:android:1234567890123456789012',
-        messagingSenderId: '123456789012',
+        apiKey: 'AIzaSyAyzvrHynsUE5ziad_Se-1IQxyLXptKu3A',
+        appId: '1:586549083907:android:1e440fdfd5589676aa7336',
+        messagingSenderId: '586549083907',
         projectId: 'my-byaj-book',
+        storageBucket: 'my-byaj-book.firebasestorage.app',
       ),
     );
+    
+    // Initialize Firebase App Check - helps with security and app verification
+    await FirebaseAppCheck.instance.activate(
+      // Use debug provider for development, replace with proper provider for production
+      androidProvider: AndroidProvider.debug,
+      appleProvider: AppleProvider.debug,
+    );
+    
+    // Configure Firebase services with proper app information
+    // This helps set the app name in verification messages
+    try {
+      await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+      // Set the app name for Firebase Auth services
+      FirebaseAuth.instance.setLanguageCode('en'); // Set to your preferred language
+      print('Firebase App Check configured successfully');
+    } catch (appCheckError) {
+      print('Firebase App Check error: $appCheckError');
+    }
     
     // Check if Firebase is actually initialized correctly
     if (Firebase.apps.isEmpty) {

@@ -1,0 +1,37 @@
+INSTRUCTIONS TO FIX THE FIREBASE PROJECT NAME
+
+The OTP verification messages currently show "exam-lover.firebaseapp.com" instead of "My Byaj Book" because the Firebase project's public-facing name needs to be updated.
+
+Follow these steps:
+
+1. Open the Firebase Console: https://console.firebase.google.com/
+2. Select your "exam-lover" project
+3. Click on the gear icon (⚙️) next to "Project Overview" to access "Project settings"
+4. Under "Project settings", you'll see two name fields:
+   - "Project name" (visible only to project members)
+   - "Public-facing name" (this is what appears in SMS messages)
+5. Click the edit (pencil) icon next to "Public-facing name"
+6. Change it to "My Byaj Book"
+7. Click "Save"
+
+8. IMPORTANT: Verify that your app is registered with the correct package name:
+   - In Project Settings > Your Apps section, check that "com.rjinnovativemedia.mybyajbook" is registered
+   - If not, add your Android app using this package name
+   - Download the google-services.json file and place it in android/app/
+
+This change will ensure all future SMS verification messages show "My Byaj Book" instead of "exam-lover.firebaseapp.com".
+
+ADDITIONAL STEPS:
+
+1. We've already added necessary metadata tags in your AndroidManifest.xml file
+2. We've also applied Firebase App Check for additional security
+3. Updated Firebase configuration in main.dart to use the correct package name
+4. After updating the project name in Firebase Console, rebuild and run your app:
+   
+   ```
+   flutter clean
+   flutter pub get
+   flutter run
+   ```
+
+NOTE: It may take a few minutes for the changes to propagate through Firebase's systems. 

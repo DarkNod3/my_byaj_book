@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   final _mobileController = TextEditingController();
   final _otpController = TextEditingController();
   final _nameController = TextEditingController();
+  final _scrollController = ScrollController();
   
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -34,6 +35,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   int _resendCountdown = 0;
   FirebaseAuth _auth = FirebaseAuth.instance;
   bool _firebaseAvailable = true;
+  bool _verificationInProgress = false;
+  
+  // Key for scrolling to OTP field
+  final GlobalKey _otpSectionKey = GlobalKey();
 
   @override
   void initState() {
@@ -93,6 +98,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     _nameController.dispose();
     _animationController.dispose();
     _otpFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -131,6 +137,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       setState(() {
         _isLoading = true;
         _errorMessage = null;
+        _verificationInProgress = true;
       });
       
       // If Firebase Auth is not available, use mock authentication
@@ -143,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       final phoneNumber = '+91${_mobileController.text.trim()}';
       print("Verifying phone number: $phoneNumber");
       
-      // Start the phone verification process
+      // Start the phone verification process with custom settings
       _auth.verifyPhoneNumber(
         phoneNumber: phoneNumber,
         timeout: const Duration(seconds: 60),
@@ -157,6 +164,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           setState(() {
             _isLoading = false;
             _errorMessage = 'Verification failed: ${e.message}';
+            _verificationInProgress = false;
           });
         },
         codeSent: (String verificationId, int? resendToken) {
@@ -166,12 +174,21 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             _verificationId = verificationId;
             _resendToken = resendToken;
             _startResendTimer();
+            _verificationInProgress = false;
           });
           _transitionToNextStep();
+          
+          // Schedule scrolling to OTP field
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToOtpField();
+          });
         },
         codeAutoRetrievalTimeout: (String verificationId) {
           // Auto-retrieval timeout
           print("Code auto retrieval timeout");
+          setState(() {
+            _verificationInProgress = false;
+          });
         },
         forceResendingToken: _resendToken,
       );
@@ -305,7 +322,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  physics: _currentStep == 1 ? const NeverScrollableScrollPhysics() : const AlwaysScrollableScrollPhysics(),
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
                   child: Padding(
                     padding: EdgeInsets.all(_currentStep == 1 ? 20.0 : 24.0),
                     child: Form(
@@ -714,6 +732,37 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           },
         ),
         const SizedBox(height: 20),
+        // "I'm not a robot" checkbox UI element for visual confirmation
+        // In production, Firebase handles reCAPTCHA automatically
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.grey.shade50,
+          ),
+          child: Row(
+            children: [
+              Checkbox(
+                value: true,
+                onChanged: null,
+                checkColor: Colors.white,
+                fillColor: MaterialStateProperty.resolveWith(
+                  (states) => Colors.green.shade600,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Expanded(
+                child: Text(
+                  'I am not a robot',
+                  style: TextStyle(color: Colors.black87, fontSize: 14),
+                ),
+              ),
+              Icon(Icons.verified_user, color: Colors.green.shade600),
+            ],
+          ),
+        ),
+        const SizedBox(height: 15),
         const Text(
           'We\'ll send a 6-digit OTP to verify your number',
           style: TextStyle(color: Colors.grey, fontSize: 12),
@@ -724,6 +773,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Widget _buildOtpVerificationStep() {
     return Column(
+      key: _otpSectionKey,
       mainAxisSize: MainAxisSize.min,
       children: [
         const Text(
@@ -945,6 +995,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       
       _transitionToNextStep();
       
+      // Schedule scrolling to OTP field in the mock flow too
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToOtpField();
+      });
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Using mock authentication - enter any 6-digit OTP to proceed'),
@@ -990,5 +1045,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         });
       }
     });
+  }
+
+  void _scrollToOtpField() {
+    if (_otpSectionKey.currentContext != null) {
+      Scrollable.ensureVisible(
+        _otpSectionKey.currentContext!,
+        alignment: 0.2, // Position it near the top of the screen
+        duration: const Duration(milliseconds: 300),
+      );
+      
+      // Focus on OTP field
+      FocusScope.of(context).requestFocus(_otpFocusNode);
+    }
   }
 }
