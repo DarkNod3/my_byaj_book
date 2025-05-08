@@ -45,7 +45,6 @@ class ThemeProvider with ChangeNotifier {
     colorScheme: ColorScheme.dark(
       primary: _primaryColor,
       secondary: _accentColor,
-      background: Colors.grey[900]!,
       surface: Colors.grey[800]!,
     ),
     scaffoldBackgroundColor: Colors.grey[900],

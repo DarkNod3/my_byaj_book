@@ -107,9 +107,9 @@ By using the app, you agree to the collection and use of information in accordan
               ),
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Welcome to $appName. We respect your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, and safeguard your information when you use our mobile application.',
-              style: const TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -267,9 +267,9 @@ By using the app, you agree to the collection and use of information in accordan
               style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 4),
-            Text(
+            const Text(
               'Email: $supportEmail',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:my_byaj_book/screens/tools/diary_test_screen.dart';
 import 'package:my_byaj_book/screens/milk_diary/milk_diary_screen.dart';
 import 'package:my_byaj_book/screens/bill_diary/bill_diary_screen.dart';
-import 'package:my_byaj_book/screens/home/home_screen.dart';
 import 'package:my_byaj_book/screens/loan/loan_screen.dart';
 import 'package:my_byaj_book/screens/card/card_screen.dart';
 import 'package:my_byaj_book/providers/nav_preferences_provider.dart';
@@ -13,7 +11,6 @@ import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
 import 'package:my_byaj_book/screens/work_diary/work_diary_screen.dart';
-import '../header/app_header.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;

@@ -25,7 +25,8 @@ class MilkEntryProvider with ChangeNotifier {
       _entries.sort((a, b) {
         final dateComparison = b.date.compareTo(a.date);
         if (dateComparison != 0) return dateComparison;
-        return b.shift.index.compareTo(a.shift.index);
+        // Use string comparison instead of index (fix for String type)
+        return b.shift.compareTo(a.shift);
       });
       
       notifyListeners();
@@ -54,7 +55,8 @@ class MilkEntryProvider with ChangeNotifier {
     _entries.sort((a, b) {
       final dateComparison = b.date.compareTo(a.date);
       if (dateComparison != 0) return dateComparison;
-      return b.shift.index.compareTo(a.shift.index);
+      // Use string comparison instead of index (fix for String type)
+      return b.shift.compareTo(a.shift);
     });
     
     notifyListeners();
@@ -71,7 +73,8 @@ class MilkEntryProvider with ChangeNotifier {
       _entries.sort((a, b) {
         final dateComparison = b.date.compareTo(a.date);
         if (dateComparison != 0) return dateComparison;
-        return b.shift.index.compareTo(a.shift.index);
+        // Use string comparison instead of index (fix for String type)
+        return b.shift.compareTo(a.shift);
       });
       
       notifyListeners();

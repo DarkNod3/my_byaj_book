@@ -113,15 +113,15 @@ class TransactionProvider extends ChangeNotifier {
     upcomingPayments.addAll(manualReminders);
     
     // Check contact transactions for due dates
-    _contacts.forEach((contact) {
+    for (var contact in _contacts) {
       final contactId = contact['phone'] as String?;
-      if (contactId == null || contactId.isEmpty) return;
+      if (contactId == null || contactId.isEmpty) continue;
       
       // Get total amount for this contact
       final balance = calculateBalance(contactId);
       
       // Skip if nothing is owed
-      if (balance == 0) return;
+      if (balance == 0) continue;
       
       // Determine if it's a payment (you'll give) or receipt (you'll get)
       final isPayment = balance < 0;
@@ -130,7 +130,7 @@ class TransactionProvider extends ChangeNotifier {
       if (isPayment) {
         // Get the most recent transaction
         final transactions = getTransactionsForContact(contactId);
-        if (transactions.isEmpty) return;
+        if (transactions.isEmpty) continue;
         
         // Use the most recent transaction date as reference
         final lastTxDate = transactions.first['date'] as DateTime;
@@ -151,7 +151,7 @@ class TransactionProvider extends ChangeNotifier {
           });
         }
       }
-    });
+    }
     
     // Add credit card payment reminders
     try {
@@ -672,11 +672,11 @@ class TransactionProvider extends ChangeNotifier {
       final sanitizedContact = Map<String, dynamic>.from(contact);
       
       // Handle common string fields
-      ['name', 'phone', 'category', 'type', 'interestPeriod'].forEach((key) {
+      for (var key in ['name', 'phone', 'category', 'type', 'interestPeriod']) {
         if (sanitizedContact.containsKey(key) && sanitizedContact[key] == null) {
           sanitizedContact[key] = '';
         }
-      });
+      }
       
       // Handle numeric fields
       if (sanitizedContact.containsKey('interestRate') && sanitizedContact['interestRate'] == null) {
@@ -717,11 +717,11 @@ class TransactionProvider extends ChangeNotifier {
       final sanitizedContact = Map<String, dynamic>.from(contact);
       
       // Handle common string fields
-      ['name', 'phone', 'category', 'type', 'interestPeriod'].forEach((key) {
+      for (var key in ['name', 'phone', 'category', 'type', 'interestPeriod']) {
         if (sanitizedContact.containsKey(key) && sanitizedContact[key] == null) {
           sanitizedContact[key] = '';
         }
-      });
+      }
       
       // Handle numeric fields
       if (sanitizedContact.containsKey('interestRate') && sanitizedContact['interestRate'] == null) {
@@ -776,11 +776,11 @@ class TransactionProvider extends ChangeNotifier {
       final sanitizedContact = Map<String, dynamic>.from(updatedContact);
       
       // Handle common string fields
-      ['name', 'phone', 'category', 'type', 'interestPeriod'].forEach((key) {
+      for (var key in ['name', 'phone', 'category', 'type', 'interestPeriod']) {
         if (sanitizedContact.containsKey(key) && sanitizedContact[key] == null) {
           sanitizedContact[key] = '';
         }
-      });
+      }
       
       // Handle numeric fields
       if (sanitizedContact.containsKey('interestRate') && sanitizedContact['interestRate'] == null) {

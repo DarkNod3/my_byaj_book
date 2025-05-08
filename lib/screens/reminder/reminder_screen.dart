@@ -425,7 +425,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       label: const Text('Mark as Paid'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.primaryColor,
-                        side: BorderSide(color: AppTheme.primaryColor),
+                        side: const BorderSide(color: AppTheme.primaryColor),
                       ),
                     )
                   else
@@ -672,7 +672,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         border: OutlineInputBorder(),
                         prefixText: '₹ ',
                       ),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     ),
                     const SizedBox(height: 16),
                     const Text(

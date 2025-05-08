@@ -7,7 +7,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
 
 class EmiCalculatorScreen extends StatefulWidget {
   static const routeName = '/emi-calculator';
@@ -43,7 +42,6 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
   double _emiAmount = 0;
   double _totalInterest = 0;
   double _totalAmount = 0;
-  bool _showResult = true; // Always show results
   
   // Custom input formatters
   TextInputFormatter get _loanAmountFormatter => TextInputFormatter.withFunction(
@@ -118,14 +116,6 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
     symbol: '₹',
     decimalDigits: 0,
   );
-  
-  // Alternative formatter to ensure proper Rupee symbol
-  String _formatCurrency(double amount) {
-    return '₹${amount.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},'
-    )}';
-  }
   
   // Payment schedule for amortization table
   List<Map<String, dynamic>> _paymentSchedule = [];
@@ -371,7 +361,6 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         _emiAmount = emi;
         _totalInterest = totalInterest;
         _totalAmount = totalAmount;
-        _showResult = true;
       });
     } catch (e) {
       // If any calculation fails, use default values
@@ -380,7 +369,6 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         _totalInterest = 0;
         _totalAmount = 0;
         _paymentSchedule = [];
-        _showResult = true;
       });
     }
   }
@@ -485,7 +473,7 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                     ),
                     pw.Text(
                       DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now()),
-                      style: const pw.TextStyle(
+                      style: pw.TextStyle(
                         fontSize: 12,
                         fontWeight: pw.FontWeight.bold,
                       ),
@@ -525,9 +513,9 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
             // Loan Summary Section
             pw.Container(
               padding: const pw.EdgeInsets.all(15),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: PdfColors.grey100,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(10)),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -605,9 +593,9 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
             // Disclaimer
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: PdfColors.grey100,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(5)),
               ),
               child: pw.Text(
                 'Disclaimer: This is an approximate calculation and may vary from the actual EMI charged by financial institutions. Factors such as processing fees, insurance premiums, and other charges are not included in this calculation.',
@@ -840,9 +828,9 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                         inputFormatters: [_loanAmountFormatter],
                         decoration: InputDecoration(
                       labelText: 'Loan Amount (₹)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.currency_rupee),
-                      contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.currency_rupee),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                           errorText: _validateLoanAmount(),
                     ),
                     onChanged: (value) {
@@ -882,9 +870,9 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
               inputFormatters: [_interestRateFormatter],
               decoration: InputDecoration(
                 labelText: 'Interest Rate (% p.a.)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.percent),
-                contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.percent),
+                contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                 errorText: _validateInterestRate(),
               ),
               onChanged: (_) => _calculateEMI(),
@@ -901,9 +889,9 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                     inputFormatters: [_loanTenureFormatter],
                     decoration: InputDecoration(
                       labelText: 'Loan Tenure',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.calendar_today),
-                      contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.calendar_today),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                       errorText: _validateLoanTenure(),
                     ),
                     onChanged: (value) {
@@ -1065,12 +1053,12 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
+          const Padding(
+            padding: EdgeInsets.all(12.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Payment Schedule',
                   style: TextStyle(
                     fontSize: 16,
@@ -1619,17 +1607,17 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                               ),
                             )
                           else if (_isCalculatingRate)
-                            Column(
+                            const Column(
                               children: [
-                                const SizedBox(
+                                SizedBox(
                                   height: 24,
                                   width: 24,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                const Text(
+                                SizedBox(height: 8),
+                                Text(
                                   'Calculating...',
                                   style: TextStyle(
                                     fontSize: 20,

@@ -25,9 +25,9 @@ class InterestTransaction {
     DateTime? createdAt,
     DateTime? updatedAt,
   }) : 
-    this.date = date ?? DateTime.now(),
-    this.createdAt = createdAt ?? DateTime.now(),
-    this.updatedAt = updatedAt ?? DateTime.now();
+    date = date ?? DateTime.now(),
+    createdAt = createdAt ?? DateTime.now(),
+    updatedAt = updatedAt ?? DateTime.now();
 
   InterestTransaction copyWith({
     int? id,

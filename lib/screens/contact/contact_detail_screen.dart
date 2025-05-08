@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../widgets/dialogs/confirm_dialog.dart';
-import '../../utils/string_extensions.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:my_byaj_book/utils/string_utils.dart';
@@ -12,123 +11,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:my_byaj_book/services/pdf_template_service.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:open_file/open_file.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz;
 import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class ContactDetailScreen extends StatefulWidget {
   final Map<String, dynamic> contact;
@@ -516,10 +402,10 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         if (hasImage)
                           GestureDetector(
                             onTap: () => _showFullImage(context, tx['imagePath']),
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 4),
+                            child: const Padding(
+                              padding: EdgeInsets.only(top: 4),
                               child: Row(
-                                children: const [
+                                children: [
                                   Icon(Icons.receipt_long, size: 12, color: Colors.blue),
                                   SizedBox(width: 2),
                                   Text(
@@ -730,7 +616,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     String? amountError; // Add this to track error state
     
     // Define maximum amount (99 crore)
-    final double maxAmount = 990000000.0;
+    const double maxAmount = 990000000.0;
     
     // Check if this is a with-interest contact
     final bool isWithInterest = widget.contact['type'] != null;
@@ -1364,7 +1250,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         
         // Calculate interest accumulated up to this transaction date
         if (lastInterestCalculationDate != null && runningPrincipal > 0) {
-          final daysSinceLastCalculation = txDate.difference(lastInterestCalculationDate!).inDays;
+          final daysSinceLastCalculation = txDate.difference(lastInterestCalculationDate).inDays;
           if (daysSinceLastCalculation > 0) {
             // Get interest rate and period
             final interestRate = (widget.contact['interestRate'] as double);
@@ -1377,7 +1263,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               // For monthly rate:
               // Step 1: Calculate complete months between dates
               int completeMonths = 0;
-              DateTime tempDate = DateTime(lastInterestCalculationDate!.year, lastInterestCalculationDate!.month, lastInterestCalculationDate!.day);
+              DateTime tempDate = DateTime(lastInterestCalculationDate.year, lastInterestCalculationDate.month, lastInterestCalculationDate.day);
               
               while (true) {
                 // Try to add one month
@@ -1412,7 +1298,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               
               // Step 1: Calculate complete months between dates
               int completeMonths = 0;
-              DateTime tempDate = DateTime(lastInterestCalculationDate!.year, lastInterestCalculationDate!.month, lastInterestCalculationDate!.day);
+              DateTime tempDate = DateTime(lastInterestCalculationDate.year, lastInterestCalculationDate.month, lastInterestCalculationDate.day);
               
               while (true) {
                 // Try to add one month
@@ -1511,7 +1397,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       if (isMonthly) {
         // Step 1: Calculate complete months between last transaction and today
         int completeMonths = 0;
-        DateTime tempDate = DateTime(lastInterestCalculationDate!.year, lastInterestCalculationDate!.month, lastInterestCalculationDate!.day);
+        DateTime tempDate = DateTime(lastInterestCalculationDate.year, lastInterestCalculationDate.month, lastInterestCalculationDate.day);
         
         while (true) {
           // Try to add one month
@@ -1546,7 +1432,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         
         // Step 1: Calculate complete months between last transaction and today
         int completeMonths = 0;
-        DateTime tempDate = DateTime(lastInterestCalculationDate!.year, lastInterestCalculationDate!.month, lastInterestCalculationDate!.day);
+        DateTime tempDate = DateTime(lastInterestCalculationDate.year, lastInterestCalculationDate.month, lastInterestCalculationDate.day);
         
         while (true) {
           // Try to add one month
@@ -1613,8 +1499,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     final totalAmount = principal + interestDue;
     
     final Color relationshipColor = relationshipType == 'borrower' ? 
-            Color(0xFF5D69E3) : // Blue-purple for borrower
-            Color(0xFF2E9E7A); // Teal for lender
+            const Color(0xFF5D69E3) : // Blue-purple for borrower
+            const Color(0xFF2E9E7A); // Teal for lender
     
     // Store current month info for display
     final String currentMonthAbbr = _getMonthAbbreviation();
@@ -1668,7 +1554,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Interest Summary',
                           style: TextStyle(
                             fontSize: 16,
@@ -1696,7 +1582,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  Icon(
+                                  const Icon(
                                     Icons.percent,
                                     size: 12,
                                     color: Colors.white,
@@ -1704,7 +1590,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                                   const SizedBox(width: 3),
                                   Text(
                                     '${widget.contact['interestRate']}% ${widget.contact['interestPeriod'] == 'monthly' ? 'p.m.' : 'p.a.'}',
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
@@ -1727,7 +1613,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       color: Colors.white.withOpacity(0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.info_outline,
                       size: 16,
                       color: Colors.white,
@@ -1853,8 +1739,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                 ),
                 GestureDetector(
                   onTap: _showContactInfo,
-                  child: Row(
-                    children: const [
+                  child: const Row(
+                    children: [
                       Icon(Icons.info_outline, size: 16),
                       SizedBox(width: 4),
                       Text('DETAILS', style: TextStyle(fontSize: 12)),
@@ -2035,7 +1921,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         },
         {
           'label': isPositive ? 'YOU WILL GET' : 'YOU WILL GIVE',
-          'value': 'Rs. ' + PdfTemplateService.formatCurrency(balance.abs()),
+          'value': 'Rs. ${PdfTemplateService.formatCurrency(balance.abs())}',
           'highlight': true,
           'isPositive': isPositive,
         },
@@ -2090,15 +1976,15 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           summaryItems.addAll([
             {
               'label': 'Estimated Principal:',
-              'value': 'Rs. ' + PdfTemplateService.formatCurrency(principalAmount),
+              'value': 'Rs. ${PdfTemplateService.formatCurrency(principalAmount)}',
             },
             {
               'label': 'Est. Monthly Interest:',
-              'value': 'Rs. ' + PdfTemplateService.formatCurrency(monthlyInterest),
+              'value': 'Rs. ${PdfTemplateService.formatCurrency(monthlyInterest)}',
             },
             {
               'label': 'Est. Daily Interest:',
-              'value': 'Rs. ' + PdfTemplateService.formatCurrency(interestPerDay),
+              'value': 'Rs. ${PdfTemplateService.formatCurrency(interestPerDay)}',
             },
           ]);
         }
@@ -2129,11 +2015,11 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           },
           {
             'label': 'Total Paid:',
-            'value': 'Rs. ' + PdfTemplateService.formatCurrency(totalPaid),
+            'value': 'Rs. ${PdfTemplateService.formatCurrency(totalPaid)}',
           },
           {
             'label': 'Total Received:',
-            'value': 'Rs. ' + PdfTemplateService.formatCurrency(totalReceived),
+            'value': 'Rs. ${PdfTemplateService.formatCurrency(totalReceived)}',
           },
           {
             'label': 'First Transaction:',
@@ -2164,7 +2050,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           note = transaction['type'] == 'gave' ? 'Payment sent' : 'Payment received';
         }
         
-        final amount = 'Rs. ' + PdfTemplateService.formatCurrency(transaction['amount'] as double);
+        final amount = 'Rs. ${PdfTemplateService.formatCurrency(transaction['amount'] as double)}';
         final type = transaction['type'] == 'gave' ? 'You Paid' : 'You Received';
         
         tableRows.add([date, note, amount, type]);
@@ -2220,10 +2106,10 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('PDF report generated successfully'),
+              const Text('PDF report generated successfully'),
               Text(
                 'Filename: $fileName',
-                style: TextStyle(fontSize: 12, color: Colors.white70),
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
               ),
             ],
           ),
@@ -2759,7 +2645,7 @@ ${_getAppUserName()}
     String? amountError; // Add this to track error state
     
     // Define maximum amount (99 crore)
-    final double maxAmount = 990000000.0;
+    const double maxAmount = 990000000.0;
     
     // Check if this is a with-interest contact
     final bool isWithInterest = widget.contact['type'] != null;

@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/loan_provider.dart';
 import '../../constants/app_theme.dart';
-import 'loan_details_screen.dart';
-import '../../services/notification_service.dart';
 import '../../main.dart' show notificationService;
 
 class AddLoanScreen extends StatefulWidget {
@@ -260,11 +258,11 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8, bottom: 4),
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8, bottom: 4),
                             child: Text(
                               'Interest Type',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 color: AppTheme.secondaryTextColor,
                                 fontWeight: FontWeight.w500,
@@ -289,9 +287,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                                 children: [
                                   Icon(Icons.check_circle, color: AppTheme.primaryColor.withOpacity(0.7), size: 20),
                                   const SizedBox(width: 8),
-                                  Text(
+                                  const Text(
                                     'Fixed',
-                                    style: const TextStyle(fontSize: 16, color: AppTheme.textColor),
+                                    style: TextStyle(fontSize: 16, color: AppTheme.textColor),
                                   ),
                                 ],
                               ),
@@ -662,7 +660,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
+            colorScheme: const ColorScheme.light(
               primary: AppTheme.primaryColor,
               onPrimary: Colors.white,
               onSurface: AppTheme.textColor,

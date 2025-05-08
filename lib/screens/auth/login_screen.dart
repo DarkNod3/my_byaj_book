@@ -29,12 +29,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   bool _isLoading = false;
   String? _errorMessage;
   String? _nameError;
-  FocusNode _otpFocusNode = FocusNode();
+  final FocusNode _otpFocusNode = FocusNode();
   String? _verificationId;
   int? _resendToken;
   bool _canResendOtp = false;
   int _resendCountdown = 0;
-  FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _firebaseAvailable = true;
   bool _verificationInProgress = false;
   bool _recaptchaVerified = false;
@@ -92,10 +92,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         _firebaseAvailable = false; // Firebase Auth failed to initialize
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Using mock authentication - Firebase Auth initialization error'),
           backgroundColor: Colors.orange,
-          duration: const Duration(seconds: 5),
+          duration: Duration(seconds: 5),
         ),
       );
     }
@@ -153,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     });
     
     // Start a timer to simulate verification process
-    _captchaTimer = Timer.periodic(Duration(milliseconds: 50), (timer) {
+    _captchaTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       setState(() {
         if (_captchaProgress < 100) {
           _captchaProgress += 5;
@@ -164,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text('Human verification successful!'),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 2),
@@ -451,9 +451,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             ),
                           ),
                           const SizedBox(height: 30),
-                          Text(
+                          const Text(
                             'Welcome to My Byaj Book',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -758,7 +758,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               fontSize: 16,
             ),
             hintText: 'Enter the Mobile Number',
-            hintStyle: TextStyle(
+            hintStyle: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.black54,
               fontSize: 16,
@@ -797,7 +797,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             if (value.length > 10) {
               _mobileController.text = value.substring(0, 10);
               _mobileController.selection = TextSelection.fromPosition(
-                TextPosition(offset: 10),
+                const TextPosition(offset: 10),
               );
             }
           },
@@ -829,7 +829,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         }
                       },
                       checkColor: Colors.white,
-                      fillColor: MaterialStateProperty.resolveWith(
+                      fillColor: WidgetStateProperty.resolveWith(
                         (states) => _recaptchaVerified ? Colors.green.shade600 : Colors.grey.shade400,
                       ),
                     ),
@@ -849,7 +849,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 value: _captchaProgress / 100,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
                               ),
                             )
                           : Icon(Icons.shield_outlined, color: Colors.grey.shade600),
@@ -1077,7 +1077,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       _resendCountdown = 30; // 30 seconds countdown
     });
     
-    Future.delayed(Duration(seconds: 1), () {
+    Future.delayed(const Duration(seconds: 1), () {
       if (mounted && _resendCountdown > 0) {
         setState(() {
           _resendCountdown--;
@@ -1096,7 +1096,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   void _mockAuthentication() {
     print("Using mock authentication flow");
     // Simulate network delay
-    Future.delayed(Duration(seconds: 1), () {
+    Future.delayed(const Duration(seconds: 1), () {
       setState(() {
         _isLoading = false;
         _verificationId = 'mock-verification-id';
@@ -1114,7 +1114,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('OTP sent successfully to +91 ${_mobileController.text}'),
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
           backgroundColor: Colors.green,
         ),
       );
@@ -1125,7 +1125,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   void _mockVerifyOTP() {
     print("Using mock OTP verification");
     // Simulate network delay
-    Future.delayed(Duration(seconds: 1), () {
+    Future.delayed(const Duration(seconds: 1), () {
       final enteredOTP = _otpController.text.trim();
       
       // For testing, accept any 6-digit OTP

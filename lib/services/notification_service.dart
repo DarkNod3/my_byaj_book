@@ -10,6 +10,7 @@ import '../providers/card_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../models/loan_notification.dart';
 import '../models/card_notification.dart';
+import '../models/app_notification.dart';
 import '../screens/reminder/reminder_screen.dart';
 import '../main.dart' show markLoanAsPaid, navigatorKey;
 
@@ -59,21 +60,12 @@ class NotificationService {
 
   // Handle FCM messages that arrive when the app is in the foreground
   void _handleForegroundMessage(RemoteMessage message) {
-    print('Got a message whilst in the foreground!');
-    print('Message data: ${message.data}');
-
-    if (message.notification != null) {
-      print('Message also contained a notification: ${message.notification}');
-      
-      // Show local notification
-      _showLocalNotificationFromFCM(message);
-    }
+    // Show local notification
+    _showLocalNotificationFromFCM(message);
   }
 
   // Handle messages received in the background
   Future<void> handleBackgroundMessage(RemoteMessage message) async {
-    print('Handling a background message: ${message.messageId}');
-    
     // You could store the message data for later use when app is opened
     // Or immediately show a notification using the local notifications plugin
     
@@ -90,7 +82,7 @@ class NotificationService {
     
     if (notification != null) {
       // Create android notification details
-      final androidNotificationDetails = AndroidNotificationDetails(
+      const androidNotificationDetails = AndroidNotificationDetails(
         'push_notification_channel',
         'Push Notifications',
         channelDescription: 'Channel for push notifications',
@@ -108,7 +100,7 @@ class NotificationService {
       );
       
       // Create platform-specific notification details
-      final platformChannelSpecifics = NotificationDetails(
+      const platformChannelSpecifics = NotificationDetails(
         android: androidNotificationDetails,
         iOS: iosNotificationDetails,
       );
@@ -355,7 +347,7 @@ class NotificationService {
     required DateTime dueDate,
     required int installmentNumber,
   }) async {
-    final androidDetails = AndroidNotificationDetails(
+    const androidDetails = AndroidNotificationDetails(
       'loan_payment_channel',
       'Loan Payment Notifications',
       channelDescription: 'Notifications for loan payment dues',
@@ -363,13 +355,13 @@ class NotificationService {
       priority: Priority.high,
     );
     
-    final iOSDetails = DarwinNotificationDetails(
+    const iOSDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
     
-    final notificationDetails = NotificationDetails(
+    const notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iOSDetails,
     );
@@ -410,7 +402,7 @@ class NotificationService {
     required double amount,
     required DateTime dueDate,
   }) async {
-    final androidDetails = AndroidNotificationDetails(
+    const androidDetails = AndroidNotificationDetails(
       'card_payment_channel',
       'Card Payment Notifications',
       channelDescription: 'Notifications for credit card payment dues',
@@ -419,13 +411,13 @@ class NotificationService {
       color: Colors.orange,
     );
     
-    final iOSDetails = DarwinNotificationDetails(
+    const iOSDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
     
-    final notificationDetails = NotificationDetails(
+    const notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iOSDetails,
     );
@@ -475,7 +467,7 @@ class NotificationService {
     required double amount,
     required DateTime scheduledDate,
   }) async {
-    final androidDetails = AndroidNotificationDetails(
+    const androidDetails = AndroidNotificationDetails(
       'manual_reminder_channel',
       'Manual Reminder Notifications',
       channelDescription: 'Notifications for manually set reminders',
@@ -484,13 +476,13 @@ class NotificationService {
       color: Colors.purple,
     );
     
-    final iOSDetails = DarwinNotificationDetails(
+    const iOSDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
     
-    final notificationDetails = NotificationDetails(
+    const notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iOSDetails,
     );
@@ -551,7 +543,7 @@ class NotificationService {
       return;
     }
     
-    final androidDetails = AndroidNotificationDetails(
+    const androidDetails = AndroidNotificationDetails(
       'scheduled_notification_channel',
       'Scheduled Notifications',
       channelDescription: 'Notifications scheduled for a specific time',
@@ -559,13 +551,13 @@ class NotificationService {
       priority: Priority.high,
     );
     
-    final iOSDetails = DarwinNotificationDetails(
+    const iOSDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
     
-    final notificationDetails = NotificationDetails(
+    const notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iOSDetails,
     );
@@ -599,7 +591,7 @@ class NotificationService {
     }
     return '';
   }
-  
+
   Future<void> cancelAllNotifications() async {
     await _flutterLocalNotificationsPlugin.cancelAll();
     _loanNotificationIds.clear();
@@ -682,4 +674,120 @@ class NotificationService {
     return loanAmount * interestRate * pow(1 + interestRate, loanTerm) / 
         (pow(1 + interestRate, loanTerm) - 1);
   }
-} 
+
+  // Schedule notification
+  Future<void> _scheduleNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    TimeOfDay? time,
+    String? payload,
+    bool isSoundEnabled = true,
+    String? soundPath,
+  }) async {
+    // If time is provided, use it to set hours and minutes
+    final DateTime notificationDateTime = time != null
+        ? DateTime(
+            scheduledDate.year,
+            scheduledDate.month,
+            scheduledDate.day,
+            time.hour,
+            time.minute,
+          )
+        : scheduledDate;
+        
+    // Configure notification details
+    AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'loan_due_channel',
+      'Loan Due Notifications',
+      channelDescription: 'Notifications for loan payment due dates',
+      importance: Importance.high,
+      priority: Priority.high,
+      sound: isSoundEnabled
+          ? soundPath != null
+              ? RawResourceAndroidNotificationSound(soundPath.split('.').first)
+              : const RawResourceAndroidNotificationSound('notification_sound')
+          : null,
+      playSound: isSoundEnabled,
+    );
+
+    NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+
+    // Schedule notification
+    await _flutterLocalNotificationsPlugin.zonedSchedule(
+      id,
+      title,
+      body,
+      tz.TZDateTime.from(notificationDateTime, tz.local),
+      platformChannelSpecifics,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: payload,
+    );
+  }
+
+  // Alias for cancelAllNotifications for compatibility with NotificationProvider
+  Future<void> cancelAll() async {
+    await cancelAllNotifications();
+  }
+  
+  // Schedule notifications from the notification provider
+  Future<void> schedule(
+    List<dynamic> notifications, {
+    bool isSoundEnabled = true,
+    String? defaultSoundPath,
+  }) async {
+    // Cancel all existing notifications first
+    await cancelAllNotifications();
+    
+    // Schedule each notification
+    for (final notification in notifications) {
+      // Skip notifications that are due in the past
+      if (notification.dueDate.isBefore(DateTime.now())) {
+        continue;
+      }
+      
+      // Generate a random ID for the notification
+      final id = notification.hashCode & 0x3FFFFFFF;
+      
+      // Create payload with notification data
+      final payload = notification.toJson();
+      
+      // Determine if sound should be played
+      final useSound = isSoundEnabled && notification.hasSound;
+      
+      // Use notification's custom sound or default
+      final soundPath = notification.soundPath.isNotEmpty 
+          ? notification.soundPath 
+          : defaultSoundPath;
+      
+      // Schedule the notification
+      await _scheduleNotification(
+        id: id,
+        title: notification.title,
+        body: notification.message,
+        scheduledDate: notification.dueDate,
+        payload: payload,
+        isSoundEnabled: useSound,
+        soundPath: soundPath,
+      );
+    }
+  }
+  
+  // Schedule a single notification
+  Future<void> scheduleOne(
+    AppNotification notification, {
+    bool isSoundEnabled = true,
+    String? soundPath,
+  }) async {
+    await _scheduleTimedNotification(
+      id: notification.id.hashCode,
+      title: notification.title,
+      body: notification.body,
+      scheduledDate: notification.scheduledDate,
+      payload: jsonEncode(notification.toJson()),
+    );
+  }
+}

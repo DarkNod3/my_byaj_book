@@ -1,8 +1,3 @@
-import 'package:flutter/foundation.dart';
-import 'milk_entry.dart';
-import 'milk_payment.dart';
-import 'package:uuid/uuid.dart';
-
 enum PriceSystem {
   defaultRate,
   fatBased,
@@ -12,26 +7,35 @@ class MilkSeller {
   final String id;
   final String name;
   final String? mobile;
+  final String? phone;
   final String? address;
   final double defaultRate;
   final bool isActive;
   final PriceSystem priceSystem;
   final Map<double, double>? fatRates;
+  final int unit;
+  final int baseFat;
+  final bool fatBasedPricing;
   double _dueAmount = 0.0;
 
   MilkSeller({
     required this.id,
     required this.name,
     this.mobile,
+    this.phone,
     this.address,
     this.defaultRate = 0.0,
     this.isActive = true,
     this.priceSystem = PriceSystem.defaultRate,
     this.fatRates,
     double dueAmount = 0.0,
+    this.unit = 1,
+    this.baseFat = 3,
+    this.fatBasedPricing = false,
   }) : _dueAmount = dueAmount;
 
   double get dueAmount => _dueAmount;
+  double get outstanding => _dueAmount;
   
   // Method to update the due amount
   void updateDueAmount(double amount) {
@@ -42,23 +46,31 @@ class MilkSeller {
     String? id,
     String? name,
     String? mobile,
+    String? phone,
     String? address,
     double? defaultRate,
     bool? isActive,
     PriceSystem? priceSystem,
     Map<double, double>? fatRates,
     double? dueAmount,
+    int? unit,
+    int? baseFat,
+    bool? fatBasedPricing,
   }) {
     return MilkSeller(
       id: id ?? this.id,
       name: name ?? this.name,
       mobile: mobile ?? this.mobile,
+      phone: phone ?? this.phone,
       address: address ?? this.address,
       defaultRate: defaultRate ?? this.defaultRate,
       isActive: isActive ?? this.isActive,
       priceSystem: priceSystem ?? this.priceSystem,
       fatRates: fatRates ?? this.fatRates,
-      dueAmount: dueAmount ?? this._dueAmount,
+      dueAmount: dueAmount ?? _dueAmount,
+      unit: unit ?? this.unit,
+      baseFat: baseFat ?? this.baseFat,
+      fatBasedPricing: fatBasedPricing ?? this.fatBasedPricing,
     );
   }
 
@@ -67,6 +79,7 @@ class MilkSeller {
       'id': id,
       'name': name,
       'mobile': mobile,
+      'phone': phone ?? mobile,
       'address': address,
       'defaultRate': defaultRate,
       'isActive': isActive,
@@ -75,6 +88,10 @@ class MilkSeller {
         fatRates!.entries.map((e) => MapEntry(e.key.toString(), e.value))
       ) : null,
       'dueAmount': _dueAmount,
+      'outstanding': _dueAmount,
+      'unit': unit,
+      'baseFat': baseFat,
+      'fatBasedPricing': fatBasedPricing,
     };
   }
 
@@ -92,8 +109,9 @@ class MilkSeller {
       id: map['id'],
       name: map['name'],
       mobile: map['mobile'],
+      phone: map['phone'] ?? map['mobile'],
       address: map['address'],
-      defaultRate: map['defaultRate'] ?? 0.0,
+      defaultRate: map['defaultRate']?.toDouble() ?? 0.0,
       isActive: map['isActive'] ?? true,
       priceSystem: map['priceSystem'] != null 
         ? PriceSystem.values.firstWhere(
@@ -101,9 +119,16 @@ class MilkSeller {
             orElse: () => PriceSystem.defaultRate)
         : PriceSystem.defaultRate,
       fatRates: fatRatesMap,
-      dueAmount: map['dueAmount']?.toDouble() ?? 0.0,
+      dueAmount: map['dueAmount']?.toDouble() ?? map['outstanding']?.toDouble() ?? 0.0,
+      unit: map['unit'] ?? 1,
+      baseFat: map['baseFat'] ?? 3,
+      fatBasedPricing: map['fatBasedPricing'] ?? false,
     );
   }
+
+  factory MilkSeller.fromJson(Map<String, dynamic> json) => MilkSeller.fromMap(json);
+  
+  Map<String, dynamic> toJson() => toMap();
 
   @override
   String toString() {

@@ -66,11 +66,16 @@ class MilkEntry {
       date: DateTime.parse(map['date']),
       shift: map['shift'],
       quantity: map['quantity'].toDouble(),
-      fat: map['fat'].toDouble(),
+      fat: map['fat']?.toDouble() ?? 0.0,
       rate: map['rate'].toDouble(),
       amount: map['amount'].toDouble(),
     );
   }
+
+  // Add fromJson and toJson methods
+  factory MilkEntry.fromJson(Map<String, dynamic> json) => MilkEntry.fromMap(json);
+  
+  Map<String, dynamic> toJson() => toMap();
 
   @override
   String toString() {

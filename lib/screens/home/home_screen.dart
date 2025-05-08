@@ -8,19 +8,15 @@ import 'package:my_byaj_book/screens/tools/more_tools_screen.dart';
 import 'package:my_byaj_book/screens/bill_diary/bill_diary_screen.dart';
 import 'package:my_byaj_book/screens/milk_diary/milk_diary_screen.dart';
 import 'package:my_byaj_book/screens/work_diary/work_diary_screen.dart';
-import 'package:my_byaj_book/screens/tools/diary_test_screen.dart';
-import 'package:my_byaj_book/screens/reminder/reminder_screen.dart';
 import 'package:my_byaj_book/screens/history/history_screen.dart';
 import 'package:my_byaj_book/screens/contact/contact_detail_screen.dart';
 import 'package:my_byaj_book/widgets/bottom_nav/bottom_navigation.dart';
 import 'package:my_byaj_book/widgets/header/app_header.dart';
 import 'package:my_byaj_book/widgets/navigation/navigation_drawer.dart';
-import 'package:my_byaj_book/widgets/user_profile_card.dart';
 import 'package:my_byaj_book/constants/app_theme.dart';
 import 'package:my_byaj_book/utils/string_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:my_byaj_book/providers/nav_preferences_provider.dart';
-import 'package:my_byaj_book/screens/settings/nav_settings_screen.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -28,15 +24,10 @@ import 'package:my_byaj_book/screens/tea_diary/tea_diary_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:flutter/services.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:my_byaj_book/screens/settings/settings_screen.dart';
 import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
 import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
-import 'package:my_byaj_book/providers/card_provider.dart';
-import 'package:my_byaj_book/providers/loan_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -202,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
         floatingActionButton: _currentIndex == 0 ? Container(
           margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               colors: [
                 AppTheme.primaryColor,
                 Color.fromARGB(255, 124, 58, 237),
@@ -492,8 +483,8 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             TextField(
               controller: amountController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
                 labelText: 'Amount',
                 hintText: 'Enter amount',
                 prefixText: '₹ ',
@@ -505,8 +496,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 16),
               TextField(
                 controller: interestRateController,
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
                   labelText: 'Interest Rate (% p.a.)',
                   hintText: 'Enter interest rate',
                   suffixText: '%',
@@ -689,9 +680,9 @@ class _HomeScreenState extends State<HomeScreen> {
         
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Contact information updated'),
-            duration: const Duration(seconds: 2),
+            duration: Duration(seconds: 2),
           ),
         );
         
@@ -713,7 +704,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (existingContact != null) {
       // This contact exists in the other tab, so create a unique ID
       final newTabType = withInterest ? 'withInterest' : 'withoutInterest';
-      contactId = "${phone}_${newTabType}";
+      contactId = "${phone}_$newTabType";
     }
     
     // Create contact map
@@ -1967,7 +1958,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               },
                 child: Container(
                   padding: const EdgeInsets.all(12),
-                  child: Icon(
+                  child: const Icon(
                     Icons.tune,
                     color: AppTheme.primaryColor,
                     size: 22,
@@ -1984,7 +1975,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               },
                 child: Container(
                   padding: const EdgeInsets.all(12),
-                  child: Icon(
+                  child: const Icon(
                     Icons.qr_code_scanner,
                     color: AppTheme.primaryColor,
                     size: 22,
@@ -3596,7 +3587,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppTheme.primaryColor,
                   shape: BoxShape.circle,
                 ),
@@ -3617,7 +3608,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                   ),
                 ),
               ),
-              Icon(
+              const Icon(
                 Icons.arrow_forward_ios,
                 color: AppTheme.primaryColor,
                 size: 16,
@@ -3710,7 +3701,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         
         // If contact exists with interest type, respect that setting regardless of current tab
         if (hasExistingInterestType) {
-          final contactData = Map<String, dynamic>.from(existingContact!);
+          final contactData = Map<String, dynamic>.from(existingContact);
           _refreshHomeScreenAndNavigateToDetail(context, contactData);
         } 
         // Otherwise, if we're in the With Interest tab, show the relationship selection
@@ -3790,7 +3781,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Row(
+                            const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
@@ -3807,7 +3798,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Text(
+                            const Text(
                               'Borrower',
                               style: TextStyle(
                                 fontSize: 16,
@@ -3824,7 +3815,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Text(
+                            const Text(
                               'They borrow money from you',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -3854,7 +3845,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Row(
+                            const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
@@ -3871,7 +3862,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Text(
+                            const Text(
                               'Lender',
                               style: TextStyle(
                                 fontSize: 16,
@@ -3888,7 +3879,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Text(
+                            const Text(
                               'They lend money to you',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -3973,7 +3964,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       
       if (existingTabType != newTabType) {
         // This contact exists in the other tab, so create a unique ID
-        contactId = "${phone}_${newTabType}";
+        contactId = "${phone}_$newTabType";
       } else {
         // The contact exists in the same tab, update rather than create
         final updatedContact = Map<String, dynamic>.from(existingContact);
@@ -4130,7 +4121,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                     
                     if (existingTabType != newTabType) {
                       // Create a unique ID for this contact in the other tab
-                      contactId = "${phone}_${newTabType}";
+                      contactId = "${phone}_$newTabType";
                     } else {
                       // Contact already exists in the same tab we're trying to add to,
                       // just update the existing contact
@@ -4210,7 +4201,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       // Instead, create a unique ID for the new tab entry
       if (existingTabType != newTabType) {
         // Create a unique ID for this cross-tab entry
-        final String uniqueId = "${contactData['phone']}_${newTabType}";
+        final String uniqueId = "${contactData['phone']}_$newTabType";
         contactData['phone'] = uniqueId;
         contactData['displayPhone'] = existingContact['phone']; // Save original phone number
       }

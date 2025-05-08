@@ -13,7 +13,7 @@ class MilkPayment {
     required this.date,
     required this.amount,
     this.note,
-  }) : this.id = id ?? const Uuid().v4();
+  }) : id = id ?? const Uuid().v4();
 
   // Create a copy of this payment with the given fields replaced
   MilkPayment copyWith({
@@ -23,7 +23,7 @@ class MilkPayment {
     String? note,
   }) {
     return MilkPayment(
-      id: this.id,
+      id: id,
       sellerId: sellerId ?? this.sellerId,
       date: date ?? this.date,
       amount: amount ?? this.amount,

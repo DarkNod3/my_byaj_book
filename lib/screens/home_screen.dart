@@ -3,7 +3,6 @@ import '../models/khata.dart';
 import '../models/contact.dart';
 import '../services/database_service.dart';
 import '../widgets/khata_list_item.dart';
-import '../utils/constants.dart';
 import 'khata_detail_screen.dart';
 import 'khata_type_selection_screen.dart';
 import 'package:my_byaj_book/widgets/balance_summary.dart';
@@ -13,7 +12,7 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
@@ -87,9 +86,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     double balance = 0;
     
     for (var transaction in transactions) {
-      if (transaction.isReceived()) {
+      if (transaction.isReceived) {
         balance += transaction.amount;
-      } else if (transaction.isGiven()) {
+      } else if (transaction.isGiven) {
         balance -= transaction.amount;
       }
     }
@@ -278,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => KhataDetailScreen(khataId: khata.id!),
+                                builder: (context) => KhataDetailScreen(khataId: khata.id.toString()),
                               ),
                             );
                             

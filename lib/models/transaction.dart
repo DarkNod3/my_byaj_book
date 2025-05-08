@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 enum TransactionType {
   received,
-  given
+  given,
+  youGot
 }
 
 class Transaction {
@@ -25,9 +26,9 @@ class Transaction {
     DateTime? createdAt,
     DateTime? updatedAt,
   }) : 
-    this.date = date ?? DateTime.now(),
-    this.createdAt = createdAt ?? DateTime.now(),
-    this.updatedAt = updatedAt ?? DateTime.now();
+    date = date ?? DateTime.now(),
+    createdAt = createdAt ?? DateTime.now(),
+    updatedAt = updatedAt ?? DateTime.now();
 
   Transaction copyWith({
     int? id,
@@ -53,6 +54,8 @@ class Transaction {
 
   bool get isReceived => type == TransactionType.received;
   bool get isGiven => type == TransactionType.given;
+  bool get isYouGot => type == TransactionType.youGot;
+  bool get isInterestTransaction => note?.toLowerCase().contains('interest') ?? false;
 
   String get typeText => isReceived ? 'Received' : 'Given';
 

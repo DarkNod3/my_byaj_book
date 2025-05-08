@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -177,9 +176,9 @@ class MilkDiaryReportService {
             // All-time Summary section
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: PdfColors.blue50,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(5)),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -209,9 +208,9 @@ class MilkDiaryReportService {
             // Current Month Summary section
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: PdfColors.amber50,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(5)),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -266,7 +265,7 @@ class MilkDiaryReportService {
             pw.SizedBox(height: 5),
             pw.Text(
               'Generated on: ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
-              style: pw.TextStyle(
+              style: const pw.TextStyle(
                 fontSize: 10,
                 color: PdfColors.grey700,
               ),
@@ -303,7 +302,7 @@ class MilkDiaryReportService {
         pw.SizedBox(height: 5),
         pw.Text(
           'Date: ${DateFormat('dd MMMM yyyy').format(date)}',
-          style: pw.TextStyle(
+          style: const pw.TextStyle(
             fontSize: 14,
           ),
         ),
@@ -326,7 +325,7 @@ class MilkDiaryReportService {
         pw.SizedBox(height: 5),
         pw.Text(
           'Month: ${DateFormat('MMMM yyyy').format(month)}',
-          style: pw.TextStyle(
+          style: const pw.TextStyle(
             fontSize: 14,
           ),
         ),
@@ -338,9 +337,9 @@ class MilkDiaryReportService {
   pw.Widget _buildSellerReportHeader(MilkSeller seller, DateTime fromDate, DateTime toDate, DateTime? firstTransactionDate) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(10),
-      decoration: pw.BoxDecoration(
+      decoration: const pw.BoxDecoration(
         color: PdfColors.grey100,
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+        borderRadius: pw.BorderRadius.all(pw.Radius.circular(5)),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -372,21 +371,21 @@ class MilkDiaryReportService {
                     if (seller.mobile != null)
                       pw.Text(
                         'Mobile: ${seller.mobile}',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 10,
                         ),
                       ),
                     if (seller.address != null)
                       pw.Text(
                         'Address: ${seller.address}',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 10,
                         ),
                       ),
                     pw.SizedBox(height: 3),
                     pw.Text(
                       'Default Rate: ₹${seller.defaultRate}/L',
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                         fontSize: 10,
                       ),
                     ),
@@ -414,7 +413,7 @@ class MilkDiaryReportService {
                   pw.SizedBox(height: 3),
                   pw.Text(
                     '${DateFormat('dd MMM yyyy').format(fromDate)} to ${DateFormat('dd MMM yyyy').format(toDate)}',
-                    style: pw.TextStyle(
+                    style: const pw.TextStyle(
                       fontSize: 10,
                     ),
                   ),
@@ -562,7 +561,7 @@ class MilkDiaryReportService {
       children: [
         pw.Text(
           label,
-          style: pw.TextStyle(
+          style: const pw.TextStyle(
             fontSize: 10,
             color: PdfColors.grey700,
           ),
@@ -863,7 +862,7 @@ class MilkDiaryReportService {
       children: [
         pw.Text(
           title,
-          style: pw.TextStyle(
+          style: const pw.TextStyle(
             fontSize: 12,
             color: PdfColors.grey700,
           ),

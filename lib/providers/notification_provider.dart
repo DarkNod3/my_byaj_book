@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_notification.dart';
@@ -49,7 +48,7 @@ class NotificationProvider with ChangeNotifier {
     
     // Schedule push notifications if enabled
     if (_isNotificationsEnabled) {
-      await _notificationService.scheduleNotifications(
+      await _notificationService.schedule(
         _notifications.where((n) => !n.isRead).toList(),
         isSoundEnabled: _isSoundEnabled,
         defaultSoundPath: _defaultSound,
@@ -266,10 +265,10 @@ class NotificationProvider with ChangeNotifier {
     
     // If disabled, cancel all notifications
     if (!enabled) {
-      await _notificationService.cancelAllNotifications();
+      await _notificationService.cancelAll();
     } else {
       // If enabled, reschedule all notifications
-      await _notificationService.scheduleNotifications(
+      await _notificationService.schedule(
         _notifications.where((n) => !n.isRead).toList(),
         isSoundEnabled: _isSoundEnabled,
         defaultSoundPath: _defaultSound,
@@ -313,27 +312,53 @@ class NotificationProvider with ChangeNotifier {
     
     // Schedule the notification if enabled
     if (_isNotificationsEnabled) {
-      await _notificationService.scheduleNotification(
+      await _notificationService.scheduleOne(
         notification,
-        isSoundEnabled: hasSound,
-        soundPath: customSound ?? _defaultSound,
+        isSoundEnabled: _isSoundEnabled,
+        soundPath: _defaultSound,
       );
     }
   }
   
-  // Helper method to format date
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+  // Method to generate a unique notification ID
+  int _generateNotificationId(String sourceId) {
+    // Create a hash from the sourceId that fits within 32 bits
+    final int idHash = sourceId.hashCode & 0x3FFFFFFF;
+    return idHash;
+  }
+  
+  // Helper method to calculate the monthly EMI for a loan
+  double _calculateMonthlyEMI(Map<String, dynamic> loan) {
+    // Get the principal, interest, and tenure
+    double principal = double.tryParse(loan['loanAmount'] ?? '0') ?? 0.0;
+    double interestRate = (double.tryParse(loan['interestRate'] ?? '0') ?? 0.0) / 100 / 12; // Monthly rate
+    int tenure = int.tryParse(loan['loanTerm'] ?? '0') ?? 0; // Total months
     
-    if (date.year == now.year && date.month == now.month && date.day == now.day) {
-      return 'Today';
-    } else if (date.year == tomorrow.year && date.month == tomorrow.month && date.day == tomorrow.day) {
-      return 'Tomorrow';
-    } else {
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return '${date.day} ${months[date.month - 1]} ${date.year}';
+    // Handle edge case for zero interest or tenure
+    if (interestRate <= 0 || tenure <= 0) {
+      return principal / tenure; // Simple division for 0% interest rate
     }
+    
+    // EMI formula: P × r × (1 + r)^n / ((1 + r)^n - 1)
+    double emi = principal * interestRate * _pow(1 + interestRate, tenure) / 
+               (_pow(1 + interestRate, tenure) - 1);
+    
+    return emi;
+  }
+  
+  // Helper method to calculate power for EMI formula
+  double _pow(double x, int y) {
+    double result = 1.0;
+    for (int i = 0; i < y; i++) {
+      result *= x;
+    }
+    return result;
+  }
+  
+  // Format date for display
+  String _formatDate(DateTime date) {
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return "${date.day} ${months[date.month - 1]} ${date.year}";
   }
   
   // Load notifications from SharedPreferences
@@ -385,6 +410,78 @@ class NotificationProvider with ChangeNotifier {
       await prefs.setString('notification_default_sound', _defaultSound);
     } catch (e) {
       // Removed debug print
+    }
+  }
+
+  Future<void> scheduleLoanPaymentNotifications(LoanProvider loanProvider) async {
+    // Cancel all existing notifications first
+    await _notificationService.cancelAll();
+    
+    final activeLoans = loanProvider.activeLoans.where((loan) => loan['status'] != 'Inactive').toList();
+    
+    for (final loan in activeLoans) {
+      final loanId = loan['id'] as String;
+      final loanName = loan['loanName'] as String;
+      final paymentAmount = _calculateMonthlyEMI(loan);
+      
+      // Get installments if available
+      final installments = loan['installments'] as List<dynamic>?;
+      
+      if (installments != null && installments.isNotEmpty) {
+        // Find the next unpaid installment
+        for (var installment in installments) {
+          if (installment['isPaid'] != true) {
+            final dueDate = installment['dueDate'] as DateTime;
+            final installmentNumber = installment['installmentNumber'] as int;
+            
+            if (dueDate.isAfter(DateTime.now())) {
+              // Create an AppNotification object with required parameters
+              final notification = AppNotification(
+                id: _uuid.v4(),
+                title: 'Payment Due: $loanName',
+                message: 'Installment #$installmentNumber for ₹${paymentAmount.toStringAsFixed(2)} is due on ${_formatDate(dueDate)}',
+                source: 'loan',
+                sourceId: loanId,
+                dueDate: dueDate,
+                amount: paymentAmount,
+                hasSound: _isSoundEnabled,
+                soundPath: _defaultSound,
+              );
+              
+              // Show notification for upcoming payment
+              await _notificationService.scheduleOne(
+                notification,
+                isSoundEnabled: _isSoundEnabled,
+                soundPath: _defaultSound,
+              );
+              break; // Only show for the next unpaid installment
+            }
+          }
+        }
+      } else {
+        // If no installments, use the first payment date
+        final firstPaymentDate = loan['firstPaymentDate'] as DateTime;
+        if (firstPaymentDate.isAfter(DateTime.now())) {
+          // Create an AppNotification object
+          final notification = AppNotification(
+            id: _uuid.v4(),
+            title: 'Payment Due: $loanName',
+            message: 'First payment of ₹${paymentAmount.toStringAsFixed(2)} is due on ${_formatDate(firstPaymentDate)}',
+            source: 'loan',
+            sourceId: loanId,
+            dueDate: firstPaymentDate,
+            amount: paymentAmount,
+            hasSound: _isSoundEnabled,
+            soundPath: _defaultSound,
+          );
+          
+          await _notificationService.scheduleOne(
+            notification,
+            isSoundEnabled: _isSoundEnabled,
+            soundPath: _defaultSound,
+          );
+        }
+      }
     }
   }
 } 

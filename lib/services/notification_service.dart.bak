@@ -1,0 +1,132 @@
+import 'dart:math';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:firebase_messaging/firebase_messaging.dart';
+import '../providers/loan_provider.dart';
+import '../providers/card_provider.dart';
+import '../providers/transaction_provider.dart';
+import '../models/loan_notification.dart';
+import '../models/card_notification.dart';
+import '../models/app_notification.dart';
+import '../screens/reminder/reminder_screen.dart';
+import '../main.dart' show markLoanAsPaid, navigatorKey;
+
+class NotificationService {
+  static final NotificationService _instance = NotificationService._internal();
+  static NotificationService get instance => _instance;
+  
+  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin = 
+      FlutterLocalNotificationsPlugin();
+  
+  // Map to track notification IDs by loan ID
+  final Map<String, int> _loanNotificationIds = {};
+  // Map to track notification IDs by card ID
+  final Map<String, int> _cardNotificationIds = {};
+  // Map to track notification IDs by reminder ID
+  final Map<String, int> _reminderNotificationIds = {};
+  
+  NotificationService._internal();
+  
+  Future<void> init() async {
+    // Initialize timezone
+    tz_data.initializeTimeZones();
+    
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    
+    const DarwinInitializationSettings initializationSettingsIOS =
+        DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+    
+    const InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS,
+    );
+    
+    await _flutterLocalNotificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: _onNotificationTapped,
+    );
+
+    // Setup FCM message handlers
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+  }
+
+  // Schedule notification at a specific date and time
+  Future<void> _scheduleNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    TimeOfDay? time,
+    String? payload,
+    bool isSoundEnabled = true,
+    String? soundPath,
+  }) async {
+    // If time is provided, use it to set hours and minutes
+    final DateTime notificationDateTime = time != null
+        ? DateTime(
+            scheduledDate.year,
+            scheduledDate.month,
+            scheduledDate.day,
+            time.hour,
+            time.minute,
+          )
+        : scheduledDate;
+        
+    // Configure notification details
+    AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'loan_due_channel',
+      'Loan Due Notifications',
+      channelDescription: 'Notifications for loan payment due dates',
+      importance: Importance.high,
+      priority: Priority.high,
+      sound: isSoundEnabled
+          ? soundPath != null
+              ? RawResourceAndroidNotificationSound(soundPath.split('.').first)
+              : const RawResourceAndroidNotificationSound('notification_sound')
+          : null,
+      playSound: isSoundEnabled,
+    );
+
+    NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+
+    // Schedule notification
+    await _flutterLocalNotificationsPlugin.zonedSchedule(
+      id,
+      title,
+      body,
+      tz.TZDateTime.from(notificationDateTime, tz.local),
+      platformChannelSpecifics,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      payload: payload,
+    );
+  }
+
+  // Simplistic implementation of notification tap handler
+  void _onNotificationTapped(NotificationResponse response) {
+    // Implement as needed
+  }
+
+  // Simplistic implementation of FCM message handler
+  void _handleForegroundMessage(RemoteMessage message) {
+    // Implement as needed
+  }
+
+  // Cancel all notifications
+  Future<void> cancelAll() async {
+    await _flutterLocalNotificationsPlugin.cancelAll();
+    _loanNotificationIds.clear();
+    _cardNotificationIds.clear();
+    _reminderNotificationIds.clear();
+  }
+}

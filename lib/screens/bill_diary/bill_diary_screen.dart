@@ -87,8 +87,8 @@ class _BillDiaryScreenState extends State<BillDiaryScreen> with SingleTickerProv
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddNoteDialog,
-        child: const Icon(Icons.add),
         backgroundColor: AppTheme.primaryColor,
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -293,7 +293,7 @@ class _BillDiaryScreenState extends State<BillDiaryScreen> with SingleTickerProv
                       backgroundColor: AppTheme.secondaryColor.withOpacity(0.1),
                       label: Text(
                         '₹${note.amount!.toStringAsFixed(0)}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: AppTheme.secondaryColor,
                         ),
@@ -537,7 +537,7 @@ class _NewNoteBottomSheetState extends State<_NewNoteBottomSheet> {
                     ? const Text('No reminder set') 
                     : Text(
                         'Reminder on ${DateFormat('dd MMM yyyy').format(_reminderDate!)}',
-                        style: TextStyle(color: AppTheme.primaryColor),
+                        style: const TextStyle(color: AppTheme.primaryColor),
                       ),
                 trailing: IconButton(
                   icon: Icon(

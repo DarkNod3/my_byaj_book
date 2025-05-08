@@ -64,7 +64,7 @@ class _LoanScreenState extends State<LoanScreen> {
     } else {
       return loanProvider.activeLoans.where((loan) => 
         loan['category'] == _selectedCategory || 
-        loan['loanType'] == '${_selectedCategory} Loan').toList();
+        loan['loanType'] == '$_selectedCategory Loan').toList();
     }
   }
 
@@ -75,7 +75,7 @@ class _LoanScreenState extends State<LoanScreen> {
     } else {
       final filteredLoans = loanProvider.activeLoans.where((loan) => 
         loan['category'] == _selectedCategory || 
-        loan['loanType'] == '${_selectedCategory} Loan').toList();
+        loan['loanType'] == '$_selectedCategory Loan').toList();
       
       // Calculate summary data for filtered loans
       double totalAmount = 0.0;
@@ -159,7 +159,7 @@ class _LoanScreenState extends State<LoanScreen> {
                     const SizedBox(height: 16),
                     const Text('Error loading loan data', style: TextStyle(fontSize: 18)),
                     const SizedBox(height: 8),
-                    Text('${e.toString()}', style: TextStyle(color: Colors.grey[600])),
+                    Text(e.toString(), style: TextStyle(color: Colors.grey[600])),
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () => Navigator.pop(context),
@@ -189,7 +189,7 @@ class _LoanScreenState extends State<LoanScreen> {
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Text('${e.toString()}', 
+                child: Text(e.toString(), 
                   style: TextStyle(color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),

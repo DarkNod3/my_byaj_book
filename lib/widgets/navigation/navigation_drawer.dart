@@ -1,10 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:my_byaj_book/screens/card/card_screen.dart';
-import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
-import 'package:my_byaj_book/screens/home/home_screen.dart';
-import 'package:my_byaj_book/screens/loan/loan_screen.dart';
-import 'package:my_byaj_book/screens/bill_diary/bill_diary_screen.dart';
-import 'package:my_byaj_book/screens/tools/more_tools_screen.dart';
 import 'package:my_byaj_book/screens/settings/nav_settings_screen.dart';
 import 'package:my_byaj_book/screens/settings/settings_screen.dart';
 import 'package:my_byaj_book/screens/profile/profile_edit_screen.dart';
@@ -188,13 +182,13 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                       fit: BoxFit.cover,
                       width: 60,
                       height: 60,
-                      errorBuilder: (context, error, stackTrace) => Icon(
+                      errorBuilder: (context, error, stackTrace) => const Icon(
                         Icons.person,
                         size: 28,
                         color: AppTheme.primaryColor,
                       ),
                     )
-                  : Icon(
+                  : const Icon(
                       Icons.person,
                       size: 28,
                       color: AppTheme.primaryColor,
@@ -361,19 +355,19 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AboutDialog(
+      builder: (context) => const AboutDialog(
         applicationName: 'My Byaj Book',
         applicationVersion: 'v1.0.0',
-        applicationIcon: const FlutterLogo(size: 50),
+        applicationIcon: FlutterLogo(size: 50),
         applicationLegalese: '© 2023 My Byaj Book. All rights reserved.',
         children: [
-          const SizedBox(height: 24),
-          const Text(
+          SizedBox(height: 24),
+          Text(
             'My Byaj Book is a comprehensive loan management app designed to help you keep track of your loans, EMIs, and payments in one place.',
             style: TextStyle(fontSize: 14),
           ),
-          const SizedBox(height: 16),
-          const Text(
+          SizedBox(height: 16),
+          Text(
             'For support: support@mybyajbook.com',
             style: TextStyle(fontSize: 14),
           ),
@@ -387,12 +381,12 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Share App'),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Share My Byaj Book with your friends and family!'),
-            const SizedBox(height: 16),
-            const SelectableText(
+            Text('Share My Byaj Book with your friends and family!'),
+            SizedBox(height: 16),
+            SelectableText(
               'https://play.google.com/store/apps/mybyajbook',
               style: TextStyle(
                 color: Colors.blue,
@@ -423,7 +417,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Help & Support'),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -476,7 +470,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Frequently Asked Questions'),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
             child: Column(
@@ -535,7 +529,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Contact Support'),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -562,6 +556,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                           duration: const Duration(seconds: 3),
                         ),
                       );
+                      return false; // Return false to indicate the operation failed
                     });
                   },
                 );
@@ -588,7 +583,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
         title: const Text('Report a Bug'),
         contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
         content: SingleChildScrollView(
-          child: Container(
+          child: SizedBox(
             width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -722,9 +717,9 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
     } catch (e) {
       // Show error if unable to open Play Store
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Could not open Play Store. Please rate us directly on the Play Store.'),
-          duration: const Duration(seconds: 3),
+          duration: Duration(seconds: 3),
         ),
       );
     }
@@ -737,5 +732,28 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
         builder: (context) => PrivacyPolicy.buildPrivacyPolicyWidget(context),
       ),
     );
+  }
+
+  Future<bool> _confirmDeleteAccount(BuildContext context) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Account Deletion'),
+        content: const Text('Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    ).then((confirmed) => confirmed ?? false).catchError((error) {
+      print('Error in confirmation dialog: $error');
+      return false; // Return false when there's an error
+    });
   }
 }

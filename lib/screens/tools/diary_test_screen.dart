@@ -12,7 +12,7 @@ class DiaryTestScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('$diaryType'),
+        title: Text(diaryType),
       ),
       body: Center(
         child: Column(
@@ -25,7 +25,7 @@ class DiaryTestScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              '$diaryType',
+              diaryType,
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,

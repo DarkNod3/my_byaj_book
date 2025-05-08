@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/milk_diary/milk_seller.dart';
+import '../models/milk_diary/milk_entry.dart';
 
 class MilkDiaryProvider with ChangeNotifier {
   List<MilkSeller> _sellers = [];
@@ -72,21 +73,18 @@ class MilkDiaryProvider with ChangeNotifier {
     return _sellers;
   }
   
-  List<MilkEntry> getEntriesForDay(int sellerId, DateTime day) {
-    final seller = _sellers.firstWhere((s) => s.id == sellerId);
-    return seller.entries.where((entry) => 
-      entry.date.year == day.year && 
-      entry.date.month == day.month && 
-      entry.date.day == day.day
-    ).toList();
+  List<MilkEntry> getEntriesForDay(String sellerId, DateTime day) {
+    // Using daily_entry model instead of entries in MilkSeller - this function needs to be updated
+    // in a real implementation to use a DailyEntryProvider
+    // This is a placeholder implementation
+    return [];
   }
   
-  List<MilkEntry> getEntriesForMonth(int sellerId, DateTime month) {
-    final seller = _sellers.firstWhere((s) => s.id == sellerId);
-    return seller.entries.where((entry) => 
-      entry.date.year == month.year && 
-      entry.date.month == month.month
-    ).toList();
+  List<MilkEntry> getEntriesForMonth(String sellerId, DateTime month) {
+    // Using daily_entry model instead of entries in MilkSeller - this function needs to be updated
+    // in a real implementation to use a DailyEntryProvider
+    // This is a placeholder implementation
+    return [];
   }
   
   Future<void> addMilkSeller(MilkSeller seller) async {
@@ -104,113 +102,23 @@ class MilkDiaryProvider with ChangeNotifier {
     }
   }
   
-  Future<void> deleteMilkSeller(int id) async {
+  Future<void> deleteMilkSeller(String id) async {
     _sellers.removeWhere((s) => s.id == id);
     await _saveData();
     notifyListeners();
   }
   
-  Future<void> addMilkEntry(MilkEntry entry) async {
-    final index = _sellers.indexWhere((s) => s.id == entry.sellerId);
-    if (index >= 0) {
-      final seller = _sellers[index];
-      final updatedEntries = List<MilkEntry>.from(seller.entries)..add(entry);
-      
-      _sellers[index] = MilkSeller(
-        id: seller.id,
-        name: seller.name,
-        phone: seller.phone,
-        address: seller.address,
-        fatBasedPricing: seller.fatBasedPricing,
-        unit: seller.unit,
-        rate: seller.rate,
-        baseFat: seller.baseFat,
-        entries: updatedEntries,
-        outstanding: seller.outstanding + entry.amount,
-      );
-      
-      await _saveData();
-      notifyListeners();
-    }
-  }
-  
-  Future<void> updateMilkEntry(MilkEntry updatedEntry) async {
-    final sellerIndex = _sellers.indexWhere((s) => s.id == updatedEntry.sellerId);
-    if (sellerIndex >= 0) {
-      final seller = _sellers[sellerIndex];
-      final entryIndex = seller.entries.indexWhere((e) => e.id == updatedEntry.id);
-      
-      if (entryIndex >= 0) {
-        final oldEntry = seller.entries[entryIndex];
-        final updatedEntries = List<MilkEntry>.from(seller.entries);
-        updatedEntries[entryIndex] = updatedEntry;
-        
-        _sellers[sellerIndex] = MilkSeller(
-          id: seller.id,
-          name: seller.name,
-          phone: seller.phone,
-          address: seller.address,
-          fatBasedPricing: seller.fatBasedPricing,
-          unit: seller.unit,
-          rate: seller.rate,
-          baseFat: seller.baseFat,
-          entries: updatedEntries,
-          outstanding: seller.outstanding - oldEntry.amount + updatedEntry.amount,
-        );
-        
-        await _saveData();
-        notifyListeners();
-      }
-    }
-  }
-  
-  Future<void> deleteMilkEntry(int sellerId, int entryId) async {
-    final sellerIndex = _sellers.indexWhere((s) => s.id == sellerId);
-    if (sellerIndex >= 0) {
-      final seller = _sellers[sellerIndex];
-      final entryIndex = seller.entries.indexWhere((e) => e.id == entryId);
-      
-      if (entryIndex >= 0) {
-        final oldEntry = seller.entries[entryIndex];
-        final updatedEntries = List<MilkEntry>.from(seller.entries);
-        updatedEntries.removeAt(entryIndex);
-        
-        _sellers[sellerIndex] = MilkSeller(
-          id: seller.id,
-          name: seller.name,
-          phone: seller.phone,
-          address: seller.address,
-          fatBasedPricing: seller.fatBasedPricing,
-          unit: seller.unit,
-          rate: seller.rate,
-          baseFat: seller.baseFat,
-          entries: updatedEntries,
-          outstanding: seller.outstanding - oldEntry.amount,
-        );
-        
-        await _saveData();
-        notifyListeners();
-      }
-    }
-  }
-  
-  Future<void> recordPayment(int sellerId, double amount, String description) async {
+  Future<void> recordPayment(String sellerId, double amount, String description) async {
     final sellerIndex = _sellers.indexWhere((s) => s.id == sellerId);
     if (sellerIndex >= 0) {
       final seller = _sellers[sellerIndex];
       
-      _sellers[sellerIndex] = MilkSeller(
-        id: seller.id,
-        name: seller.name,
-        phone: seller.phone,
-        address: seller.address,
-        fatBasedPricing: seller.fatBasedPricing,
-        unit: seller.unit,
-        rate: seller.rate,
-        baseFat: seller.baseFat,
-        entries: seller.entries,
-        outstanding: seller.outstanding - amount,
+      // Create a new seller with updated due amount
+      final updatedSeller = seller.copyWith(
+        dueAmount: seller.dueAmount - amount,
       );
+      
+      _sellers[sellerIndex] = updatedSeller;
       
       await _saveData();
       notifyListeners();
@@ -218,17 +126,16 @@ class MilkDiaryProvider with ChangeNotifier {
   }
   
   Map<String, dynamic> getMonthlySummary(DateTime month) {
+    // These values are not being calculated properly
+    // and are just placeholders returning 0
     double totalQuantity = 0;
     double totalAmount = 0;
     double totalOutstanding = 0;
     
     for (var seller in _sellers) {
-      final monthEntries = getEntriesForMonth(seller.id, month);
-      
-      for (var entry in monthEntries) {
-        totalQuantity += entry.quantity;
-        totalAmount += entry.amount;
-      }
+      // Get entries for this month - in a real implementation, this would
+      // use the DailyEntryProvider
+      // This is a placeholder calculation
       
       totalOutstanding += seller.outstanding;
     }

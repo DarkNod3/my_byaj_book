@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../providers/loan_provider.dart';
 import 'package:provider/provider.dart';
-import 'dart:math';
-import '../../utils/string_extensions.dart';
 import 'add_loan_screen.dart';
 
 class LoanDetailsScreen extends StatefulWidget {
@@ -216,10 +214,10 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
         loanProvider.updateLoan(updatedLoanData).then((_) {
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text('Payment date updated successfully'),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
+              duration: Duration(seconds: 2),
             ),
           );
         });
@@ -485,9 +483,9 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
                   ),
                   const SizedBox(height: 16),
                   // Payment breakdown table
-                  Row(
+                  const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
+                    children: [
                       Text(
                         'Principal',
                         style: TextStyle(
@@ -579,7 +577,7 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
           const SizedBox(height: 4),
           Text(
             amount,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.black87,

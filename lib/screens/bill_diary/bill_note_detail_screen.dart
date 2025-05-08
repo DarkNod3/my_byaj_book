@@ -165,7 +165,7 @@ class _BillNoteDetailScreenState extends State<BillNoteDetailScreen> {
   Future<void> _deleteNote() async {
     final confirmed = await showDialog(
       context: context,
-      builder: (context) => ConfirmDialog(
+      builder: (context) => const ConfirmDialog(
         title: 'Delete Note',
         content: 'Are you sure you want to delete this note?',
         confirmText: 'Delete',
@@ -308,7 +308,7 @@ class _BillNoteDetailScreenState extends State<BillNoteDetailScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.currency_rupee, 
                     color: AppTheme.secondaryColor,
                     size: 24,
@@ -326,7 +326,7 @@ class _BillNoteDetailScreenState extends State<BillNoteDetailScreen> {
                       ),
                       Text(
                         '₹${_note.amount!.toStringAsFixed(2)}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.secondaryColor,
@@ -438,7 +438,7 @@ class _BillNoteDetailScreenState extends State<BillNoteDetailScreen> {
             ),
             Text(
               value,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -547,7 +547,7 @@ class _BillNoteDetailScreenState extends State<BillNoteDetailScreen> {
                   ? const Text('No reminder set') 
                   : Text(
                       'Reminder on ${DateFormat('dd MMM yyyy').format(_reminderDate!)}',
-                      style: TextStyle(color: AppTheme.primaryColor),
+                      style: const TextStyle(color: AppTheme.primaryColor),
                     ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,

@@ -30,7 +30,7 @@ class DailyEntryProvider with ChangeNotifier {
       _entries.sort((a, b) {
         final dateComparison = b.date.compareTo(a.date);
         if (dateComparison != 0) return dateComparison;
-        return a.shift.index.compareTo(b.shift.index);
+        return a.shift.toString().compareTo(b.shift.toString());
       });
       
       notifyListeners();
@@ -150,7 +150,7 @@ class DailyEntryProvider with ChangeNotifier {
     _entries.sort((a, b) {
       final dateComparison = b.date.compareTo(a.date);
       if (dateComparison != 0) return dateComparison;
-      return a.shift.index.compareTo(b.shift.index);
+      return a.shift.toString().compareTo(b.shift.toString());
     });
   }
 
@@ -181,7 +181,7 @@ class DailyEntryProvider with ChangeNotifier {
     _filteredEntries.sort((a, b) {
       final dateComparison = b.date.compareTo(a.date);
       if (dateComparison != 0) return dateComparison;
-      return a.shift.index.compareTo(b.shift.index);
+      return a.shift.toString().compareTo(b.shift.toString());
     });
   }
 

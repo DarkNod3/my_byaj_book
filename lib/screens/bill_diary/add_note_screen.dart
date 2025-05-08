@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../models/bill_note.dart';
 import '../../providers/bill_note_provider.dart';
-import '../../constants/app_theme.dart';
 
 class AddNoteScreen extends StatefulWidget {
   final BillNote? note; // Pass existing note for editing
@@ -73,7 +72,7 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
             children: [
               TextFormField(
                 controller: _titleController,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Title',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.title),
@@ -85,10 +84,10 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
                   return null;
                 },
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _contentController,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Content (Optional)',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.notes),
@@ -96,15 +95,15 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
                 ),
                 maxLines: 5,
               ),
-              SizedBox(height: 16),
-              Text(
+              const SizedBox(height: 16),
+              const Text(
                 'Category',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -113,18 +112,18 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
                     _buildCategoryChip(category),
                 ],
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _amountController,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Amount (Optional)',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.currency_rupee),
                   hintText: 'Enter amount if applicable',
                 ),
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               _buildReminderSection(),
             ],
           ),
@@ -166,29 +165,29 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Reminder',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         InkWell(
           onTap: _selectDate,
           child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey.shade400),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.alarm,
                   color: Colors.orangeAccent,
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Text(
                   dateText,
                   style: TextStyle(
@@ -198,10 +197,10 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
                         : Colors.grey.shade600,
                   ),
                 ),
-                Spacer(),
+                const Spacer(),
                 if (_reminderDate != null)
                   IconButton(
-                    icon: Icon(Icons.close, size: 18),
+                    icon: const Icon(Icons.close, size: 18),
                     onPressed: () {
                       setState(() {
                         _reminderDate = null;
@@ -234,51 +233,48 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
     }
   }
   
-  void _saveNote() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-    
-    double? amount;
-    if (_amountController.text.isNotEmpty) {
-      amount = double.tryParse(_amountController.text);
-    }
+  Future<void> _saveNote() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+      
+      final title = _titleController.text.trim();
+      final content = _contentController.text.trim();
+      final category = _selectedCategory;
+      final amount = _amountController.text.isNotEmpty 
+        ? double.tryParse(_amountController.text) 
+        : null;
     
     final provider = Provider.of<BillNoteProvider>(context, listen: false);
     
     if (_isEditing) {
       // Update existing note
       final updatedNote = widget.note!.copyWith(
-        title: _titleController.text,
-        content: _contentController.text.isEmpty ? "" : _contentController.text,
-        category: _selectedCategory,
+          title: title,
+          content: content.isEmpty ? "" : content,
+          category: category,
         reminderDate: _reminderDate,
         amount: amount,
       );
       
       provider.updateNote(updatedNote);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Note updated successfully')),
+          const SnackBar(content: Text('Note updated successfully')),
       );
     } else {
-      // Create new note
-      final newNote = BillNote(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: _titleController.text,
-        content: _contentController.text.isEmpty ? "" : _contentController.text,
-        category: _selectedCategory,
-        createdDate: DateTime.now(),
+        // Add new note
+        await provider.addNote(
+          _titleController.text,
+          _contentController.text.isEmpty ? "" : _contentController.text,
+          _selectedCategory,
         reminderDate: _reminderDate,
         amount: amount,
-        isCompleted: false,
       );
-      
-      provider.addNote(newNote);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Note added successfully')),
+          const SnackBar(content: Text('Note added successfully')),
       );
     }
     
     Navigator.pop(context);
+    }
   }
 } 

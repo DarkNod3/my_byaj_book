@@ -71,10 +71,10 @@ class BalanceSummary extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   '₹${toGet.toStringAsFixed(2)}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.red[700],
+                    color: Color.fromRGBO(255, 0, 0, 0.5),
                   ),
                 ),
               ],

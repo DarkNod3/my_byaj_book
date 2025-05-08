@@ -237,7 +237,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
       // If this is a new contact, automatically navigate to the transaction entry dialog
       if (widget.contact['isNewContact'] == true) {
         // Short delay to allow the previous screen to process the result
-        Future.delayed(Duration(milliseconds: 300), () {
+        Future.delayed(const Duration(milliseconds: 300), () {
           // Find the ContactDetailScreen and show the transaction entry dialog
           final contactDetailScreen = Navigator.of(context).push(
             MaterialPageRoute(
@@ -724,8 +724,8 @@ class _EditContactScreenState extends State<EditContactScreen> {
                                             children: [
                                               Row(
                                                 children: [
-                                                  Expanded(
-                                                    child: const Text(
+                                                  const Expanded(
+                                                    child: Text(
                                                       'Jisne Paise Liye Hai',
                                                       style: TextStyle(
                                                         fontWeight: FontWeight.bold,
@@ -745,7 +745,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
                                                         },
                                                         activeColor: Colors.red,
                                                       ),
-                                                      Text(
+                                                      const Text(
                                                         'Borrower',
                                                         style: TextStyle(
                                                           fontSize: 10,
@@ -841,8 +841,8 @@ class _EditContactScreenState extends State<EditContactScreen> {
                                             children: [
                                               Row(
                                                 children: [
-                                                  Expanded(
-                                                    child: const Text(
+                                                  const Expanded(
+                                                    child: Text(
                                                       'Jisne Paise Diye Hai',
                                                       style: TextStyle(
                                                         fontWeight: FontWeight.bold,
@@ -862,7 +862,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
                                                         },
                                                         activeColor: Colors.green,
                                                       ),
-                                                      Text(
+                                                      const Text(
                                                         'Lender',
                                                         style: TextStyle(
                                                           fontSize: 10,

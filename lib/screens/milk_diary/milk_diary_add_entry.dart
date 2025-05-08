@@ -5,7 +5,6 @@ import '../../models/milk_diary/daily_entry.dart';
 import '../../models/milk_diary/milk_seller.dart';
 import '../../providers/milk_diary/daily_entry_provider.dart';
 import '../../providers/milk_diary/milk_seller_provider.dart';
-import '../../constants/app_theme.dart';
 import 'package:uuid/uuid.dart';
 
 class MilkDiaryAddEntry extends StatefulWidget {
@@ -60,8 +59,8 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
   String? _errorMessage;
   
   // Lists for preset quantities based on unit
-  List<String> _literPresets = ['250ml', '500ml', '1L', '2L', '5L'];
-  List<String> _kgPresets = ['250g', '500g', '1kg', '2kg', '5kg'];
+  final List<String> _literPresets = ['250ml', '500ml', '1L', '2L', '5L'];
+  final List<String> _kgPresets = ['250g', '500g', '1kg', '2kg', '5kg'];
   
   @override
   void initState() {
@@ -558,7 +557,7 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
                   flex: 2,
                   child: TextField(
                     controller: _quantityController,
-                    keyboardType: TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
                       labelText: 'Quantity',
                       border: OutlineInputBorder(
@@ -638,7 +637,7 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
             // Rate input
             TextField(
               controller: _rateController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 labelText: 'Rate (₹ per ${_selectedUnit == 'Liter (L)' ? 'L' : 'kg'})',
                 border: OutlineInputBorder(
@@ -672,7 +671,7 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
                       Expanded(
                         child: TextField(
                           controller: _fatController,
-                          keyboardType: TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           decoration: InputDecoration(
                             labelText: 'Fat %',
                             border: OutlineInputBorder(
@@ -689,7 +688,7 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
                       Expanded(
                         child: TextField(
                           controller: _snfController,
-                          keyboardType: TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           decoration: InputDecoration(
                             labelText: 'SNF %',
                             border: OutlineInputBorder(

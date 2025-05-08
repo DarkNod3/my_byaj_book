@@ -1,7 +1,5 @@
 import 'dart:io';
-import 'dart:isolate';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
@@ -17,20 +15,20 @@ class PdfTemplateService {
   static final shortDateFormat = DateFormat('dd MMM yyyy');
   
   // Standard colors
-  static final primaryColor = PdfColors.teal700;
-  static final accentColor = PdfColors.teal400;
-  static final successColor = PdfColors.green700;
-  static final dangerColor = PdfColors.red700;
-  static final neutralColor = PdfColors.grey800;
-  static final neutralLightColor = PdfColors.grey400;
-  static final lightBackgroundColor = PdfColors.grey100;
-  static final separatorColor = PdfColors.grey300;
-  static final tableHeaderColor = PdfColors.teal100;
-  static final tableAlternateColor = PdfColors.grey100;
+  static const primaryColor = PdfColors.teal700;
+  static const accentColor = PdfColors.teal400;
+  static const successColor = PdfColors.green700;
+  static const dangerColor = PdfColors.red700;
+  static const neutralColor = PdfColors.grey800;
+  static const neutralLightColor = PdfColors.grey400;
+  static const lightBackgroundColor = PdfColors.grey100;
+  static const separatorColor = PdfColors.grey300;
+  static const tableHeaderColor = PdfColors.teal100;
+  static const tableAlternateColor = PdfColors.grey100;
   
   // Common border styles
   static final defaultBorder = pw.Border.all(color: separatorColor);
-  static final roundedBorder = pw.BorderRadius.all(pw.Radius.circular(8));
+  static const roundedBorder = pw.BorderRadius.all(pw.Radius.circular(8));
   
   // Font initialization - make sure to call this before using custom fonts
   static Future<void> initFonts() async {
@@ -93,7 +91,7 @@ class PdfTemplateService {
   }) {
     return pw.Container(
       padding: const pw.EdgeInsets.only(bottom: 16),
-      decoration: pw.BoxDecoration(
+      decoration: const pw.BoxDecoration(
         border: pw.Border(bottom: pw.BorderSide(width: 1, color: separatorColor)),
       ),
       child: pw.Row(
@@ -105,7 +103,7 @@ class PdfTemplateService {
               pw.Container(
                 width: 40,
                 height: 40,
-                decoration: pw.BoxDecoration(
+                decoration: const pw.BoxDecoration(
                   color: primaryColor,
                   shape: pw.BoxShape.circle,
                 ),
@@ -143,7 +141,7 @@ class PdfTemplateService {
                   pw.SizedBox(height: 2),
                   pw.Text(
                     subtitle,
-                    style: pw.TextStyle(
+                    style: const pw.TextStyle(
                       fontSize: 14,
                       color: neutralColor,
                     ),
@@ -157,7 +155,7 @@ class PdfTemplateService {
             children: [
               pw.Text(
                 'Generated on',
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                   fontSize: 12,
                   color: neutralColor,
                 ),
@@ -197,7 +195,7 @@ class PdfTemplateService {
     return pw.Container(
       margin: const pw.EdgeInsets.only(top: 10),
       padding: const pw.EdgeInsets.only(top: 10),
-      decoration: pw.BoxDecoration(
+      decoration: const pw.BoxDecoration(
         border: pw.Border(top: pw.BorderSide(width: 0.5, color: separatorColor)),
       ),
       child: pw.Row(
@@ -217,7 +215,7 @@ class PdfTemplateService {
               pw.SizedBox(height: 2),
               pw.Text(
                 'Generated using My Byaj Book App • mybyajbook.com',
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                   fontSize: 8,
                   color: neutralLightColor,
                 ),
@@ -366,7 +364,7 @@ class PdfTemplateService {
           children: [
             // Header row
             pw.TableRow(
-              decoration: pw.BoxDecoration(color: tableHeaderColor),
+              decoration: const pw.BoxDecoration(color: tableHeaderColor),
               children: columns.map((column) => pw.Padding(
                 padding: const pw.EdgeInsets.all(8),
                 child: pw.Text(
@@ -384,7 +382,7 @@ class PdfTemplateService {
               
               return pw.TableRow(
                 decoration: alternateRowColors && index % 2 == 1
-                    ? pw.BoxDecoration(color: tableAlternateColor)
+                    ? const pw.BoxDecoration(color: tableAlternateColor)
                     : null,
                 children: row.map((cell) => pw.Padding(
                   padding: const pw.EdgeInsets.all(8),
@@ -485,7 +483,7 @@ class PdfTemplateService {
       final String extension = lastDot != -1 ? baseName.substring(lastDot) : '';
       
       // Create new filename with counter
-      fileName = '${nameWithoutExt}_${counter}${extension}';
+      fileName = '${nameWithoutExt}_$counter$extension';
       path = '${directory.path}/$fileName';
       counter++;
       

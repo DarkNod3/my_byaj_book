@@ -1,13 +1,8 @@
 import 'dart:math';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:my_byaj_book/services/pdf_template_service.dart';
 
 class SipCalculatorScreen extends StatefulWidget {
@@ -31,10 +26,9 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   final _investmentPeriodController = TextEditingController(text: '10');
 
   double _totalInvestment = 0;
-  double _totalReturns = 0;
+  double _estimatedReturns = 0;
   double _maturityValue = 0;
-  bool _showResult = true; // Always show results
-  bool _isCalculating = false;
+  final bool _isCalculating = false;
   bool _isGeneratingPdf = false; // Added state variable for PDF generation
   
   // Format currency in Indian Rupees
@@ -43,14 +37,6 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
     symbol: '₹',
     decimalDigits: 0,
   );
-  
-  // Alternative formatter to ensure proper Rupee symbol
-  String _formatCurrency(double amount) {
-    return '₹${amount.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},'
-    )}';
-  }
   
   // Investment schedule for the table
   List<Map<String, dynamic>> _investmentSchedule = [];
@@ -123,18 +109,16 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
 
       setState(() {
         _totalInvestment = totalInvestment;
-        _totalReturns = totalReturns;
+        _estimatedReturns = totalReturns;
         _maturityValue = maturityValue;
-        _showResult = true;
       });
     } catch (e) {
       // Set defaults if calculation fails
       setState(() {
         _totalInvestment = 0;
-        _totalReturns = 0;
+        _estimatedReturns = 0;
         _maturityValue = 0;
         _investmentSchedule = [];
-        _showResult = true;
       });
     }
   }
@@ -345,12 +329,12 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                 ),
                 _buildResultDetail(
                   title: 'Returns',
-                  value: _currencyFormat.format(_totalReturns),
+                  value: _currencyFormat.format(_estimatedReturns),
                 ),
                 _buildResultDetail(
                   title: 'Growth',
                   value: _totalInvestment > 0 
-                      ? '${((_totalReturns / _totalInvestment) * 100).toStringAsFixed(1)}%' 
+                      ? '${((_estimatedReturns / _totalInvestment) * 100).toStringAsFixed(1)}%' 
                       : '0%',
                 ),
               ],
@@ -430,9 +414,9 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         decoration: InputDecoration(
                       labelText: 'Monthly Investment (₹)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.currency_rupee),
-                      contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.currency_rupee),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                           errorText: _validateMonthlyInvestment(),
                     ),
                     onChanged: (_) => _calculateSIP(),
@@ -483,9 +467,9 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: InputDecoration(
                 labelText: 'Investment Period (Years)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.calendar_today),
-                contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.calendar_today),
+                contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                 errorText: _validateInvestmentPeriod(),
               ),
               onChanged: (_) => _calculateSIP(),
@@ -505,12 +489,12 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
+          const Padding(
+            padding: EdgeInsets.all(12.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Year-wise Growth',
                   style: TextStyle(
                     fontSize: 16,
@@ -611,7 +595,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
     
     if (_maturityValue > 0) {
       investedPercent = _totalInvestment / _maturityValue;
-      returnsPercent = _totalReturns / _maturityValue;
+      returnsPercent = _estimatedReturns / _maturityValue;
     }
 
     return Card(
@@ -647,7 +631,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                       const SizedBox(height: 12),
                       _buildBreakdownItem(
                         title: 'Estimated Returns',
-                        value: _currencyFormat.format(_totalReturns),
+                        value: _currencyFormat.format(_estimatedReturns),
                         color: Colors.orange,
                       ),
                       const SizedBox(height: 12),
@@ -661,7 +645,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                       _buildBreakdownItem(
                         title: 'Wealth Gain Ratio',
                         value: _totalInvestment > 0 
-                            ? '${(_totalReturns / _totalInvestment).toStringAsFixed(2)}x' 
+                            ? '${(_estimatedReturns / _totalInvestment).toStringAsFixed(2)}x' 
                             : '0x',
                         color: Colors.purple,
                       ),
@@ -855,7 +839,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
       // Add an investment breakdown chart explanation
       pw.Container(
         padding: const pw.EdgeInsets.all(10),
-        decoration: pw.BoxDecoration(
+        decoration: const pw.BoxDecoration(
           color: PdfTemplateService.lightBackgroundColor,
           borderRadius: PdfTemplateService.roundedBorder,
         ),
@@ -901,7 +885,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
       // Disclaimer
       pw.Container(
         padding: const pw.EdgeInsets.all(10),
-        decoration: pw.BoxDecoration(
+        decoration: const pw.BoxDecoration(
           color: PdfTemplateService.lightBackgroundColor,
           borderRadius: PdfTemplateService.roundedBorder,
         ),

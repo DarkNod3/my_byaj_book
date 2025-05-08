@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/milk_diary/milk_seller.dart';
-import '../../providers/milk_diary/milk_seller_provider.dart';
 
 class MilkDiaryAddSeller extends StatefulWidget {
   final MilkSeller? seller;

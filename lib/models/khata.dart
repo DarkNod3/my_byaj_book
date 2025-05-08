@@ -38,8 +38,8 @@ class Khata {
     DateTime? createdAt,
     DateTime? updatedAt,
     this.transactions = const [],
-  })  : this.createdAt = createdAt ?? DateTime.now(),
-        this.updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
 
   Khata copyWith({
     int? id,
@@ -54,16 +54,16 @@ class Khata {
     return Khata(
       id: id ?? this.id,
       contactId: contactId ?? this.contactId,
-      contactName: this.contactName,
+      contactName: contactName,
       type: type ?? this.type,
       interestRate: interestRate ?? this.interestRate,
       note: note ?? this.note,
       currentBalance: currentBalance ?? this.currentBalance,
-      isLender: this.isLender,
-      interestCalculationType: this.interestCalculationType,
+      isLender: isLender,
+      interestCalculationType: interestCalculationType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
-      transactions: this.transactions,
+      transactions: transactions,
     );
   }
 
@@ -130,7 +130,7 @@ class Khata {
     // and calculate the next due date based on rotation period
     
     // For now, just return a date that's rotationPeriodMonths from now
-    return DateTime.now().add(Duration(days: 30 * 12));
+    return DateTime.now().add(const Duration(days: 30 * 12));
   }
 
   int getDaysUntilNextInterestDue() {

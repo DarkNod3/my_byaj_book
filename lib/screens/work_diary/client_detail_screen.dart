@@ -60,35 +60,35 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     final result = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Edit Client'),
+        title: const Text('Edit Client'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
-                decoration: InputDecoration(labelText: 'Client Name *'),
+                decoration: const InputDecoration(labelText: 'Client Name *'),
               ),
               TextField(
                 controller: phoneController,
-                decoration: InputDecoration(labelText: 'Phone Number'),
+                decoration: const InputDecoration(labelText: 'Phone Number'),
                 keyboardType: TextInputType.phone,
               ),
-              SizedBox(height: 16),
-              Text('Rate Information', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              const Text('Rate Information', style: TextStyle(fontWeight: FontWeight.bold)),
               TextField(
                 controller: hourlyRateController,
-                decoration: InputDecoration(labelText: 'Hourly Rate (₹)'),
+                decoration: const InputDecoration(labelText: 'Hourly Rate (₹)'),
                 keyboardType: TextInputType.number,
               ),
               TextField(
                 controller: halfDayRateController,
-                decoration: InputDecoration(labelText: 'Half Day Rate (₹)'),
+                decoration: const InputDecoration(labelText: 'Half Day Rate (₹)'),
                 keyboardType: TextInputType.number,
               ),
               TextField(
                 controller: fullDayRateController,
-                decoration: InputDecoration(labelText: 'Full Day Rate (₹)'),
+                decoration: const InputDecoration(labelText: 'Full Day Rate (₹)'),
                 keyboardType: TextInputType.number,
               ),
             ],
@@ -97,21 +97,21 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
               final name = nameController.text.trim();
               if (name.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Client name is required')),
+                  const SnackBar(content: Text('Client name is required')),
                 );
                 return;
               }
               
               Navigator.of(context).pop(true);
             },
-            child: Text('Save'),
+            child: const Text('Save'),
           ),
         ],
       ),
@@ -191,7 +191,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     const SizedBox(height: 16),
                     
                     // Header
-                    Text(
+                    const Text(
                       'Add Work Entry',
                       style: TextStyle(
                         fontSize: 20,
@@ -223,17 +223,17 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_today, size: 18),
-                            SizedBox(width: 8),
+                            const Icon(Icons.calendar_today, size: 18),
+                            const SizedBox(width: 8),
                             Text(
                               'Date: ${dateFormat.format(selectedDate)}',
-                              style: TextStyle(fontSize: 16),
+                              style: const TextStyle(fontSize: 16),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     
                     // Amount and Duration Type in a single row
                     Row(
@@ -248,13 +248,13 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              prefixIcon: Icon(Icons.currency_rupee),
-                              contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                              prefixIcon: const Icon(Icons.currency_rupee),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
                             ),
                             keyboardType: TextInputType.number,
                           ),
                         ),
-                        SizedBox(width: 12),
+                        const SizedBox(width: 12),
                         
                         // Duration Type (second)
                         Expanded(
@@ -270,7 +270,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Container(
                                 decoration: BoxDecoration(
                                   border: Border.all(color: Colors.grey.shade400),
@@ -280,9 +280,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                   child: DropdownButton<String>(
                                     isExpanded: true,
                                     value: selectedDurationType,
-                                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    hint: Text('Type'),
-                                    icon: Icon(Icons.arrow_drop_down),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    hint: const Text('Type'),
+                                    icon: const Icon(Icons.arrow_drop_down),
                                     onChanged: (String? newValue) {
                                       if (newValue != null) {
                                         setState(() {
@@ -310,7 +310,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     // Hours field (if hourly)
                     if (selectedDurationType == 'Hourly')
                       Padding(
-                        padding: EdgeInsets.only(top: 16),
+                        padding: const EdgeInsets.only(top: 16),
                         child: TextField(
                           controller: hoursController,
                           decoration: InputDecoration(
@@ -318,18 +318,18 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            prefixIcon: Icon(Icons.timelapse),
+                            prefixIcon: const Icon(Icons.timelapse),
                           ),
                           keyboardType: TextInputType.number,
                           onChanged: (_) => updateAmount(),
                         ),
                       ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     
                     // Description field
                     TextField(
                       controller: descriptionController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Description (optional)',
                         hintText: 'What was the work for?',
                         border: OutlineInputBorder(),
@@ -337,7 +337,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                       ),
                       maxLines: 2,
                     ),
-                    SizedBox(height: 24),
+                    const SizedBox(height: 24),
                     
                     // Error message container
                     StatefulBuilder(
@@ -382,8 +382,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                         
                         return errorMessage.isNotEmpty 
                           ? Container(
-                              padding: EdgeInsets.all(8),
-                              margin: EdgeInsets.only(bottom: 16),
+                              padding: const EdgeInsets.all(8),
+                              margin: const EdgeInsets.only(bottom: 16),
                               decoration: BoxDecoration(
                                 color: Colors.red.shade50,
                                 borderRadius: BorderRadius.circular(8),
@@ -391,8 +391,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  Icon(Icons.error_outline, color: Colors.red),
-                                  SizedBox(width: 8),
+                                  const Icon(Icons.error_outline, color: Colors.red),
+                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       errorMessage,
@@ -402,7 +402,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                 ],
                               ),
                             )
-                          : SizedBox.shrink();
+                          : const SizedBox.shrink();
                       },
                     ),
                     
@@ -413,19 +413,19 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                           child: OutlinedButton(
                             onPressed: () => Navigator.of(context).pop(),
                             style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            child: Text('Cancel'),
+                            child: const Text('Cancel'),
                           ),
                         ),
-                        SizedBox(width: 16),
+                        const SizedBox(width: 16),
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
                               final amount = double.tryParse(amountController.text) ?? 0.0;
                               if (amount <= 0) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Amount must be greater than zero')),
+                                  const SnackBar(content: Text('Amount must be greater than zero')),
                                 );
                                 return;
                               }
@@ -499,14 +499,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue,
-                              padding: EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            child: Text('Add'),
+                            child: const Text('Add'),
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -518,7 +518,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
 
     if (result != null) {
       final newEntry = WorkEntry(
-        id: Uuid().v4(),
+        id: const Uuid().v4(),
         date: result['date'],
         durationType: result['durationType'],
         hours: result['hours'],
@@ -553,7 +553,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     // Show a snackbar to confirm deletion
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Work entry deleted'),
+        content: const Text('Work entry deleted'),
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () {
@@ -564,7 +564,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             widget.updateClient(widget.client);
           },
         ),
-        duration: Duration(seconds: 3),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -574,12 +574,12 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete Entry'),
-        content: Text('Are you sure you want to delete this work entry?'),
+        title: const Text('Delete Entry'),
+        content: const Text('Are you sure you want to delete this work entry?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
@@ -587,7 +587,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               _deleteWorkEntry(entryId);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Delete'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -598,21 +598,21 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete Client'),
+        title: const Text('Delete Client'),
         content: Text(
           'Are you sure you want to delete ${_client.name} and all their work entries? This action cannot be undone.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(context).pop(true);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Delete'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -629,7 +629,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => AlertDialog(
+        builder: (context) => const AlertDialog(
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -665,14 +665,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               children: [
                 // Header
                 pw.Container(
-                  padding: pw.EdgeInsets.all(16),
+                  padding: const pw.EdgeInsets.all(16),
                   color: PdfColors.blue700,
                   child: pw.Row(
                     children: [
                       pw.Container(
                         width: 50,
                         height: 50,
-                        decoration: pw.BoxDecoration(
+                        decoration: const pw.BoxDecoration(
                           color: PdfColors.white,
                           shape: pw.BoxShape.circle,
                         ),
@@ -795,7 +795,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                 // Table header
                 pw.Container(
                   color: PdfColors.grey200,
-                  padding: pw.EdgeInsets.all(8),
+                  padding: const pw.EdgeInsets.all(8),
                   child: pw.Row(
                     children: [
                       pw.Expanded(flex: 2, child: pw.Text('Date')),
@@ -817,12 +817,12 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                    entry.description.toLowerCase().contains('payment');
                   
                   return pw.Container(
-                    decoration: pw.BoxDecoration(
+                    decoration: const pw.BoxDecoration(
                       border: pw.Border(
                         bottom: pw.BorderSide(color: PdfColors.grey300),
                       ),
                     ),
-                    padding: pw.EdgeInsets.all(8),
+                    padding: const pw.EdgeInsets.all(8),
                     child: pw.Row(
                       children: [
                         pw.Expanded(
@@ -873,7 +873,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('PDF report generated successfully!'),
           backgroundColor: Colors.green,
         ),
@@ -941,7 +941,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     const SizedBox(height: 16),
                     
                     // Header
-                    Text(
+                    const Text(
                       'Add Payment',
                       style: TextStyle(
                         fontSize: 20,
@@ -966,18 +966,18 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                         }
                       },
                       child: Container(
-                        padding: EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey.shade300),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_today, color: AppColors.primary),
-                            SizedBox(width: 8),
+                            const Icon(Icons.calendar_today, color: AppColors.primary),
+                            const SizedBox(width: 8),
                             Text(
                               'Date: ${DateFormat('dd MMM yyyy').format(selectedDate)}',
-                              style: TextStyle(fontSize: 16),
+                              style: const TextStyle(fontSize: 16),
                             ),
                           ],
                         ),
@@ -988,7 +988,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     // Amount input
                     TextField(
                       controller: amountController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Payment Amount (₹)',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.currency_rupee),
@@ -1000,7 +1000,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     // Notes input
                     TextField(
                       controller: notesController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Notes',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.note),
@@ -1020,7 +1020,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                           final paymentAmount = double.tryParse(amountController.text);
                           if (paymentAmount == null || paymentAmount <= 0) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Please enter a valid amount')),
+                              const SnackBar(content: Text('Please enter a valid amount')),
                             );
                             return;
                           }
@@ -1035,7 +1035,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                           }
                           
                           if (description.length > 40) {
-                            description = description.substring(0, 37) + "...";
+                            description = "${description.substring(0, 37)}...";
                           }
                           
                           Navigator.pop(context, {
@@ -1046,9 +1046,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
-                          padding: EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: Text(
+                        child: const Text(
                           'ADD PAYMENT',
                           style: TextStyle(
                             fontSize: 16,
@@ -1072,7 +1072,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       final String description = result['description'];
       
       final newEntry = WorkEntry(
-        id: Uuid().v4(),
+        id: const Uuid().v4(),
         date: date,
         durationType: 'Payment',
         hours: null,
@@ -1107,8 +1107,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Payment of ${currencyFormat.format(amount)} added.' +
-            (remainingBalance > 0 ? ' Remaining: ${currencyFormat.format(remainingBalance)}' : ' All payments settled!')
+            'Payment of ${currencyFormat.format(amount)} added.${remainingBalance > 0 ? ' Remaining: ${currencyFormat.format(remainingBalance)}' : ' All payments settled!'}'
           ),
           backgroundColor: remainingBalance > 0 ? Colors.orange : Colors.green,
         ),
@@ -1143,17 +1142,17 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           title: Text(_client.name),
           backgroundColor: Colors.blue,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
           ),
           actions: [
             IconButton(
-              icon: Icon(Icons.edit),
+              icon: const Icon(Icons.edit),
               onPressed: _editClientInfo,
               tooltip: 'Edit Client',
             ),
             IconButton(
-              icon: Icon(Icons.delete),
+              icon: const Icon(Icons.delete),
               onPressed: _confirmDeleteClient,
               tooltip: 'Delete Client',
             ),
@@ -1164,7 +1163,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             children: [
               // Client Summary Card
               Card(
-                margin: EdgeInsets.all(16),
+                margin: const EdgeInsets.all(16),
                 elevation: 3,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -1194,16 +1193,16 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                 ),
                               ),
                               IconButton(
-                                icon: Icon(Icons.picture_as_pdf, color: Colors.blue),
+                                icon: const Icon(Icons.picture_as_pdf, color: Colors.blue),
                                 tooltip: 'Download PDF Report',
                                 iconSize: 20,
-                                constraints: BoxConstraints.tightFor(width: 30, height: 30),
+                                constraints: const BoxConstraints.tightFor(width: 30, height: 30),
                                 padding: EdgeInsets.zero,
                                 onPressed: () => _generateClientPDF(_client),
                               ),
                             ],
                           ),
-                          SizedBox(height: 12),
+                          const SizedBox(height: 12),
                           
                           // Counts of different work types
                           Row(
@@ -1230,9 +1229,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                             ],
                           ),
                           
-                          SizedBox(height: 16),
-                          Divider(),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 16),
                           
                           // Payment Summary Section
                           Text(
@@ -1243,7 +1242,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               color: Colors.grey[800],
                             ),
                           ),
-                          SizedBox(height: 12),
+                          const SizedBox(height: 12),
                           
                           // Calculate payments received
                           Builder(builder: (context) {
@@ -1274,7 +1273,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                   amount: workAmount,
                                   isTotal: true,
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 
                                 // Amount Received
                                 _buildPaymentRow(
@@ -1282,7 +1281,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                   amount: amountReceived,
                                   textColor: Colors.green,
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 
                                 // Amount Due
                                 _buildPaymentRow(
@@ -1293,17 +1292,17 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                 ),
                                 
                                 // Add Payment Button
-                                SizedBox(height: 16),
+                                const SizedBox(height: 16),
                                 SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton.icon(
                                     onPressed: () => _addPaymentEntry(amountDue),
-                                    icon: Icon(Icons.payments),
-                                    label: Text('ADD PAYMENT'),
+                                    icon: const Icon(Icons.payments),
+                                    label: const Text('ADD PAYMENT'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.green,
                                       foregroundColor: Colors.white,
-                                      padding: EdgeInsets.symmetric(vertical: 10),
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
                                     ),
                                   ),
                                 ),
@@ -1322,7 +1321,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                             color: Colors.grey[700],
                                           ),
                                         ),
-                                        SizedBox(height: 8),
+                                        const SizedBox(height: 8),
                                         ClipRRect(
                                           borderRadius: BorderRadius.circular(8),
                                           child: LinearProgressIndicator(
@@ -1334,23 +1333,23 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                             ),
                                           ),
                                         ),
-                                        SizedBox(height: 4),
+                                        const SizedBox(height: 4),
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Text(
+                                            const Text(
                                               '0%',
                                               style: TextStyle(fontSize: 12, color: Colors.grey),
                                             ),
                                             Text(
                                               '${paymentPercentage.toStringAsFixed(1)}%',
-                                              style: TextStyle(
+                                              style: const TextStyle(
                                                 fontSize: 12, 
                                                 fontWeight: FontWeight.bold,
                                                 color: Colors.blue,
                                               ),
                                             ),
-                                            Text(
+                                            const Text(
                                               '100%',
                                               style: TextStyle(fontSize: 12, color: Colors.grey),
                                             ),
@@ -1374,14 +1373,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
                   children: [
-                    Text(
+                    const Text(
                       'Work History',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Text(
                       '(${workEntries.length} entries)',
                       style: TextStyle(
@@ -1408,9 +1407,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                   )
                 : ListView.builder(
                     shrinkWrap: true,
-                    physics: NeverScrollableScrollPhysics(),
+                    physics: const NeverScrollableScrollPhysics(),
                     itemCount: groupedEntries.length,
-                    padding: EdgeInsets.only(bottom: 80),
+                    padding: const EdgeInsets.only(bottom: 80),
                     itemBuilder: (context, index) {
                       final monthYear = groupedEntries.keys.elementAt(index);
                       final entries = groupedEntries[monthYear]!;
@@ -1435,15 +1434,15 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                   ),
               
               // Add bottom padding to make room for the FAB
-              SizedBox(height: 80),
+              const SizedBox(height: 80),
             ],
           ),
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: _addWorkEntry,
           backgroundColor: AppColors.primary,
-          icon: Icon(Icons.add),
-          label: Text('Add Entry'),
+          icon: const Icon(Icons.add),
+          label: const Text('Add Entry'),
           tooltip: 'Add Work Entry',
         ),
       ),
@@ -1469,7 +1468,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             child: Icon(icon, color: color, size: 24),
           ),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
         Text(
           label,
           style: TextStyle(
@@ -1477,7 +1476,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             color: Colors.grey[700],
           ),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
         Text(
           count.toString(),
           style: TextStyle(
@@ -1541,7 +1540,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
 
     Widget entryCard = Card(
       elevation: 3,
-      margin: EdgeInsets.symmetric(vertical: 4),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -1563,7 +1562,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     color: isPayment ? Colors.green : AppColors.primary
                   ),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1574,7 +1573,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                         children: [
                           Text(
                             dateFormat.format(entry.date),
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 15,
                             ),
@@ -1605,14 +1604,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                           ),
                         ),
                       
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       
                       // Amount and work/payment indicator at bottom
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: isPayment 
                                   ? Colors.green.withOpacity(0.15) 
@@ -1655,9 +1654,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         direction: DismissDirection.endToStart,
         background: Container(
           alignment: Alignment.centerRight,
-          padding: EdgeInsets.only(right: 20.0),
+          padding: const EdgeInsets.only(right: 20.0),
           color: Colors.red,
-          child: Icon(
+          child: const Icon(
             Icons.delete,
             color: Colors.white,
           ),
@@ -1666,17 +1665,17 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           return await showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: Text('Delete Entry'),
-              content: Text('Are you sure you want to delete this work entry?'),
+              title: const Text('Delete Entry'),
+              content: const Text('Are you sure you want to delete this work entry?'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: Text('Cancel'),
+                  child: const Text('Cancel'),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(true),
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: Text('Delete'),
+                  child: const Text('Delete'),
                 ),
               ],
             ),

@@ -88,7 +88,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.camera_alt, color: AppTheme.primaryColor),
+              leading: const Icon(Icons.camera_alt, color: AppTheme.primaryColor),
               title: const Text('Take Photo'),
               onTap: () {
                 Navigator.of(ctx).pop();
@@ -96,7 +96,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.photo_library, color: AppTheme.primaryColor),
+              leading: const Icon(Icons.photo_library, color: AppTheme.primaryColor),
               title: const Text('Choose from Gallery'),
               onTap: () {
                 Navigator.of(ctx).pop();
@@ -105,7 +105,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             ),
             if (_profileImage != null)
               ListTile(
-                leading: Icon(Icons.delete, color: Colors.red),
+                leading: const Icon(Icons.delete, color: Colors.red),
                 title: const Text('Remove Photo'),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -251,13 +251,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       controller: _nameController,
                       decoration: InputDecoration(
                         labelText: 'Name',
-                        prefixIcon: Icon(Icons.person, color: AppTheme.primaryColor),
+                        prefixIcon: const Icon(Icons.person, color: AppTheme.primaryColor),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
+                          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
                         ),
                       ),
                       validator: (value) {
@@ -274,13 +274,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       controller: _mobileController,
                       decoration: InputDecoration(
                         labelText: 'Mobile Number (Optional)',
-                        prefixIcon: Icon(Icons.phone, color: AppTheme.primaryColor),
+                        prefixIcon: const Icon(Icons.phone, color: AppTheme.primaryColor),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
+                          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
                         ),
                         helperText: 'Leave blank if you prefer not to provide a phone number',
                       ),

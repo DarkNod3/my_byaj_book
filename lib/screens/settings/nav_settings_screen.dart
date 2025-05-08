@@ -123,8 +123,8 @@ class _NavSettingsScreenState extends State<NavSettingsScreen> {
                       color: Colors.grey.shade100,
                       child: Column(
                         children: [
-                          Row(
-                            children: const [
+                          const Row(
+                            children: [
                               Icon(Icons.info_outline, color: Colors.blue),
                               SizedBox(width: 8),
                               Expanded(
@@ -264,8 +264,8 @@ class _NavSettingsScreenState extends State<NavSettingsScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       color: Colors.amber.shade100,
-                      child: Row(
-                        children: const [
+                      child: const Row(
+                        children: [
                           Icon(Icons.lightbulb_outline, color: Colors.amber),
                           SizedBox(width: 8),
                           Expanded(

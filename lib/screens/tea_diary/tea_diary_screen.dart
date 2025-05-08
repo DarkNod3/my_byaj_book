@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:my_byaj_book/widgets/header/app_header.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:pdf/pdf.dart';
@@ -687,7 +686,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
             int getTotalNewCups() => newTeaCups + newCoffeeCups + newMilkCups;
             
             // Select date method
-            Future<void> _selectDate(BuildContext context) async {
+            Future<void> selectDate(BuildContext context) async {
               final DateTime? picked = await showDatePicker(
                 context: context,
                 initialDate: selectedDate,
@@ -864,7 +863,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                   
                   // Add Date Selector
                   InkWell(
-                    onTap: () => _selectDate(context),
+                    onTap: () => selectDate(context),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
@@ -1696,8 +1695,8 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     
                     return pw.TableRow(
                       decoration: index % 2 == 0 
-                          ? const pw.BoxDecoration(color: PdfColors.grey100)
-                          : const pw.BoxDecoration(color: PdfColors.white),
+                          ? pw.BoxDecoration(color: PdfColors.grey100)
+                          : pw.BoxDecoration(color: PdfColors.white),
                       children: [
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(5),
@@ -1713,7 +1712,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(5),
                           child: pw.Text(
-                            '${customer.teaRate.toStringAsFixed(1)}',
+                            customer.teaRate.toStringAsFixed(1),
                             textAlign: pw.TextAlign.center,
                           ),
                         ),
@@ -2086,11 +2085,11 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
+                const Row(
                   children: [
-                              const Icon(Icons.people, size: 16, color: Colors.grey),
-                              const SizedBox(width: 4),
-                    const Text(
+                              Icon(Icons.people, size: 16, color: Colors.grey),
+                              SizedBox(width: 4),
+                    Text(
                       'Customer List',
                       style: TextStyle(
                                   fontSize: 14,
@@ -2157,11 +2156,11 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                         if (_customersForSelectedDate.isEmpty)
                           ElevatedButton(
                             onPressed: _addCustomer,
-                            child: const Text('Add Customer for This Date'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.teal,
                               foregroundColor: Colors.white,
                             ),
+                            child: const Text('Add Customer for This Date'),
                           ),
                       ],
                             ),
@@ -2190,8 +2189,8 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
       floatingActionButton: FloatingActionButton(
         onPressed: _addCustomer,
         backgroundColor: Colors.teal,
-        child: const Icon(Icons.person_add, color: Colors.white),
         tooltip: 'Add Customer',
+        child: const Icon(Icons.person_add, color: Colors.white),
       ),
     );
   }
@@ -2721,7 +2720,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
         return StatefulBuilder(
           builder: (context, setState) {
             // Method to select date
-            Future<void> _selectDate() async {
+            Future<void> selectDate() async {
               final DateTime? picked = await showDatePicker(
                 context: context,
                 initialDate: selectedDate,
@@ -2754,7 +2753,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                   
                   // Date selector
                   InkWell(
-                    onTap: _selectDate,
+                    onTap: selectDate,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
@@ -2976,8 +2975,8 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     ),
                     // Warning message if customer exists
                     if (name.isNotEmpty && _customerExists(name))
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
                         child: Text(
                           'This customer already exists!',
                           style: TextStyle(color: Colors.red, fontSize: 12),
@@ -3007,11 +3006,11 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     const SizedBox(height: 20),
                     
                     // Beverage section
-                    Row(
+                    const Row(
                       children: [
-                        const Icon(Icons.local_cafe, color: Colors.teal),
-                        const SizedBox(width: 10),
-                        const Text(
+                        Icon(Icons.local_cafe, color: Colors.teal),
+                        SizedBox(width: 10),
+                        Text(
                           'Beverage Prices',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
@@ -3284,9 +3283,9 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     ),
                     pw.SizedBox(height: 5),
                     pw.Text(
-                  'Customer Transaction Report',
+                      'Tea Diary Report', // Changed from title variable to hardcoded string
                       style: const pw.TextStyle(
-                    fontSize: 12,
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -3349,9 +3348,9 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
           // Summary section in a nice card format
           pw.Container(
             padding: const pw.EdgeInsets.all(10),
-            decoration: pw.BoxDecoration(
+            decoration: const pw.BoxDecoration(
               color: PdfColors.teal50,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+              borderRadius: pw.BorderRadius.all(pw.Radius.circular(5)),
             ),
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -3384,7 +3383,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     padding: const pw.EdgeInsets.symmetric(vertical: 20),
                       child: pw.Text(
                         'No transaction history available',
-                        style: const pw.TextStyle(
+                        style: pw.TextStyle(
                           color: PdfColors.grey600, 
                           fontStyle: pw.FontStyle.italic,
                         ),
@@ -3396,7 +3395,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     children: [
                       // Table header
                       pw.TableRow(
-                        decoration: const pw.BoxDecoration(color: PdfColors.teal100),
+                        decoration: pw.BoxDecoration(color: PdfColors.teal100),
                         children: [
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(6),
@@ -3438,8 +3437,8 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                         
                         return pw.TableRow(
                           decoration: index % 2 == 0 
-                              ? const pw.BoxDecoration(color: PdfColors.grey100)
-                              : const pw.BoxDecoration(color: PdfColors.white),
+                              ? pw.BoxDecoration(color: PdfColors.grey100)
+                              : pw.BoxDecoration(color: PdfColors.white),
                           children: [
                             // Date column
                             pw.Padding(
@@ -3495,26 +3494,12 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
               // Footer
               pw.Container(
                 alignment: pw.Alignment.centerRight,
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                  'Generated on: ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
-                      style: const pw.TextStyle(
-                        fontSize: 10,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                    pw.SizedBox(height: 4),
-                    pw.Text(
-                      'My Byaj Book App',
-                      style: const pw.TextStyle(
-                        fontSize: 10,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.teal900,
-                      ),
-                    ),
-                  ],
+                child: pw.Text(
+                  'Generated on ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey600,
+                  ),
                 ),
               ),
             ],
@@ -3577,7 +3562,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                       ),
                     ),
                     Text(
-                      'Total: ${totalCups} cups',
+                      'Total: $totalCups cups',
                       style: TextStyle(
                         color: Colors.teal[800],
                         fontWeight: FontWeight.bold,

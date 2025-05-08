@@ -51,10 +51,8 @@ class CustomerProvider with ChangeNotifier {
     List<Customer> filtered = List.from(_allCustomers);
     
     // Apply date filter if needed
-    if (_selectedDate != null) {
-      filtered = await _databaseService.getCustomersForDate(_selectedDate);
-    }
-    
+    filtered = await _databaseService.getCustomersForDate(_selectedDate);
+      
     // Apply search query if any
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where(

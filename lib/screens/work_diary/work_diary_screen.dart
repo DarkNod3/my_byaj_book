@@ -8,7 +8,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
-import '../../widgets/header/app_header.dart';
 import '../../models/work_diary/client.dart';
 import '../../models/work_diary/work_entry.dart';
 import './client_detail_screen.dart';
@@ -145,19 +144,19 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   
                   // Header with icon
                   Container(
-                    padding: EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.only(bottom: 16),
                     child: Row(
                       children: [
                         Container(
-                          padding: EdgeInsets.all(10),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: Colors.blue.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(Icons.person_add, color: Colors.blue),
+                          child: const Icon(Icons.person_add, color: Colors.blue),
                         ),
-                        SizedBox(width: 12),
-                        Text(
+                        const SizedBox(width: 12),
+                        const Text(
                           'Add New Client',
                           style: TextStyle(
                             fontSize: 22,
@@ -170,13 +169,13 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   
                   // Client Name
                   Container(
-                    margin: EdgeInsets.only(bottom: 16),
+                    margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),
                           blurRadius: 10,
-                          offset: Offset(0, 2),
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
@@ -184,7 +183,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                       controller: nameController,
                       decoration: InputDecoration(
                         labelText: 'Client Name *',
-                        labelStyle: TextStyle(fontWeight: FontWeight.w500),
+                        labelStyle: const TextStyle(fontWeight: FontWeight.w500),
                         hintText: 'Enter client name',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -196,11 +195,11 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.blue, width: 2),
+                          borderSide: const BorderSide(color: Colors.blue, width: 2),
                         ),
                         filled: true,
                         fillColor: Colors.white,
-                        prefixIcon: Icon(Icons.person, color: Colors.blue),
+                        prefixIcon: const Icon(Icons.person, color: Colors.blue),
                       ),
                       textCapitalization: TextCapitalization.words,
                     ),
@@ -208,13 +207,13 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   
                   // Phone Number
                   Container(
-                    margin: EdgeInsets.only(bottom: 24),
+                    margin: const EdgeInsets.only(bottom: 24),
                     decoration: BoxDecoration(
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),
                           blurRadius: 10,
-                          offset: Offset(0, 2),
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
@@ -222,7 +221,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                       controller: phoneController,
                       decoration: InputDecoration(
                         labelText: 'Phone Number',
-                        labelStyle: TextStyle(fontWeight: FontWeight.w500),
+                        labelStyle: const TextStyle(fontWeight: FontWeight.w500),
                         hintText: 'Enter phone number (optional)',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -234,11 +233,11 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.blue, width: 2),
+                          borderSide: const BorderSide(color: Colors.blue, width: 2),
                         ),
                         filled: true,
                         fillColor: Colors.white,
-                        prefixIcon: Icon(Icons.phone, color: Colors.blue),
+                        prefixIcon: const Icon(Icons.phone, color: Colors.blue),
                       ),
                       keyboardType: TextInputType.phone,
                     ),
@@ -246,15 +245,15 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   
                   // Rate Information header
                   Container(
-                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                     decoration: BoxDecoration(
                       color: Colors.blue.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.currency_rupee, color: Colors.blue, size: 20),
-                        SizedBox(width: 8),
+                        const Icon(Icons.currency_rupee, color: Colors.blue, size: 20),
+                        const SizedBox(width: 8),
                         Text(
                           'Rate Information',
                           style: TextStyle(
@@ -279,7 +278,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.05),
                                 blurRadius: 8,
-                                offset: Offset(0, 2),
+                                offset: const Offset(0, 2),
                               ),
                             ],
                           ),
@@ -297,18 +296,18 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(color: Colors.blue, width: 2),
+                                borderSide: const BorderSide(color: Colors.blue, width: 2),
                               ),
                               filled: true,
                               fillColor: Colors.white,
                               prefixIcon: Icon(Icons.access_time, color: Colors.blue.shade700),
-                              contentPadding: EdgeInsets.symmetric(vertical: 14),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                             keyboardType: TextInputType.number,
                           ),
                         ),
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       
                       // Half Day Rate
                       Expanded(
@@ -318,7 +317,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.05),
                                 blurRadius: 8,
-                                offset: Offset(0, 2),
+                                offset: const Offset(0, 2),
                               ),
                             ],
                           ),
@@ -336,12 +335,12 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(color: Colors.blue, width: 2),
+                                borderSide: const BorderSide(color: Colors.blue, width: 2),
                               ),
                               filled: true,
                               fillColor: Colors.white,
                               prefixIcon: Icon(Icons.more_time, color: Colors.orange.shade700),
-                              contentPadding: EdgeInsets.symmetric(vertical: 14),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                             keyboardType: TextInputType.number,
                           ),
@@ -353,13 +352,13 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   
                   // Full Day Rate
                   Container(
-                    margin: EdgeInsets.only(bottom: 24),
+                    margin: const EdgeInsets.only(bottom: 24),
                     decoration: BoxDecoration(
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),
                           blurRadius: 10,
-                          offset: Offset(0, 2),
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
@@ -377,7 +376,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.blue, width: 2),
+                          borderSide: const BorderSide(color: Colors.blue, width: 2),
                         ),
                         filled: true,
                         fillColor: Colors.white,
@@ -394,21 +393,21 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () => Navigator.of(context).pop(false),
-                          icon: Icon(Icons.close),
-                          label: Text('Cancel'),
+                          icon: const Icon(Icons.close),
+                          label: const Text('Cancel'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.grey[700],
                             elevation: 0,
                             side: BorderSide(color: Colors.grey.shade300),
-                            padding: EdgeInsets.symmetric(vertical: 12),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                         ),
                       ),
-                      SizedBox(width: 16),
+                      const SizedBox(width: 16),
                       
                       // Add Button
                       Expanded(
@@ -417,19 +416,19 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                             final name = nameController.text.trim();
                             if (name.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Client name is required')),
+                                const SnackBar(content: Text('Client name is required')),
                               );
                               return;
                             }
                             Navigator.of(context).pop(true);
                           },
-                          icon: Icon(Icons.check),
-                          label: Text('Add'),
+                          icon: const Icon(Icons.check),
+                          label: const Text('Add'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
                             elevation: 2,
-                            padding: EdgeInsets.symmetric(vertical: 12),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -438,7 +437,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                       ),
                     ],
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
@@ -450,7 +449,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
 
     if (result == true) {
       final newClient = Client(
-        id: Uuid().v4(),
+        id: const Uuid().v4(),
         name: nameController.text.trim(),
         phoneNumber: phoneController.text.trim(),
         hourlyRate: double.tryParse(hourlyRateController.text) ?? 0.0,
@@ -519,11 +518,11 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
         },
         child: Scaffold(
           appBar: widget.showAppBar ? AppBar(
-            title: Text('Work Diary'),
+            title: const Text('Work Diary'),
             backgroundColor: AppColors.primary,
             actions: [
               IconButton(
-                icon: Icon(Icons.refresh),
+                icon: const Icon(Icons.refresh),
                 onPressed: () {
                   _animationController.reset();
                   _loadClients();
@@ -531,12 +530,12 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
               ),
             ],
             leading: IconButton(
-              icon: Icon(Icons.arrow_back),
+              icon: const Icon(Icons.arrow_back),
               onPressed: () => Navigator.of(context).pop(),
             ),
           ) : null,
           body: _isLoading
-              ? Center(child: CircularProgressIndicator())
+              ? const Center(child: CircularProgressIndicator())
               : ListView(
                   children: [
                     _buildSummaryCard(),
@@ -546,17 +545,17 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         controller: _searchController,
                         decoration: InputDecoration(
                           hintText: 'Search clients...',
-                          prefixIcon: Icon(Icons.search),
+                          prefixIcon: const Icon(Icons.search),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide: BorderSide(color: Colors.grey.shade300),
                           ),
                           filled: true,
                           fillColor: Colors.grey.shade100,
-                          contentPadding: EdgeInsets.symmetric(vertical: 0),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0),
                           suffixIcon: _searchQuery.isNotEmpty
                               ? IconButton(
-                                  icon: Icon(Icons.clear),
+                                  icon: const Icon(Icons.clear),
                                   onPressed: () {
                                     _searchController.clear();
                                     setState(() {
@@ -579,9 +578,9 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                       ? _buildEmptyState()
                       : ListView.builder(
                           shrinkWrap: true,
-                          physics: NeverScrollableScrollPhysics(),
+                          physics: const NeverScrollableScrollPhysics(),
                           itemCount: _filteredClients.length,
-                          padding: EdgeInsets.only(bottom: 80),
+                          padding: const EdgeInsets.only(bottom: 80),
                           itemBuilder: (context, index) {
                             final client = _filteredClients[index];
                             return _buildClientCard(client);
@@ -648,7 +647,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
         // Main Summary Card
         Card(
           elevation: 2,
-          margin: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -660,7 +659,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    const Text(
                       'Work Summary',
                       style: TextStyle(
                         fontSize: 16,
@@ -673,16 +672,16 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         children: [
                           Text(
                             DateFormat('dd MMM yyyy').format(_selectedDate),
-                            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                           ),
-                          SizedBox(width: 2),
-                          Icon(Icons.calendar_today, size: 14),
+                          const SizedBox(width: 2),
+                          const Icon(Icons.calendar_today, size: 14),
                         ],
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
                 
                 // New 2x2 grid layout for metrics
                 Row(
@@ -696,7 +695,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         backgroundColor: Colors.blue.withOpacity(0.1),
                       ),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: _buildNewMetricItem(
                         icon: Icons.today,
@@ -708,7 +707,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                     ),
                   ],
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
@@ -720,7 +719,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         backgroundColor: Colors.purple.withOpacity(0.1),
                       ),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: _buildNewMetricItem(
                         icon: Icons.pending_actions,
@@ -754,7 +753,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
     required Color backgroundColor,
   }) {
     return Container(
-      padding: EdgeInsets.all(8),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
@@ -762,14 +761,14 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(5),
+            padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(icon, color: iconColor, size: 18),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -781,10 +780,10 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                     color: Colors.grey[700],
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   value,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
@@ -812,12 +811,12 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
               onPressed: () {
                 _showPendingAmountsFilter();
               },
-              icon: Icon(Icons.filter_list, size: 16),
-              label: Text('Show Pending Amounts', style: TextStyle(fontSize: 12)),
+              icon: const Icon(Icons.filter_list, size: 16),
+              label: const Text('Show Pending Amounts', style: TextStyle(fontSize: 12)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -825,7 +824,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
             ),
           ),
         ),
-        SizedBox(width: 8),
+        const SizedBox(width: 8),
         // Add Payment button
         Expanded(
           flex: 2,
@@ -835,12 +834,12 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
               onPressed: () {
                 _addPayment();
               },
-              icon: Icon(Icons.payments, size: 16),
-              label: Text('Add Payment', style: TextStyle(fontSize: 12)),
+              icon: const Icon(Icons.payments, size: 16),
+              label: const Text('Add Payment', style: TextStyle(fontSize: 12)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -911,12 +910,12 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
         return Container(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           height: MediaQuery.of(context).size.height * 0.7,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -924,7 +923,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'Clients with Pending Amounts',
                     style: TextStyle(
                       fontSize: 18,
@@ -932,12 +931,12 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close),
+                    icon: const Icon(Icons.close),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Expanded(
                 child: clientsWithPending.isEmpty
                     ? Center(
@@ -973,7 +972,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                               totalWork - paymentsReceived : 0;
                           
                           return Card(
-                            margin: EdgeInsets.only(bottom: 12),
+                            margin: const EdgeInsets.only(bottom: 12),
                             child: InkWell(
                               onTap: () {
                                 Navigator.pop(context);
@@ -993,7 +992,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                                           radius: 24,
                                           child: Text(
                                             client.initials,
-                                            style: TextStyle(
+                                            style: const TextStyle(
                                               color: Colors.white,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -1009,7 +1008,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                                               // Client name
                                               Text(
                                                 client.name,
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                   fontSize: 16,
                                                   fontWeight: FontWeight.bold,
                                                 ),
@@ -1019,7 +1018,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                                               // Work amount
                                               Row(
                                                 children: [
-                                                  Text(
+                                                  const Text(
                                                     'Work: ',
                                                     style: TextStyle(fontSize: 13),
                                                   ),
@@ -1038,13 +1037,13 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                                               const SizedBox(height: 4),
                                               Row(
                                                 children: [
-                                                  Text(
+                                                  const Text(
                                                     'Paid: ',
                                                     style: TextStyle(fontSize: 13),
                                                   ),
                                                   Text(
                                                     currencyFormat.format(paymentsReceived),
-                                                    style: TextStyle(
+                                                    style: const TextStyle(
                                                       fontSize: 13,
                                                       fontWeight: FontWeight.bold,
                                                       color: Colors.green,
@@ -1057,7 +1056,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                                         ),
                                         
                                         // Pending amount - fixed width column on right
-                                        Container(
+                                        SizedBox(
                                           width: 120,
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -1072,7 +1071,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                                               const SizedBox(height: 2),
                                               Text(
                                                 currencyFormat.format(pendingAmount),
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   color: Colors.orange,
                                                   fontSize: 18,
@@ -1133,7 +1132,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
         .fold(0.0, (sum, entry) => sum + entry.amount);
     
     return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       elevation: 2,
       child: InkWell(
         onTap: () => _openClientDetails(client),
@@ -1147,14 +1146,14 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                 radius: 25,
                 child: Text(
                   client.initials,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
                 ),
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1165,7 +1164,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         Expanded(
                           child: Text(
                             client.name,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1186,7 +1185,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'Last entry: ${client.workEntries.isNotEmpty ? DateFormat('dd MMM yyyy').format(_getLatestEntryDate(client.workEntries)) : 'No entries'}',
                       style: TextStyle(
@@ -1197,9 +1196,9 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   ],
                 ),
               ),
-              SizedBox(width: 8), // Add spacing before the amount column
+              const SizedBox(width: 8), // Add spacing before the amount column
               ConstrainedBox(
-                constraints: BoxConstraints(minWidth: 80, maxWidth: 120),
+                constraints: const BoxConstraints(minWidth: 80, maxWidth: 120),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -1207,7 +1206,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (pendingBalance > 0)
-                          Icon(Icons.warning, size: 14, color: Colors.orange),
+                          const Icon(Icons.warning, size: 14, color: Colors.orange),
                         SizedBox(width: pendingBalance > 0 ? 4 : 0),
                         Flexible(
                           child: Text(
@@ -1222,7 +1221,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         ),
                       ],
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       pendingBalance > 0 ? 'Pending' : '${client.workEntries.length} entries',
                       style: TextStyle(
@@ -1268,7 +1267,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
             size: 80,
             color: Colors.grey[400],
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
             _searchQuery.isEmpty
                 ? 'No clients yet'
@@ -1278,7 +1277,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
               color: Colors.grey[600],
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           if (_searchQuery.isNotEmpty)
             ElevatedButton(
               onPressed: () {
@@ -1288,16 +1287,16 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   _filterClients();
                 });
               },
-              child: Text('Clear Search'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
               ),
+              child: const Text('Clear Search'),
             )
           else
             ElevatedButton.icon(
               onPressed: _addClient,
-              icon: Icon(Icons.add),
-              label: Text('Add Your First Client'),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Your First Client'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
               ),
@@ -1320,10 +1319,10 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return AlertDialog(
+        return const AlertDialog(
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
               Text('Generating PDF report...'),
@@ -1412,7 +1411,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   const SizedBox(height: 16),
                   
                   // Header
-                  Row(
+                  const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
@@ -1428,7 +1427,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   
                   // Client Dropdown
                   DropdownButtonFormField<Client>(
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Select Client',
                       border: OutlineInputBorder(),
                     ),
@@ -1450,7 +1449,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   // Payment amount
                   TextField(
                     controller: amountController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Payment Amount (₹)',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.currency_rupee),
@@ -1478,7 +1477,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                     child: AbsorbPointer(
                       child: TextField(
                         controller: paymentDateController,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: 'Payment Date',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.calendar_today),
@@ -1491,7 +1490,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   // Description
                   TextField(
                     controller: descriptionController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Description',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.note),
@@ -1570,12 +1569,12 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
       } else if (!description.toLowerCase().contains("payment") && 
                 !description.toLowerCase().contains("received")) {
         // Limit description length to prevent overflow
-        String truncatedDesc = description.length > 50 ? description.substring(0, 50) + "..." : description;
+        String truncatedDesc = description.length > 50 ? "${description.substring(0, 50)}..." : description;
         description = "Payment: $truncatedDesc";
       }
       
       final newEntry = WorkEntry(
-        id: Uuid().v4(),
+        id: const Uuid().v4(),
         date: date,
         durationType: 'Payment',
         amount: amount,
@@ -1600,10 +1599,9 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Payment of ${currencyFormat.format(amount)} added to ${client.name}.' + 
-              (remainingBalance > 0 ? ' Remaining balance: ${currencyFormat.format(remainingBalance)}' : ' All payments settled!')
+              'Payment of ${currencyFormat.format(amount)} added to ${client.name}.${remainingBalance > 0 ? ' Remaining balance: ${currencyFormat.format(remainingBalance)}' : ' All payments settled!'}'
             ),
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
             backgroundColor: remainingBalance > 0 ? Colors.orange : Colors.green,
           ),
         );
@@ -1629,8 +1627,8 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
               Text('Generating PDF report for ${client.name}...'),
             ],
           ),
@@ -1663,7 +1661,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
               children: [
                 // Header
                 pw.Container(
-                  padding: pw.EdgeInsets.all(16),
+                  padding: const pw.EdgeInsets.all(16),
                   color: PdfColors.blue700,
                   child: pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -1673,7 +1671,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                           pw.Container(
                             width: 50,
                             height: 50,
-                            decoration: pw.BoxDecoration(
+                            decoration: const pw.BoxDecoration(
                               color: PdfColors.white,
                               shape: pw.BoxShape.circle,
                             ),
@@ -1810,7 +1808,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                 // Table header
                 pw.Container(
                   color: PdfColors.grey200,
-                  padding: pw.EdgeInsets.all(8),
+                  padding: const pw.EdgeInsets.all(8),
                   child: pw.Row(
                     children: [
                       pw.Expanded(flex: 2, child: pw.Text('Date')),
@@ -1832,12 +1830,12 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                                    entry.description.toLowerCase().contains('payment');
                   
                   return pw.Container(
-                    decoration: pw.BoxDecoration(
+                    decoration: const pw.BoxDecoration(
                       border: pw.Border(
                         bottom: pw.BorderSide(color: PdfColors.grey300),
                       ),
                     ),
-                    padding: pw.EdgeInsets.all(8),
+                    padding: const pw.EdgeInsets.all(8),
                     child: pw.Row(
                       children: [
                         pw.Expanded(
@@ -1879,10 +1877,10 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                 
                 // Footer with app name and generated date
                 pw.Container(
-                  decoration: pw.BoxDecoration(
+                  decoration: const pw.BoxDecoration(
                     border: pw.Border(top: pw.BorderSide(color: PdfColors.grey300))
                   ),
-                  padding: pw.EdgeInsets.all(8),
+                  padding: const pw.EdgeInsets.all(8),
                   child: pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
@@ -1896,7 +1894,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                       ),
                       pw.Text(
                         'Generated on ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 10,
                           color: PdfColors.grey700,
                         ),
@@ -1946,8 +1944,8 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
   Widget _buildFloatingActionButtons() {
     return FloatingActionButton.extended(
       onPressed: _addClient,
-      label: Text('Add Client'),
-      icon: Icon(Icons.person_add),
+      label: const Text('Add Client'),
+      icon: const Icon(Icons.person_add),
       backgroundColor: AppColors.primary,
       elevation: 6,
     );

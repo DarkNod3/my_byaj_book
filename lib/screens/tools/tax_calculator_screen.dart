@@ -1,11 +1,6 @@
-import 'dart:math';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
 import 'package:my_byaj_book/services/pdf_template_service.dart';
 
@@ -327,13 +322,13 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Column(
+            content: const Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('PDF report generated successfully!'),
-                const SizedBox(height: 4),
-                const Text(
+                Text('PDF report generated successfully!'),
+                SizedBox(height: 4),
+                Text(
                   'If the PDF didn\'t open automatically, it was saved to your device\'s temporary folder.',
                   style: TextStyle(fontSize: 12),
                 ),
@@ -436,7 +431,7 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
       // Disclaimer
       pw.Container(
         padding: const pw.EdgeInsets.all(10),
-        decoration: pw.BoxDecoration(
+        decoration: const pw.BoxDecoration(
           color: PdfTemplateService.lightBackgroundColor,
           borderRadius: PdfTemplateService.roundedBorder,
         ),
@@ -670,9 +665,9 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
                         inputFormatters: [_incomeFormatter],
                         decoration: InputDecoration(
                       labelText: 'Total Income (₹)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.currency_rupee),
-                      contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.currency_rupee),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                           errorText: _validateIncome(),
                     ),
                     onChanged: (_) => _calculateTax(),
@@ -707,9 +702,9 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
               decoration: InputDecoration(
                 labelText: 'Investments (80C) (₹)',
                 helperText: 'PF, PPF, LIC, ELSS, etc. Max: ₹1,50,000',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.savings),
-                contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.savings),
+                contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                 errorText: _validateInvestments(),
               ),
               onChanged: (_) => _calculateTax(),
@@ -724,9 +719,9 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
               decoration: InputDecoration(
                 labelText: 'Other Deductions (₹)',
                 helperText: 'HRA, Medical Insurance, NPS, etc.',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.money_off),
-                contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.money_off),
+                contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                 errorText: _validateDeductions(),
               ),
               onChanged: (_) => _calculateTax(),

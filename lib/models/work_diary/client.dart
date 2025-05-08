@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../models/work_diary/work_entry.dart';
-import 'package:uuid/uuid.dart';
 import 'dart:convert';
 
 class Client {
@@ -24,8 +23,8 @@ class Client {
     List<WorkEntry>? workEntries,
     Color? avatarColor,
   }) : 
-    this.workEntries = workEntries ?? [],
-    this.avatarColor = avatarColor ?? _getRandomColor();
+    workEntries = workEntries ?? [],
+    avatarColor = avatarColor ?? _getRandomColor();
 
   String get initials {
     final nameParts = name.split(' ');
@@ -76,7 +75,7 @@ class Client {
     Color? avatarColor,
   }) {
     return Client(
-      id: this.id,
+      id: id,
       name: name ?? this.name,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       hourlyRate: hourlyRate ?? this.hourlyRate,

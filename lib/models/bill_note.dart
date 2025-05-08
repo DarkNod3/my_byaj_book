@@ -48,8 +48,8 @@ class BillNote {
     this.isCompleted = false,
     this.imagePath,
   }) : 
-    this.id = id ?? const Uuid().v4(),
-    this.createdDate = createdDate ?? DateTime.now();
+    id = id ?? const Uuid().v4(),
+    createdDate = createdDate ?? DateTime.now();
 
   BillNote copyWith({
     String? id,

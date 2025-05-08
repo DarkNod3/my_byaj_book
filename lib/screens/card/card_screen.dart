@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/card_provider.dart';
-import '../../services/notification_service.dart';
 import '../../main.dart' show notificationService;
 
 class CardScreen extends StatefulWidget {
@@ -1629,11 +1628,11 @@ class _CardScreenState extends State<CardScreen> {
                         
                         // Only show Expense and Payment options
                         RadioListTile<bool>(
-                          title: Row(
+                          title: const Row(
                             children: [
                               Icon(Icons.arrow_upward, color: Colors.red, size: 20),
-                              const SizedBox(width: 8),
-                              const Text('Expense'),
+                              SizedBox(width: 8),
+                              Text('Expense'),
                             ],
                           ),
                           value: true,
@@ -1650,7 +1649,7 @@ class _CardScreenState extends State<CardScreen> {
                           RadioListTile<bool>(
                             title: Row(
                               children: [
-                                Icon(Icons.payment, color: Colors.blue, size: 20),
+                                const Icon(Icons.payment, color: Colors.blue, size: 20),
                                 const SizedBox(width: 8),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2175,9 +2174,9 @@ class _CardScreenState extends State<CardScreen> {
         builder: (context, setState) {
           return Container(
             height: MediaQuery.of(context).size.height * 0.4,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius: const BorderRadius.only(
+              borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(24),
                 topRight: Radius.circular(24),
               ),
@@ -2422,7 +2421,7 @@ class _CardScreenState extends State<CardScreen> {
         const SizedBox(height: 8),
         Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 14,
           ),
