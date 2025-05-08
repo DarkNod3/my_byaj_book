@@ -113,7 +113,7 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
   // Format currency in Indian Rupees
   final _currencyFormat = NumberFormat.currency(
     locale: 'en_IN',
-    symbol: '₹',
+    symbol: 'Rs. ',
     decimalDigits: 0,
   );
   
@@ -411,205 +411,228 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
   }
 
   Future<void> _generatePDF() async {
-    final pdf = pw.Document();
-    
-    // Create a currency format without the rupee symbol for the PDF report
-    final pdfCurrencyFormat = NumberFormat.currency(
-      locale: 'en_IN',
-      symbol: '',  // Remove the rupee symbol
-      decimalDigits: 0,
-    );
-    
-    // Get basic loan details for the report
-    double principal = double.tryParse(_loanAmountController.text) ?? 100000;
-    double interestRate = double.tryParse(_interestRateController.text) ?? 10.5;
-    int tenure = int.tryParse(_loanTenureController.text) ?? 24;
-    String tenureType = _selectedTenureType == 0 ? 'Years' : 'Months';
-    
-    // Create a PDF document
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        header: (pw.Context context) {
-          return pw.Container(
-            padding: const pw.EdgeInsets.only(bottom: 20),
-            decoration: const pw.BoxDecoration(
-              border: pw.Border(bottom: pw.BorderSide(width: 1, color: PdfColors.grey300)),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                pw.Column(
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Generating PDF report...'),
+              ],
+            ),
+          );
+        },
+      );
+      
+      final pdf = pw.Document();
+      
+      // Create a currency format without the rupee symbol for the PDF report
+      final pdfCurrencyFormat = NumberFormat.currency(
+        locale: 'en_IN',
+        symbol: 'Rs. ',  // Use Rs. instead of rupee symbol
+        decimalDigits: 0,
+      );
+      
+      // Get basic loan details for the report
+      double principal = double.tryParse(_loanAmountController.text) ?? 100000;
+      double interestRate = double.tryParse(_interestRateController.text) ?? 10.5;
+      int tenure = int.tryParse(_loanTenureController.text) ?? 24;
+      String tenureType = _selectedTenureType == 0 ? 'Years' : 'Months';
+      
+      // Create a PDF document
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          header: (pw.Context context) {
+            return pw.Container(
+              padding: const pw.EdgeInsets.only(bottom: 20),
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(bottom: pw.BorderSide(width: 1, color: PdfColors.grey300)),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'My Byaj Book',
+                        style: pw.TextStyle(
+                          fontSize: 24,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue600,
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        'EMI Calculation Report',
+                        style: const pw.TextStyle(
+                          fontSize: 14,
+                          color: PdfColors.grey700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'Generated on',
+                        style: const pw.TextStyle(
+                          fontSize: 12,
+                          color: PdfColors.grey700,
+                        ),
+                      ),
+                      pw.Text(
+                        DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now()),
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+          footer: (pw.Context context) {
+            return pw.Container(
+              margin: const pw.EdgeInsets.only(top: 10),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Generated using My Byaj Book App',
+                    style: const pw.TextStyle(
+                      fontSize: 10,
+                      color: PdfColors.grey600,
+                    ),
+                  ),
+                  pw.Text(
+                    'Page ${context.pageNumber} of ${context.pagesCount}',
+                    style: const pw.TextStyle(
+                      fontSize: 10,
+                      color: PdfColors.grey600,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+          build: (pw.Context context) {
+            return [
+              // Loan Summary Section
+              pw.Container(
+                padding: const pw.EdgeInsets.all(15),
+                decoration: const pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  borderRadius: pw.BorderRadius.all(pw.Radius.circular(10)),
+                ),
+                child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      'My Byaj Book',
+                      'Loan Summary',
                       style: pw.TextStyle(
-                        fontSize: 24,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.blue600,
-                      ),
-                    ),
-                    pw.SizedBox(height: 4),
-                    pw.Text(
-                      'EMI Calculation Report',
-                      style: const pw.TextStyle(
-                        fontSize: 14,
-                        color: PdfColors.grey700,
-                      ),
-                    ),
-                  ],
-                ),
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      'Generated on',
-                      style: const pw.TextStyle(
-                        fontSize: 12,
-                        color: PdfColors.grey700,
-                      ),
-                    ),
-                    pw.Text(
-                      DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now()),
-                      style: pw.TextStyle(
-                        fontSize: 12,
+                        fontSize: 18,
                         fontWeight: pw.FontWeight.bold,
                       ),
                     ),
+                    pw.SizedBox(height: 15),
+                    _buildPdfSummaryRow('Loan Amount', pdfCurrencyFormat.format(principal)),
+                    _buildPdfSummaryRow('Interest Rate', '$interestRate% per annum'),
+                    _buildPdfSummaryRow('Loan Tenure', '$tenure $tenureType'),
+                    _buildPdfSummaryRow('Monthly EMI', pdfCurrencyFormat.format(_emiAmount)),
+                    _buildPdfSummaryRow('Total Interest', pdfCurrencyFormat.format(_totalInterest)),
+                    _buildPdfSummaryRow('Total Payment', pdfCurrencyFormat.format(_totalAmount)),
                   ],
                 ),
-              ],
-            ),
-          );
-        },
-        footer: (pw.Context context) {
-          return pw.Container(
-            margin: const pw.EdgeInsets.only(top: 10),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'Generated using My Byaj Book App',
-                  style: const pw.TextStyle(
-                    fontSize: 10,
-                    color: PdfColors.grey600,
-                  ),
-                ),
-                pw.Text(
-                  'Page ${context.pageNumber} of ${context.pagesCount}',
-                  style: const pw.TextStyle(
-                    fontSize: 10,
-                    color: PdfColors.grey600,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-        build: (pw.Context context) {
-          return [
-            // Loan Summary Section
-            pw.Container(
-              padding: const pw.EdgeInsets.all(15),
-              decoration: const pw.BoxDecoration(
-                color: PdfColors.grey100,
-                borderRadius: pw.BorderRadius.all(pw.Radius.circular(10)),
               ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
+              
+              pw.SizedBox(height: 20),
+              
+              // Payment Schedule Section
+              pw.Text(
+                'Payment Schedule',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 10),
+              
+              // Payment Schedule Table
+              pw.Table(
+                border: pw.TableBorder.all(),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(1),
+                  1: const pw.FlexColumnWidth(2),
+                  2: const pw.FlexColumnWidth(2),
+                  3: const pw.FlexColumnWidth(2),
+                  4: const pw.FlexColumnWidth(2),
+                },
                 children: [
-                  pw.Text(
-                    'Loan Summary',
-                    style: pw.TextStyle(
-                      fontSize: 18,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
+                  // Table Header
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                    children: [
+                      _buildPdfTableHeader('Month'),
+                      _buildPdfTableHeader('EMI'),
+                      _buildPdfTableHeader('Principal'),
+                      _buildPdfTableHeader('Interest'),
+                      _buildPdfTableHeader('Balance'),
+                    ],
                   ),
-                  pw.SizedBox(height: 15),
-                  _buildPdfSummaryRow('Loan Amount', pdfCurrencyFormat.format(principal)),
-                  _buildPdfSummaryRow('Interest Rate', '$interestRate% per annum'),
-                  _buildPdfSummaryRow('Loan Tenure', '$tenure $tenureType'),
-                  _buildPdfSummaryRow('Monthly EMI', pdfCurrencyFormat.format(_emiAmount)),
-                  _buildPdfSummaryRow('Total Interest', pdfCurrencyFormat.format(_totalInterest)),
-                  _buildPdfSummaryRow('Total Payment', pdfCurrencyFormat.format(_totalAmount)),
+                  
+                  // Table Rows (all entries)
+                  ..._paymentSchedule.map((payment) {
+                    return pw.TableRow(
+                      children: [
+                        _buildPdfTableCell('${payment['month']}'),
+                        _buildPdfTableCell(pdfCurrencyFormat.format(payment['payment'])),
+                        _buildPdfTableCell(pdfCurrencyFormat.format(payment['principal'])),
+                        _buildPdfTableCell(pdfCurrencyFormat.format(payment['interest'])),
+                        _buildPdfTableCell(pdfCurrencyFormat.format(payment['balance'])),
+                      ],
+                    );
+                  }).toList(),
                 ],
               ),
-            ),
-            
-            pw.SizedBox(height: 20),
-            
-            // Payment Schedule Section
-            pw.Text(
-              'Payment Schedule',
-              style: pw.TextStyle(
-                fontSize: 18,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-            pw.SizedBox(height: 10),
-            
-            // Payment Schedule Table
-            pw.Table(
-              border: pw.TableBorder.all(),
-              columnWidths: {
-                0: const pw.FlexColumnWidth(1),
-                1: const pw.FlexColumnWidth(2),
-                2: const pw.FlexColumnWidth(2),
-                3: const pw.FlexColumnWidth(2),
-                4: const pw.FlexColumnWidth(2),
-              },
-              children: [
-                // Table Header
-                pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: PdfColors.grey300),
-                  children: [
-                    _buildPdfTableHeader('Month'),
-                    _buildPdfTableHeader('EMI'),
-                    _buildPdfTableHeader('Principal'),
-                    _buildPdfTableHeader('Interest'),
-                    _buildPdfTableHeader('Balance'),
-                  ],
+              
+              pw.SizedBox(height: 20),
+              
+              // Disclaimer
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: const pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  borderRadius: pw.BorderRadius.all(pw.Radius.circular(5)),
                 ),
-                
-                // Table Rows (all entries)
-                ..._paymentSchedule.map((payment) {
-                  return pw.TableRow(
-                    children: [
-                      _buildPdfTableCell('${payment['month']}'),
-                      _buildPdfTableCell(pdfCurrencyFormat.format(payment['payment'])),
-                      _buildPdfTableCell(pdfCurrencyFormat.format(payment['principal'])),
-                      _buildPdfTableCell(pdfCurrencyFormat.format(payment['interest'])),
-                      _buildPdfTableCell(pdfCurrencyFormat.format(payment['balance'])),
-                    ],
-                  );
-                }).toList(),
-              ],
-            ),
-            
-            pw.SizedBox(height: 20),
-            
-            // Disclaimer
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              decoration: const pw.BoxDecoration(
-                color: PdfColors.grey100,
-                borderRadius: pw.BorderRadius.all(pw.Radius.circular(5)),
-              ),
-              child: pw.Text(
-                'Disclaimer: This is an approximate calculation and may vary from the actual EMI charged by financial institutions. Factors such as processing fees, insurance premiums, and other charges are not included in this calculation.',
-                style: const pw.TextStyle(
-                  fontSize: 10,
+                child: pw.Text(
+                  'Disclaimer: This is an approximate calculation and may vary from the actual EMI charged by financial institutions. Factors such as processing fees, insurance premiums, and other charges are not included in this calculation.',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                  ),
                 ),
               ),
-            ),
-          ];
-        },
-      ),
-    );
-    
-    try {
+            ];
+          },
+        ),
+      );
+      
+      // Close the loading dialog
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
       // Save the PDF
       final output = await getApplicationDocumentsDirectory(); // Use app documents directory instead of temp
       final file = File('${output.path}/emi_calculation_report_${DateTime.now().millisecondsSinceEpoch}.pdf');
@@ -628,6 +651,11 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         );
       }
     } catch (e) {
+      // Close the loading dialog if it's still showing
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1445,7 +1473,7 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                         )
                       ],
                       decoration: const InputDecoration(
-                        labelText: 'Loan Amount (₹)',
+                        labelText: 'Loan Amount (Rs.)',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.currency_rupee),
                         contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
@@ -1484,7 +1512,7 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                         )
                       ],
                       decoration: const InputDecoration(
-                        labelText: 'Monthly EMI (₹)',
+                        labelText: 'Monthly EMI (Rs.)',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.payment),
                         contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),

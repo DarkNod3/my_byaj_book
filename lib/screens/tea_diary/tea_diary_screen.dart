@@ -28,10 +28,10 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
   // Filtered customers for search
   List<Customer> _filteredCustomers = [];
   
-  int _totalCups = 0;
-  double _totalAmount = 0;
-  double _collectedAmount = 0;
-  double _remainingAmount = 0;
+  int _totalCups = 0; // Used for tracking cups total
+  double _totalAmount = 0; // Used for financial tracking
+  double _collectedAmount = 0; // Used for financial tracking
+  double _remainingAmount = 0; // Used for financial tracking
   DateTime _selectedDate = DateTime.now();
   late AnimationController _counterAnimationController;
   final TextEditingController _searchController = TextEditingController();
@@ -328,9 +328,40 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
   }
   
   // Change sample data method to not add any data by default, but keep the method for possible future use
+  // ignore: unused_element
   void _addSampleData() {
-    // Method kept for potential future sample data addition
-    // Currently no sample data is added by default
+    // This method is kept for demonstration and testing purposes
+    if (_allCustomers.isEmpty) {
+      final customer1 = Customer(
+        id: '1',
+        name: 'Demo Customer',
+        cups: 5,
+        teaRate: 10.0,
+        coffeeRate: 15.0,
+        milkRate: 12.0,
+        totalAmount: 50.0,
+        paymentsMade: 20.0,
+        date: DateTime.now(),
+        lastUpdated: DateTime.now(),
+        history: [
+          CustomerEntry(
+            type: EntryType.tea,
+            cups: 5,
+            amount: 50.0,
+            timestamp: DateTime.now(),
+            beverageType: 'tea',
+          ),
+          CustomerEntry(
+            type: EntryType.payment,
+            amount: 20.0,
+            timestamp: DateTime.now(),
+          ),
+        ],
+      );
+      _allCustomers.add(customer1);
+      _updateTotals();
+      _filterDataBySelectedDate();
+    }
   }
   
   // Add method to handle date selection
@@ -530,8 +561,6 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                           final phoneNumber = customerData['phoneNumber'] as String?;
                           final pendingAmount = customerData['pendingAmount'] as double;
                           final teaRate = customerData['teaRate'] as double;
-                          final coffeeRate = customerData['coffeeRate'] as double? ?? 0.0;
-                          final milkRate = customerData['milkRate'] as double? ?? 0.0;
                           final pendingCups = customerData['pendingCups'] as double;
                           final dates = customerData['dates'] as List<DateTime>;
                           final String dateRangeText = dates.length > 1 
@@ -1235,1051 +1264,6 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                 });
   }
 
-  Widget _buildCustomerCard(Customer customer) {
-    return GestureDetector(
-      onTap: () => _showCustomerActions(customer),
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.2),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            if (customer.paymentsMade > 0)
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.green[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.check, color: Colors.green[800], size: 12),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    customer.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.local_cafe, size: 14, color: Colors.brown),
-                      const SizedBox(width: 4),
-                      Text('${customer.cups} cups'),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.currency_rupee, size: 14, color: Colors.teal),
-                      const SizedBox(width: 4),
-                      Text('₹${(customer.totalAmount - customer.paymentsMade).toStringAsFixed(2)}'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Updated customer item with last update time and view details button
-  Widget _buildDetailedCustomerItem(Customer customer, int index) {
-    final pendingAmount = customer.totalAmount - customer.paymentsMade;
-    
-    return Card(
-      key: ValueKey(customer.id),
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        onTap: () => _showCustomerActions(customer),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              // Avatar
-              CircleAvatar(
-                backgroundColor: Colors.primaries[index % Colors.primaries.length],
-                child: Text(
-                  customer.name[0].toUpperCase(),
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
-              const SizedBox(width: 16),
-              
-              // Main content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Name and cups/amount
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Name and rate
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              customer.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            // Only show phone if available
-                            if (customer.phoneNumber != null && customer.phoneNumber!.isNotEmpty)
-                              Text(
-                                customer.phoneNumber!,
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 11,
-                                ),
-                              ),
-                            Text(
-                              'Tea: ₹${customer.teaRate.toStringAsFixed(1)}',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        // Cups and amount
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '${customer.cups} cups',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '₹${pendingAmount.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: pendingAmount > 0 
-                                    ? Colors.red[700] 
-                                    : Colors.green[700],
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    
-                    // Last update time and view details
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Last updated time
-                        Text(
-                          'Updated: ${_getFormattedTime(customer.lastUpdated)}',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 10,
-                          ),
-                        ),
-                        
-                        // View details button
-                        InkWell(
-                          onTap: () => _showCustomerHistory(customer),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.history,
-                                size: 14,
-                                color: Colors.blue.shade700,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'View History',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.blue.shade700,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showReportOptions() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const ListTile(
-                title: Text(
-                  'Tea Diary Reports',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-                subtitle: Text('Generate PDF reports of tea transactions'),
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.calendar_today, color: Colors.teal),
-                title: const Text('One Day Report'),
-                subtitle: Text('Report for ${DateFormat('dd MMM yyyy').format(_selectedDate)}'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _generateReport(isOneDay: true);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.date_range, color: Colors.deepPurple),
-                title: const Text('7 Days Report'),
-                subtitle: Text('Report from ${DateFormat('dd MMM').format(_selectedDate.subtract(const Duration(days: 6)))} to ${DateFormat('dd MMM yyyy').format(_selectedDate)}'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _generateReport(isOneDay: false);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _generateReport({required bool isOneDay}) async {
-    try {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-      
-      // Get data for report
-      final List<Customer> reportCustomers = isOneDay 
-          ? _customersForSelectedDate 
-          : _getCustomersForLastSevenDays();
-      
-      // Create PDF document
-      final pdf = await _createPdf(
-        title: isOneDay 
-            ? 'Tea Diary Report - ${DateFormat('dd MMM yyyy').format(_selectedDate)}'
-            : 'Tea Diary Report - ${DateFormat('dd MMM').format(_selectedDate.subtract(const Duration(days: 6)))} to ${DateFormat('dd MMM yyyy').format(_selectedDate)}',
-        customers: reportCustomers,
-        isOneDay: isOneDay,
-      );
-      
-      // Get the app's documents directory
-      final directory = await getApplicationDocumentsDirectory();
-      final reportName = isOneDay 
-          ? 'tea_report_${DateFormat('dd_MM_yyyy').format(_selectedDate)}.pdf'
-          : 'tea_report_7days_${DateFormat('dd_MM_yyyy').format(_selectedDate)}.pdf';
-      final filePath = '${directory.path}/$reportName';
-      
-      // Save the PDF
-      final file = File(filePath);
-      await file.writeAsBytes(await pdf.save());
-      
-      // Close loading dialog
-      Navigator.pop(context);
-      
-      // Show success and open file
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text('Report saved: $reportName'),
-          action: SnackBarAction(
-            label: 'View',
-            onPressed: () => OpenFile.open(filePath),
-          ),
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    } catch (e) {
-      // Close loading dialog and show error
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error generating report: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-  
-  List<Customer> _getCustomersForLastSevenDays() {
-    // Get the date range (last 7 days including today)
-    final DateTime startDate = _selectedDate.subtract(const Duration(days: 6));
-    
-    // Filter customers within the date range
-    return _allCustomers.where((customer) {
-      return !customer.date.isBefore(DateTime(startDate.year, startDate.month, startDate.day)) &&
-              !customer.date.isAfter(DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59));
-    }).toList();
-  }
-  
-  Future<pw.Document> _createPdf({required String title, required List<Customer> customers, required bool isOneDay}) async {
-    final pdf = pw.Document();
-    
-    double totalCups = 0;
-    double totalAmount = 0;
-    double collectedAmount = 0;
-    double remainingAmount = 0;
-    
-    // Calculate totals
-    for (var customer in customers) {
-      totalCups += customer.cups;
-      totalAmount += customer.totalAmount;
-      collectedAmount += customer.paymentsMade;
-    }
-    remainingAmount = totalAmount - collectedAmount;
-    
-    pdf.addPage(
-      pw.Page(
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Header
-              pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                color: PdfColors.teal50,
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.center,
-                  children: [
-                    pw.Text(
-                      'My Byaj Book - Tea Diary',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                    pw.SizedBox(height: 5),
-                    pw.Text(
-                      title,
-                      style: const pw.TextStyle(
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Summary section
-              pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.grey300),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
-                ),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    _pdfSummaryItem('Total Cups', totalCups.toInt().toString()),
-                    _pdfSummaryItem('Total Sales', 'Rs.${totalAmount.toStringAsFixed(2)}'),
-                    _pdfSummaryItem('Collected', 'Rs.${collectedAmount.toStringAsFixed(2)}'),
-                    _pdfSummaryItem('Remaining', 'Rs.${remainingAmount.toStringAsFixed(2)}'),
-                  ],
-                ),
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Table header
-              pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey300),
-                children: [
-                  pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.teal100),
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(5),
-                        child: pw.Text(
-                          'Customer Name',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(5),
-                        child: pw.Text(
-                          'Cups',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          textAlign: pw.TextAlign.center,
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(5),
-                        child: pw.Text(
-                          'Rate',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          textAlign: pw.TextAlign.center,
-      ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(5),
-                        child: pw.Text(
-                          'Total',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          textAlign: pw.TextAlign.center,
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(5),
-                        child: pw.Text(
-                          'Balance',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          textAlign: pw.TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  // Table data - all customers
-                  ...customers.asMap().entries.map((entry) {
-                    int index = entry.key;
-                    Customer customer = entry.value;
-                    final pendingAmount = customer.totalAmount - customer.paymentsMade;
-                    
-                    return pw.TableRow(
-                      decoration: index % 2 == 0 
-                          ? const pw.BoxDecoration(color: PdfColors.grey100)
-                          : const pw.BoxDecoration(color: PdfColors.white),
-                      children: [
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(5),
-                          child: pw.Text(customer.name),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(5),
-                          child: pw.Text(
-                            '${customer.cups}',
-                            textAlign: pw.TextAlign.center,
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(5),
-                          child: pw.Text(
-                            customer.teaRate.toStringAsFixed(1),
-                            textAlign: pw.TextAlign.center,
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(5),
-                          child: pw.Text(
-                            'Rs.${customer.totalAmount.toStringAsFixed(2)}',
-                            textAlign: pw.TextAlign.center,
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(5),
-                          child: pw.Text(
-                            'Rs.${pendingAmount.toStringAsFixed(2)}',
-                            style: pendingAmount > 0
-                                ? const pw.TextStyle(color: PdfColors.red)
-                                : const pw.TextStyle(color: PdfColors.green),
-                            textAlign: pw.TextAlign.center,
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ],
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Footer
-              pw.Container(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Text(
-                  'Generated on ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
-                  style: const pw.TextStyle(
-                    fontSize: 10,
-                    color: PdfColors.grey700,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-    
-    return pdf;
-  }
-  
-  // Helper method for PDF summary items 
-  pw.Widget _pdfSummaryItem(String title, String value) {
-    return pw.Expanded(
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
-      children: [
-        pw.Text(
-          title,
-          style: const pw.TextStyle(
-            fontSize: 10,
-            color: PdfColors.grey700,
-          ),
-        ),
-          pw.SizedBox(height: 4),
-        pw.Text(
-          value,
-          style: pw.TextStyle(
-              fontSize: 12,
-            fontWeight: pw.FontWeight.bold,
-          ),
-        ),
-      ],
-      ),
-    );
-  }
-
-  // Replace the improperly placed method with a proper class method at the class level
-  // Add this method properly outside the build method
-  void _showSelectCustomerForPaymentDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Select Customer for Payment',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: TextField(
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.search),
-                        hintText: 'Search customers...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          // Filter customers based on search query
-                          // This is just a placeholder, actual implementation can be added
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: _customersForSelectedDate.isEmpty
-                        ? const Center(
-                            child: Text('No customers for this date'),
-                          )
-                        : ListView.builder(
-                            itemCount: _customersForSelectedDate.length,
-                            itemBuilder: (context, index) {
-                              final customer = _customersForSelectedDate[index];
-                              final pendingAmount = customer.totalAmount - customer.paymentsMade;
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.primaries[index % Colors.primaries.length],
-                                  child: Text(
-                                    customer.name[0].toUpperCase(),
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                                title: Text(customer.name),
-                                subtitle: Text('Pending: ₹${pendingAmount.toStringAsFixed(2)}'),
-                                trailing: Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: 16,
-                                  color: Colors.grey[400],
-                                ),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  _addPayment(customer);
-                                },
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // Now fix the build method to remove the improperly placed method
-  @override
-  Widget build(BuildContext context) {
-    final String formattedDate = DateFormat('dd MMM yyyy').format(_selectedDate);
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    return Scaffold(
-      appBar: widget.showAppBar ? AppBar(
-        backgroundColor: Colors.teal,
-        title: const Text('Tea Diary'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        elevation: 2,
-      ) : null,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Search bar at the top (fixed position)
-            // Remove the search bar
-            
-            // Make everything else scrollable
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  setState(() {
-                    _updateTotals();
-                    _sortCustomers();
-                    _counterAnimationController.forward(from: 0);
-                  });
-                },
-                child: ListView(
-                  padding: EdgeInsets.zero,
-        children: [
-          // Summary card with fixed width constraints
-          Padding(
-                      padding: const EdgeInsets.all(12.0),
-            child: Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              color: Colors.teal[50],
-              child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Improved layout for date and button row to prevent overflow
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                                  // Date picker with better constraints
-                        GestureDetector(
-                          onTap: () => _selectDate(context),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.teal.withOpacity(0.3)),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                formattedDate,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.calendar_today, size: 15),
-                            ],
-                                      ),
-                          ),
-                        ),
-                        
-                        // Action buttons with proper constraints
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                                      // Remove the PDF icon button
-                            // More compact Add Customer button
-                            SizedBox(
-                                        height: 36,
-                              child: ElevatedButton.icon(
-                                onPressed: _addCustomer,
-                                icon: const Icon(Icons.person_add, size: 14),
-                                label: const Text(
-                                  'Add Customer',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.teal,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(20),
-                                ),
-                              ),
-                            ),
-                                      ),
-                                    ],
-                            ),
-                          ],
-                        ),
-                              const SizedBox(height: 16),
-                        
-                              // Statistics with 1x4 grid layout
-                        Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                                  _buildStatCard('Total Cups', '$_totalCups', Icons.local_cafe, Colors.teal),
-                                  _buildStatCard('Total Sales', '₹${_totalAmount.toStringAsFixed(2)}', Icons.monetization_on, Colors.blue),
-                                  _buildStatCard('Collected', '₹${_collectedAmount.toStringAsFixed(2)}', Icons.payments, Colors.green),
-                                  _buildStatCard('Remaining', '₹${_remainingAmount.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.orange),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-                    // Row with Pending and Payment buttons
-          Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                      child: Row(
-                        children: [
-                          // Total Market Pending button
-                          Expanded(
-                            flex: 3, // Changed from 1 to 3 for a 60% width
-                            child: ElevatedButton.icon(
-                              onPressed: _showPendingBreakdown,
-                              icon: const Icon(Icons.account_balance_wallet, size: 16),
-                              label: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text('Pending: '),
-                                  Row(
-                                    children: [
-                                  Text(
-                                        'Today: ₹${_todayPending.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                          fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                      ),
-                                    ],
-                                  ),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'Total: ₹${_totalMarketPending.toStringAsFixed(2)}',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange.shade100,
-                                foregroundColor: Colors.deepOrange.shade800,
-                                minimumSize: const Size(0, 40),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                          
-                          // Add spacing between buttons
-                          const SizedBox(width: 8),
-                          
-                          // Add Payment button - fix alignment by making flex equal to the Pending button
-                          Expanded(
-                            flex: 2, // Changed from 1 to 2 for a 40% width
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                // Show dialog to select a customer first
-                                _showSelectCustomerForPaymentDialog();
-                              },
-                              icon: const Icon(Icons.payments, size: 16),
-                              label: const Text('Add Payment'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green.shade100,
-                                foregroundColor: Colors.green.shade800,
-                                minimumSize: const Size(0, 40),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-          ),
-          
-          // Updated Customer list heading with filter option
-          Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                              Icon(Icons.people, size: 16, color: Colors.grey),
-                              SizedBox(width: 4),
-                    Text(
-                      'Customer List',
-                      style: TextStyle(
-                                  fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                // Filter/Sort button
-                InkWell(
-                  onTap: () => _showSortOptions(context),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _getSortIcon(),
-                                    size: 14,
-                          color: Colors.grey.shade700,
-                        ),
-                                  const SizedBox(width: 2),
-                        Text(
-                          _getSortLabel(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-                    // Customer list
-                    _filteredCustomers.isEmpty 
-                ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(30.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.event_busy,
-                          size: 56,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _customersForSelectedDate.isEmpty 
-                              ? 'No customers for ${DateFormat('dd MMM yyyy').format(_selectedDate)}'
-                              : 'No customers match your search',
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                        const SizedBox(height: 8),
-                        if (_customersForSelectedDate.isEmpty)
-                          ElevatedButton(
-                            onPressed: _addCustomer,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.teal,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('Add Customer for This Date'),
-                          ),
-                      ],
-                            ),
-                    ),
-                  )
-                : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: _filteredCustomers.length,
-                    itemBuilder: (context, index) {
-                      final customer = _filteredCustomers[index];
-                            return _buildDismissibleCustomerItem(customer, index);
-                          },
-                        ),
-                    
-                    // Add some bottom padding for better UX
-                    const SizedBox(height: 80),
-                  ],
-                ),
-                  ),
-          ),
-        ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addCustomer,
-        backgroundColor: Colors.teal,
-        tooltip: 'Add Customer',
-        child: const Icon(Icons.person_add, color: Colors.white),
-      ),
-    );
-  }
-  
-  // Dismissible customer item with swipe and long press deletion
-  Widget _buildDismissibleCustomerItem(Customer customer, int index) {
-    return Dismissible(
-      key: Key(customer.id),
-      background: Container(
-        color: Colors.red,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 20),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      secondaryBackground: Container(
-        color: Colors.red,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      direction: DismissDirection.horizontal, // Allow both left and right swipe
-      confirmDismiss: (direction) async {
-        return await showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Delete Customer'),
-              content: Text('Are you sure you want to delete ${customer.name}?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(true);
-                    // Delete customer logic
-                    setState(() {
-                      _allCustomers.remove(customer);
-                      _customersForSelectedDate.remove(customer);
-                      _filteredCustomers.remove(customer);
-                      _updateTotals();
-                      _saveCustomers(); // Save changes
-                    });
-                  },
-                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                ),
-              ],
-            );
-          }
-        );
-      },
-      child: GestureDetector(
-        onLongPress: () {
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Delete Customer'),
-                content: Text('Do you want to delete ${customer.name}?'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      // Delete customer logic
-                      setState(() {
-                        _allCustomers.remove(customer);
-                        _customersForSelectedDate.remove(customer);
-                        _filteredCustomers.remove(customer);
-                        _updateTotals();
-                        _saveCustomers(); // Save changes
-                      });
-                    },
-                    child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                  ),
-                ],
-              );
-            }
-          );
-        },
-        child: _buildCustomerItem(customer, index),
-      ),
-    );
-  }
-
   // Helper method to build stat cards
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Expanded(
@@ -2287,7 +1271,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
         margin: const EdgeInsets.symmetric(horizontal: 2),
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withAlpha(25), // Fix: replaced withOpacity(0.1) with withAlpha(25)
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
@@ -2297,7 +1281,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
               title,
               style: TextStyle(
                 fontSize: 10,
-                color: color.withOpacity(0.8),
+                color: color.withAlpha(204), // Fix: replaced withOpacity(0.8) with withAlpha(204)
                 fontWeight: FontWeight.w500,
               ),
               textAlign: TextAlign.center,
@@ -2538,7 +1522,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
+                      color: Colors.grey.withAlpha(51), // Fix: replaced withOpacity(0.2) with withAlpha(51)
                       spreadRadius: 1,
                       blurRadius: 2,
                       offset: const Offset(0, 1),
@@ -2704,6 +1688,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     );
   }
 
+  // ignore: unused_element
   void _showAddSellerDialog() {
     // Implementation...
   }
@@ -2830,6 +1815,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     );
   }
   
+  // ignore: unused_element
   void _addTeaEntry(Customer customer) {
     showDialog(
       context: context,
@@ -3653,6 +2639,131 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
           ),
         );
       },
+    );
+  }
+
+  // Add the missing _pdfSummaryItem method
+  pw.Widget _pdfSummaryItem(String title, String value) {
+    return pw.Expanded(
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          pw.Text(
+            title,
+            style: const pw.TextStyle(
+              fontSize: 10,
+              color: PdfColors.grey700,
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Add the missing build method to fix the 'non_abstract_class_inherits_abstract_member' error
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: widget.showAppBar ? AppBar(
+        title: const Text('Tea Diary'),
+        backgroundColor: Colors.teal,
+        actions: [
+          // Sort button
+          IconButton(
+            icon: Icon(_getSortIcon()),
+            tooltip: 'Sort by ${_getSortLabel()}',
+            onPressed: () => _showSortOptions(context),
+          ),
+          // Date picker button
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            onPressed: () => _selectDate(context),
+          ),
+          // Pending breakdown
+          IconButton(
+            icon: const Icon(Icons.assignment),
+            tooltip: 'Pending Breakdown',
+            onPressed: () => _showPendingBreakdown(),
+          ),
+        ],
+      ) : null,
+      body: Column(
+        children: [
+          // Search and summary row
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                // Search field
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search customers...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Statistics row
+                Row(
+                  children: [
+                    _buildStatCard('Total Cups', '$_totalCups', Icons.coffee, Colors.brown),
+                    _buildStatCard('Total Amount', '₹${_totalAmount.toStringAsFixed(2)}', Icons.attach_money, Colors.green),
+                    _buildStatCard('Collected', '₹${_collectedAmount.toStringAsFixed(2)}', Icons.payment, Colors.blue),
+                    _buildStatCard('Pending', '₹${_remainingAmount.toStringAsFixed(2)}', Icons.timer, Colors.red),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Customer list
+          Expanded(
+            child: _filteredCustomers.isEmpty 
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.search_off, size: 48, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        const Text('No customers found', style: TextStyle(color: Colors.grey)),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: () => _addCustomer(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Add New Customer'),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _filteredCustomers.length,
+                    padding: const EdgeInsets.all(8),
+                    itemBuilder: (context, index) {
+                      return _buildCustomerItem(_filteredCustomers[index], index);
+                    },
+                  ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addCustomer,
+        backgroundColor: Colors.teal,
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }

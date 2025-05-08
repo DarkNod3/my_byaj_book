@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:intl/intl.dart';
 import 'package:my_byaj_book/services/pdf_template_service.dart';
 
 class TaxCalculatorScreen extends StatefulWidget {
@@ -122,11 +121,11 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
   }
   
   // Format currency in Indian Rupees
-  final _currencyFormat = NumberFormat.currency(
-    locale: 'en_IN',
-    symbol: '₹',
-    decimalDigits: 0,
-  );
+  // final _currencyFormat = NumberFormat.currency(
+  //   locale: 'en_IN',
+  //   symbol: '₹',
+  //   decimalDigits: 0,
+  // );
   
   // Alternative formatter if the locale doesn't work correctly
   String _formatCurrency(dynamic amount) {

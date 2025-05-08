@@ -249,7 +249,7 @@ class MoreToolsScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withAlpha(26),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -261,7 +261,7 @@ class MoreToolsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withAlpha(26),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -430,7 +430,7 @@ class MoreToolsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withAlpha(26),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(

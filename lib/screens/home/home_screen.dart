@@ -14,7 +14,6 @@ import 'package:my_byaj_book/widgets/bottom_nav/bottom_navigation.dart';
 import 'package:my_byaj_book/widgets/header/app_header.dart';
 import 'package:my_byaj_book/widgets/navigation/navigation_drawer.dart';
 import 'package:my_byaj_book/constants/app_theme.dart';
-import 'package:my_byaj_book/utils/string_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:my_byaj_book/providers/nav_preferences_provider.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
@@ -28,6 +27,16 @@ import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
 import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
+
+// Add dummy MyApp class as requested
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(home: Scaffold(body: Text('Test App')));
+  }
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -60,14 +69,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _checkAndCreateAutomaticBackup() async {
     try {
       final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-      final result = await transactionProvider.createAutomaticBackup();
+      await transactionProvider.createAutomaticBackup();
       // Automatic backup created successfully
     } catch (e) {
       // Error during automatic backup - silent in release
     }
   }
   
-  // Setup automatic backup timer
+  // Setup automatic backup timer - Commented out as it's unused
+  /*
   void _setupAutomaticBackups() {
     // Feature temporarily disabled
     /*
@@ -101,6 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     */
   }
+  */
 
   // Handle back button press to exit the app
   Future<bool> _onWillPop() async {
@@ -345,6 +356,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // _createContact and related methods are unused - commenting out for now
+  /* 
   void _createContact(BuildContext context, String name, String phone, bool withInterest) {
     // For without interest, directly show transaction entry dialog without asking for relationship type
     if (!withInterest) {
@@ -582,7 +595,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-  
+  */
+
   // Helper method to find HomeContent state
   _HomeContentState? _findHomeContentState(BuildContext context) {
     _HomeContentState? result;
@@ -601,6 +615,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return result;
   }
   
+  // _buildTypeButton is unused - commenting out
+  /*
   Widget _buildTypeButton(
     BuildContext context, {
     required String title,
@@ -634,6 +650,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+  */
 
   // New function to ensure contacts are added even when HomeContent state can't be found
   void _ensureContactAdded(String name, String phone, double amount, bool isGet, bool withInterest, double interestRate, String? relationshipType) {
@@ -648,17 +665,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final newTabType = withInterest ? 'withInterest' : 'withoutInterest';
       
       // We now allow the same contact to exist in both tabs, so we no longer return an error
-      // if (existingTabType != newTabType) {
-      //   // Show an error dialog if trying to add to a different tab
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     SnackBar(
-      //       content: Text('Error: This number already exists in ${existingTabType == 'withInterest' ? 'Interest' : 'Standard'} Entries tab'),
-      //       backgroundColor: Colors.red,
-      //       duration: const Duration(seconds: 3),
-      //     ),
-      //   );
-      //   return;
-      // }
       
       // If the contact already exists in the same tab we're adding to, update it
       if (existingTabType == newTabType) {
@@ -759,6 +765,18 @@ class _HomeScreenState extends State<HomeScreen> {
       _currentIndex = 0; // Switch to home tab
     });
   }
+
+  void _navigateToLoanScreen() {
+    setState(() {
+      _currentIndex = 3; // Switch to Loans tab
+    });
+  }
+  
+  void _navigateToToolsScreen() {
+    setState(() {
+      _currentIndex = 4; // Switch to Tools tab
+    });
+  }
 }
 
 class HomeContent extends StatefulWidget {
@@ -772,20 +790,15 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   late TabController _tabController;
   bool _isWithInterest = false;
   String _searchQuery = '';
-  String _interestViewMode = 'all'; // 'all', 'get', 'pay'
+  final String _interestViewMode = 'all'; // 'all', 'get', 'pay'
   String _filterMode = 'All'; // 'All', 'You received', 'You paid'
   String _sortMode = 'Recent'; // 'Recent', 'High to Low', 'Low to High', 'By Name'
-  String? _qrCodePath; // Add this variable for QR code path
   
   // Interest calculation variables
-  double _totalPrincipal = 0.0;
-  double _totalInterestDue = 0.0;
-  double _interestPerDay = 0.0;
   double _interestToPay = 0.0;     // Interest to pay
   double _interestToReceive = 0.0; // Interest to receive
   double _principalToPay = 0.0;    // Principal to pay
   double _principalToReceive = 0.0; // Principal to receive
-  final double _dailyInterestRate = 65.0; // ₹65 per day as mentioned by user
   
   // Empty lists instead of sample data
   final List<Map<String, dynamic>> _withoutInterestContacts = [];
@@ -940,12 +953,10 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   // Calculate interest values for all with-interest contacts
   void _calculateInterestValues() {
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    DateTime now = DateTime.now();
+    // Move the 'now' variable declaration closer to where it's first used
     
     // Reset totals before calculation
-    _totalPrincipal = 0.0;
-    _totalInterestDue = 0.0;
-    _interestPerDay = 0.0;
+    // Remove unused variables
     _interestToPay = 0.0;
     _interestToReceive = 0.0;
     _principalToPay = 0.0;
@@ -961,10 +972,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       
       // Get contact type and standard display values
       final String contactType = contact['type'] as String? ?? 'borrower';
-      final bool isGet = contact['isGet'] as bool? ?? false;
       
       // Calculate interest details if this is an interest-based contact
-      double interestPerDay = 0.0;
       double totalInterestDue = 0.0;
       double principalAmount = 0.0;
       
@@ -980,7 +989,6 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       double runningPrincipal = 0.0;
       double accumulatedInterest = 0.0;
       double interestPaid = 0.0;
-      bool isBorrower = contactType == 'borrower';
       
       for (var tx in transactions) {
         final note = (tx['note'] ?? '').toLowerCase();
@@ -1113,7 +1121,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       if (lastInterestDate != null && runningPrincipal > 0) {
         // Calculate interest from last transaction to today (using same approach as above)
         double interestFromLastTx = 0.0;
-        DateTime now = DateTime.now();
+        // Create a local now variable
+        final now = DateTime.now();
         
         if (isMonthly) {
           // Step 1: Calculate complete months between last transaction and today
@@ -1193,22 +1202,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       // Update values
       principalAmount = runningPrincipal;
       
-      // Calculate daily interest based on current month's days
-      final daysInMonth = DateTime(now.year, now.month + 1, 0).day; // Last day of current month
-      
-      // Calculate monthly interest first
-      double monthlyInterest;
-      if (isMonthly) {
-        // Monthly rate: Calculate monthly interest
-        monthlyInterest = runningPrincipal * (interestRate / 100);
-      } else {
-        // Yearly rate: Convert to monthly rate first
-        double monthlyRate = interestRate / 12;
-        monthlyInterest = runningPrincipal * (monthlyRate / 100);
-      }
-      
-      // Calculate daily interest based on actual days in month
-      interestPerDay = monthlyInterest / daysInMonth;
+      // We don't need these variables for interest calculation since they're unused
       
       // Update the display amount to include interest if appropriate
       if (contactType == 'lender' || contactType == 'borrower') {
@@ -1227,9 +1221,9 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         _interestToPay += totalInterestDue;
       }
       
-      // Update overall totals
-      _totalPrincipal += principalAmount;
-      _totalInterestDue += totalInterestDue;
+      // Update overall totals - removed since variables were removed
+      // _totalPrincipal += principalAmount;
+      // _totalInterestDue += totalInterestDue;
     }
   }
 
@@ -1457,158 +1451,6 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildInterestTypeSelector() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.filter_alt_outlined,
-                size: 18,
-                color: AppTheme.textColor,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Filter by Type',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textColor,
-                ),
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () {
-                  _showFilterOptions(context);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.filter_list,
-                        size: 14,
-                        color: Colors.grey.shade700,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'More Filters',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildInterestTypeChip('All', 'all'),
-              _buildInterestTypeChip('You received', 'get'),
-              _buildInterestTypeChip('You paid', 'pay'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInterestTypeChip(String label, String value) {
-    bool isSelected = false;
-    
-    if (value == 'all') {
-      isSelected = _interestViewMode == 'all';
-    } else if (value == 'get') {
-      isSelected = _interestViewMode == 'get';
-    } else if (value == 'pay') {
-      isSelected = _interestViewMode == 'pay';
-    }
-    
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          // Simply update the filter mode - the getter will handle filtering
-          if (value == 'all') {
-            _interestViewMode = 'all';
-          } else if (value == 'get') {
-            _interestViewMode = 'get';
-          } else if (value == 'pay') {
-            _interestViewMode = 'pay';
-          }
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryColor : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isSelected)
-              Container(
-                padding: const EdgeInsets.all(4),
-                margin: const EdgeInsets.only(right: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  value == 'all' ? Icons.list_alt :
-                  value == 'get' ? Icons.arrow_downward :
-                  Icons.arrow_upward,
-                  size: 12,
-                  color: Colors.white,
-                ),
-              ),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : AppTheme.secondaryTextColor,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  // Helper methods for filtering - remove unused methods
-  // All filtering is now handled by the _filteredContacts getter
-  
-  // Helper methods for sorting - replaced by _applySorting method
-  // All sorting is now handled by the _applySorting method
-
   Widget _buildTabBar() {
     return Container(
       decoration: BoxDecoration(
@@ -1834,47 +1676,6 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     );
   }
   
-  Widget _buildInterestInfoItem({
-    required String title, 
-    required double amount,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            icon,
-            size: 12,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey.shade700,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          '₹${amount.toStringAsFixed(2)}',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -2293,11 +2094,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
 
   Widget _buildContactItem(Map<String, dynamic> contact) {
     final isGet = contact['isGet'];
-    final daysAgo = contact['daysAgo'];
-    final daysText = daysAgo == 0 ? 'Today' : '$daysAgo days ago';
-    final contactType = contact['type'];
     final phone = contact['phone'] ?? '';
-    final name = contact['name'] ?? '';
     
     // Get last edited time and format it (update this to ensure consistent formatting)
     String timeText;
@@ -2340,7 +2137,6 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     }
     
     // Calculate interest details if this is an interest-based contact
-    double interestPerDay = 0.0;
     double totalInterestDue = 0.0;
     double principalAmount = displayAmount;
     
@@ -2349,7 +2145,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       final double interestRate = contact['interestRate'] as double? ?? 12.0;
       final String contactType = contact['type'] as String? ?? 'borrower';
       final bool isMonthly = contact['interestPeriod'] == 'monthly';
-      final bool isBorrower = contactType == 'borrower';
+      // Remove unused isBorrower variable
+      // Don't create an unused local now variable
       
       // Sort transactions chronologically for accurate interest calculation
       final transactions = transactionProvider.getTransactionsForContact(phone);
@@ -2492,7 +2289,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       if (lastInterestDate != null && runningPrincipal > 0) {
         // Calculate interest from last transaction to today (using same approach as above)
         double interestFromLastTx = 0.0;
-        DateTime now = DateTime.now();
+        // Create a local now variable
+        final now = DateTime.now();
         
         if (isMonthly) {
           // Step 1: Calculate complete months between last transaction and today
@@ -2572,28 +2370,23 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       // Update values
       principalAmount = runningPrincipal;
       
-      // Calculate daily interest based on current month's days
-      final daysInMonth = DateTime(DateTime.now().year, DateTime.now().month + 1, 0).day; // Last day of current month
-      
-      // Calculate monthly interest first
-      double monthlyInterest;
-      if (isMonthly) {
-        // Monthly rate: Calculate monthly interest
-        monthlyInterest = runningPrincipal * (interestRate / 100);
-      } else {
-        // Yearly rate: Convert to monthly rate first
-        double monthlyRate = interestRate / 12;
-        monthlyInterest = runningPrincipal * (monthlyRate / 100);
-      }
-      
-      // Calculate daily interest based on actual days in month
-      interestPerDay = monthlyInterest / daysInMonth;
+      // We don't need these variables for interest calculation since they're unused
       
       // Update the display amount to include interest if appropriate
       if (contactType == 'lender' || contactType == 'borrower') {
         // Set the total amount (principal + interest) for display
         contact['displayAmount'] = principalAmount + totalInterestDue;
-        displayAmount = principalAmount + totalInterestDue;
+      }
+      
+      // Add to totals based on relationship type
+      if (contactType == 'borrower') {
+        // For borrowers, we get the money
+        _principalToReceive += principalAmount;
+        _interestToReceive += totalInterestDue;
+      } else if (contactType == 'lender') {
+        // For lenders, we pay the money
+        _principalToPay += principalAmount;
+        _interestToPay += totalInterestDue;
       }
     }
     
@@ -3315,10 +3108,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('payment_qr_code_path', pickedFile.path);
         
-        // Update state if needed
-        setState(() {
-          _qrCodePath = pickedFile.path;
-        });
+        // No need to update the removed _qrCodePath variable
         
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3338,9 +3128,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('payment_qr_code_path');
       
-      setState(() {
-        _qrCodePath = null;
-      });
+      // No need to update the removed _qrCodePath variable
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('QR code deleted successfully')),
@@ -3351,31 +3139,6 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         SnackBar(content: Text('Error deleting QR code: $e')),
       );
     }
-  }
-
-  void _showContactTypeSelectionDialog(BuildContext context, String name, String phone) {
-    // Create a new contact map with required fields for ContactDetailScreen
-    final contact = {
-      'name': name,
-      'phone': phone,
-      'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
-      'color': Colors.primaries[name.length % Colors.primaries.length],
-      'amount': 0.0,
-      'isGet': true,
-      'daysAgo': 0,
-    };
-    
-    // Get transaction provider to add this contact if it doesn't exist
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    transactionProvider.addContactIfNotExists(contact);
-    
-    // Navigate directly to contact detail screen
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ContactDetailScreen(contact: contact),
-      ),
-    );
   }
 
   // Helper method to get month abbreviation

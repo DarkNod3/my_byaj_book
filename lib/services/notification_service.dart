@@ -264,9 +264,6 @@ class NotificationService {
           
           if (parts.length >= 3) {
             final int day = int.tryParse(parts[0]) ?? 1;
-            final String monthName = parts[1];
-            final int month = _getMonthNumber(monthName);
-            final int year = int.tryParse(parts[2].replaceAll(',', '')) ?? DateTime.now().year;
             
             // Create date for this month's due date
             final now = DateTime.now();
@@ -329,6 +326,19 @@ class NotificationService {
     }
   }
   
+  String _getMonthName(int month) {
+    const monthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    
+    if (month >= 1 && month <= 12) {
+      return monthNames[month - 1];
+    }
+    return '';
+  }
+  
+  // ignore: unused_element
   int _getMonthNumber(String monthName) {
     const monthNames = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -421,8 +431,6 @@ class NotificationService {
       android: androidDetails,
       iOS: iOSDetails,
     );
-    
-    final formattedDueDate = '${dueDate.day}/${dueDate.month}/${dueDate.year}';
     
     // Create payload with card info
     final payload = CardNotification(
@@ -580,18 +588,6 @@ class NotificationService {
     }
   }
   
-  String _getMonthName(int month) {
-    const monthNames = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    
-    if (month >= 1 && month <= 12) {
-      return monthNames[month - 1];
-    }
-    return '';
-  }
-
   Future<void> cancelAllNotifications() async {
     await _flutterLocalNotificationsPlugin.cancelAll();
     _loanNotificationIds.clear();

@@ -132,7 +132,6 @@ class NavPreferencesProvider with ChangeNotifier {
       }
     } else {
       // Maximum 4 items in the nav bar (including fixed items and tools button)
-      final fixedItemsCount = _availableNavItems.where((item) => item.isFixed).length;
       if (_selectedNavItemIds.length < 4) {
         _selectedNavItemIds.add(id);
       }

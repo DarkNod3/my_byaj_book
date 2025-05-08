@@ -21,12 +21,14 @@ class _CardScreenState extends State<CardScreen> {
   void initState() {
     super.initState();
     
+    // Get the provider reference outside of the Future
+    final cardProvider = Provider.of<CardProvider>(context, listen: false);
+    
     // Add this call to convert any existing income transactions
     Future.delayed(Duration.zero, () {
       _initializeCardData();
       
       // Schedule notifications for card due dates
-      final cardProvider = Provider.of<CardProvider>(context, listen: false);
       notificationService.scheduleCardDueNotifications(cardProvider);
     });
   }
@@ -263,8 +265,8 @@ class _CardScreenState extends State<CardScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            card['color'],
-            card['color'].withOpacity(0.7),
+            card['color'].withAlpha(179),
+            card['color'].withAlpha(128),
           ],
         ),
           ),
@@ -467,7 +469,7 @@ class _CardScreenState extends State<CardScreen> {
                             ElevatedButton(
                               onPressed: () => _showAddEntryDialog(index),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: card['color'],
+                                backgroundColor: card['color'].withAlpha(26),
                                 foregroundColor: Colors.white,
                               ),
                               child: const Text('Add Entry'),
@@ -479,7 +481,7 @@ class _CardScreenState extends State<CardScreen> {
                                   icon: const Icon(Icons.history),
                                   label: const Text('View Details'),
                                   style: TextButton.styleFrom(
-                                    foregroundColor: card['color'],
+                                    foregroundColor: card['color'].withAlpha(26),
                                   ),
                                 ),
                               ],
@@ -516,7 +518,7 @@ class _CardScreenState extends State<CardScreen> {
                             value: percentUsed,
                             backgroundColor: Colors.grey[200],
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              percentUsed > 0.75 ? Colors.red : card['color']
+                              percentUsed > 0.75 ? Colors.red : card['color'].withAlpha(128)
                             ),
                             minHeight: 8,
                             borderRadius: BorderRadius.circular(4),
@@ -543,7 +545,6 @@ class _CardScreenState extends State<CardScreen> {
   }
 
   void _showAddCardDialog() {
-    final cardProvider = Provider.of<CardProvider>(context, listen: false);
     final TextEditingController bankController = TextEditingController();
     final TextEditingController cardTypeController = TextEditingController(text: 'Credit Card');
     final TextEditingController cardNumberController = TextEditingController();
@@ -584,7 +585,7 @@ class _CardScreenState extends State<CardScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                    color: selectedColor.withOpacity(0.1),
+                    color: selectedColor.withAlpha(26),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(24),
                       topRight: Radius.circular(24),
@@ -803,7 +804,7 @@ class _CardScreenState extends State<CardScreen> {
                             itemCount: availableColors.length,
                             itemBuilder: (context, index) {
                               final color = availableColors[index];
-                              final isSelected = selectedColor.value == color.value;
+                              final isSelected = selectedColor == color;
                               
                     return GestureDetector(
                         onTap: () {
@@ -816,14 +817,14 @@ class _CardScreenState extends State<CardScreen> {
                                   height: 50,
                                   margin: const EdgeInsets.only(right: 10),
                           decoration: BoxDecoration(
-                          color: color,
+                          color: isSelected ? color.withAlpha(51) : Colors.transparent,
                           shape: BoxShape.circle,
                                     border: isSelected
                                         ? Border.all(color: Colors.white, width: 3)
                               : null,
                                     boxShadow: [
                                   BoxShadow(
-                                        color: color.withOpacity(0.5),
+                                        color: color.withAlpha(128),
                                         blurRadius: 8,
                                         spreadRadius: isSelected ? 2 : 0,
             ),
@@ -849,7 +850,7 @@ class _CardScreenState extends State<CardScreen> {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withAlpha(13),
                         spreadRadius: 1,
                         blurRadius: 10,
                         offset: const Offset(0, -5),
@@ -917,7 +918,7 @@ class _CardScreenState extends State<CardScreen> {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                            backgroundColor: selectedColor,
+                            backgroundColor: selectedColor.withAlpha(26),
                         foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
@@ -996,7 +997,7 @@ class _CardScreenState extends State<CardScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: selectedColor.withOpacity(0.1),
+                    color: selectedColor.withAlpha(26),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(24),
                       topRight: Radius.circular(24),
@@ -1235,7 +1236,7 @@ class _CardScreenState extends State<CardScreen> {
                             itemCount: availableColors.length,
                             itemBuilder: (context, index) {
                               final color = availableColors[index];
-                              final isSelected = selectedColor.value == color.value;
+                              final isSelected = selectedColor == color;
                               
                               return GestureDetector(
                                 onTap: () {
@@ -1248,14 +1249,14 @@ class _CardScreenState extends State<CardScreen> {
                                   height: 50,
                                   margin: const EdgeInsets.only(right: 10),
                                   decoration: BoxDecoration(
-                                    color: color,
+                                    color: isSelected ? color.withAlpha(51) : Colors.transparent,
                                     shape: BoxShape.circle,
                                     border: isSelected
                                         ? Border.all(color: Colors.white, width: 3)
                                         : null,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: color.withOpacity(0.5),
+                                        color: color.withAlpha(128),
                                         blurRadius: 8,
                                         spreadRadius: isSelected ? 2 : 0,
                                       ),
@@ -1281,7 +1282,7 @@ class _CardScreenState extends State<CardScreen> {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withAlpha(13),
                         spreadRadius: 1,
                         blurRadius: 10,
                         offset: const Offset(0, -5),
@@ -1348,7 +1349,7 @@ class _CardScreenState extends State<CardScreen> {
                             );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: selectedColor,
+                            backgroundColor: selectedColor.withAlpha(26),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
@@ -1448,7 +1449,7 @@ class _CardScreenState extends State<CardScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: card['color'].withOpacity(0.1),
+                    color: card['color'].withAlpha(26),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(20),
                       topRight: Radius.circular(20),
@@ -1686,7 +1687,7 @@ class _CardScreenState extends State<CardScreen> {
                     color: Colors.white,
                     boxShadow: [
                                   BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Colors.grey.withAlpha(26),
                                     spreadRadius: 1,
                         blurRadius: 5,
                         offset: const Offset(0, -3),
@@ -2042,7 +2043,7 @@ class _CardScreenState extends State<CardScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: color.withOpacity(0.1),
+                              backgroundColor: color.withAlpha(26),
                               child: Icon(icon, color: color),
                             ),
                             title: Row(
@@ -2186,7 +2187,7 @@ class _CardScreenState extends State<CardScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   decoration: BoxDecoration(
-                    color: themeColor.withOpacity(0.1),
+                    color: themeColor.withAlpha(26),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(24),
                       topRight: Radius.circular(24),
@@ -2230,7 +2231,7 @@ class _CardScreenState extends State<CardScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? themeColor.withOpacity(0.2) : Colors.transparent,
+                                  color: isSelected ? themeColor.withAlpha(51) : Colors.transparent,
                                   border: Border(
                                     bottom: BorderSide(
                                       color: Colors.grey[200]!,
@@ -2270,7 +2271,7 @@ class _CardScreenState extends State<CardScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? themeColor.withOpacity(0.2) : Colors.transparent,
+                                  color: isSelected ? themeColor.withAlpha(51) : Colors.transparent,
                                   border: Border(
                                     bottom: BorderSide(
                                       color: Colors.grey[200]!,
@@ -2405,6 +2406,7 @@ class _CardScreenState extends State<CardScreen> {
   }
 
   // Missing summary item builder method
+  // ignore: unused_element
   Widget _buildSummaryItem({
     required String title, 
     required String value, 

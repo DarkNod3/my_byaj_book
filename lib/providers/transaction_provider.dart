@@ -182,14 +182,6 @@ class TransactionProvider extends ChangeNotifier {
               
               if (parts.length >= 3) {
                 final int day = int.tryParse(parts[0]) ?? 1;
-                final String monthName = parts[1].replaceAll(',', '');
-                
-                // Get month number
-                final List<String> monthNames = [
-                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-                ];
-                final int month = monthNames.indexOf(monthName) + 1;
                 
                 // Create date for current month's due date
                 DateTime dueDate = DateTime(now.year, now.month, day);
@@ -234,8 +226,6 @@ class TransactionProvider extends ChangeNotifier {
   
   // Get manually created reminders
   List<Map<String, dynamic>> _getManualReminders() {
-    final prefs = SharedPreferences.getInstance();
-    
     try {
       final manualReminders = _manualReminders.map((reminder) {
         // Update days left calculation each time

@@ -22,7 +22,7 @@ class WorkDiaryScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _WorkDiaryScreenState createState() => _WorkDiaryScreenState();
+  State<WorkDiaryScreen> createState() => _WorkDiaryScreenState();
 }
 
 class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProviderStateMixin {
@@ -150,7 +150,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
+                            color: Colors.blue.withAlpha(26),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(Icons.person_add, color: Colors.blue),
@@ -173,7 +173,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                     decoration: BoxDecoration(
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withAlpha(13),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -211,7 +211,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                     decoration: BoxDecoration(
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withAlpha(13),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -247,7 +247,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withAlpha(26),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -276,7 +276,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                           decoration: BoxDecoration(
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withAlpha(13),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -315,7 +315,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                           decoration: BoxDecoration(
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withAlpha(13),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -356,7 +356,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                     decoration: BoxDecoration(
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withAlpha(13),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -502,11 +502,13 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // Handle back button press
-        Navigator.of(context).pop();
-        return false; // Prevent default back button behavior
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          // Handle back button press
+          Navigator.of(context).pop();
+        }
       },
       child: GestureDetector(
         onTap: () {
@@ -692,7 +694,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         iconColor: Colors.blue,
                         label: 'Total Clients',
                         value: totalClients.toString(),
-                        backgroundColor: Colors.blue.withOpacity(0.1),
+                        backgroundColor: Colors.blue.withAlpha(26),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -702,7 +704,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         iconColor: Colors.green,
                         label: "Today's Work",
                         value: currencyFormat.format(todaysWorkAmount),
-                        backgroundColor: Colors.green.withOpacity(0.1),
+                        backgroundColor: Colors.green.withAlpha(26),
                       ),
                     ),
                   ],
@@ -716,7 +718,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         iconColor: Colors.purple,
                         label: 'Total Work Amount',
                         value: currencyFormat.format(totalWorkAmount),
-                        backgroundColor: Colors.purple.withOpacity(0.1),
+                        backgroundColor: Colors.purple.withAlpha(26),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -726,7 +728,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
                         iconColor: Colors.orange,
                         label: 'Pending Earnings',
                         value: currencyFormat.format(pendingEarnings),
-                        backgroundColor: Colors.orange.withOpacity(0.1),
+                        backgroundColor: Colors.orange.withAlpha(26),
                       ),
                     ),
                   ],
@@ -1306,61 +1308,6 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
     );
   }
 
-  Future<void> _generateAllClientsPDF() async {
-    if (_clients.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No clients to generate report')),
-      );
-      return;
-    }
-
-    // Show a loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return const AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Generating PDF report...'),
-            ],
-          ),
-        );
-      },
-    );
-
-    try {
-      // In a real implementation, you would use a PDF generation library like pdf or flutter_pdfview
-      // For this example, we'll just show a success message after a delay
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Close the loading dialog
-      Navigator.of(context).pop();
-      
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('PDF report generated successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      // Close the loading dialog
-      Navigator.of(context).pop();
-      
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to generate PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   void _addPayment() async {
     if (_clients.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1609,7 +1556,6 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
     }
   }
 
-  // Add new method for generating individual client PDF
   Future<void> _generateClientPDF(Client client) async {
     if (client.workEntries.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

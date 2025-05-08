@@ -21,7 +21,7 @@ class MilkDiaryAddSeller extends StatefulWidget {
   }
 
   @override
-  _MilkDiaryAddSellerState createState() => _MilkDiaryAddSellerState();
+  State<MilkDiaryAddSeller> createState() => _MilkDiaryAddSellerState();
 }
 
 class _MilkDiaryAddSellerState extends State<MilkDiaryAddSeller> {

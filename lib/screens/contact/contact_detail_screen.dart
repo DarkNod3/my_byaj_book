@@ -42,15 +42,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   bool _isSearching = false;
   late TransactionProvider _transactionProvider;
   String _contactId = '';
-  String _contactType = '';
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_filterTransactions);
-    // Initialize contact ID and type
+    // Initialize contact ID
     _contactId = widget.contact['phone'] ?? '';
-    _contactType = widget.contact['type'] ?? '';
     
     // Show setup prompt for new contacts after a short delay
     if (widget.showSetupPrompt) {
@@ -124,8 +122,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final balance = _calculateBalance();
-    final isPositive = balance >= 0;
     final isWithInterest = widget.contact['type'] != null; // Check if it's a with-interest contact
 
     return Scaffold(
@@ -331,16 +327,10 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     final isGave = tx['type'] == 'gave';
     final hasImage = tx['imagePath'] != null;
     
-    // Find the index of the transaction in the filtered list
-    final txIndex = _filteredTransactions.indexOf(tx);
-    
-    // Create a unique key for each transaction
-    final key = ValueKey('tx-$txIndex-${tx['date']}');
-    
     // Get the original index in the unfiltered list for delete/edit operations
-        final allTransactions = _transactionProvider.getTransactionsForContact(_contactId);
-        final originalIndex = allTransactions.indexOf(tx);
-        
+    final allTransactions = _transactionProvider.getTransactionsForContact(_contactId);
+    final originalIndex = allTransactions.indexOf(tx);
+    
     return GestureDetector(
       // Edit transaction on tap
       onTap: () => _editTransaction(tx, originalIndex),
@@ -1950,8 +1940,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         if (contactType.isNotEmpty && transactions.isNotEmpty) {
           // Calculate principal and interest amounts
           double principalAmount = 0.0;
-          double interestDue = 0.0;
-          double interestPerDay = 0.0;
           
           // Calculate based on current balance and interest rate
           principalAmount = balance.abs(); // Use the balance as principal for simplicity
@@ -1968,10 +1956,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           
           // Calculate daily interest based on days in current month
           final daysInMonth = DateTime(DateTime.now().year, DateTime.now().month + 1, 0).day;
-          interestPerDay = monthlyInterest / daysInMonth;
-          
-          // Estimate interest due as one month's interest
-          interestDue = monthlyInterest;
           
           summaryItems.addAll([
             {
@@ -1984,7 +1968,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
             },
             {
               'label': 'Est. Daily Interest:',
-              'value': 'Rs. ${PdfTemplateService.formatCurrency(interestPerDay)}',
+              'value': 'Rs. ${PdfTemplateService.formatCurrency(monthlyInterest / daysInMonth)}',
             },
           ]);
         }
@@ -2358,9 +2342,9 @@ ${_getAppUserName()}
     _addTransaction('gave');
   }
 
-  void _showContactTypeSelectionDialog(BuildContext context, String name, String phone) {
-    // Function implementation...
-  }
+  // void _showContactTypeSelectionDialog(BuildContext context, String name, String phone) {
+  //   // Function implementation...
+  // }
   
   // Helper method to build selection buttons for Interest/Principal
   Widget _buildSelectionButton({

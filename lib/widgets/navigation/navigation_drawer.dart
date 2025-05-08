@@ -304,13 +304,13 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
     );
   }
 
-  void _navigateTo(BuildContext context, Widget screen) {
-    Navigator.pop(context); // Close the drawer
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => screen),
-    );
-  }
+  // void _navigateTo(BuildContext context, Widget screen) {
+  //   Navigator.pop(context); // Close the drawer
+  //   Navigator.pushReplacement(
+  //     context,
+  //     MaterialPageRoute(builder: (context) => screen),
+  //   );
+  // }
   
   void _showComingSoonSnackbar(BuildContext context, [String message = 'This feature is coming soon!']) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -556,7 +556,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                           duration: const Duration(seconds: 3),
                         ),
                       );
-                      return null; // Return null instead of false
+                      return true; // Return true instead of null to match the expected return type FutureOr<bool>
                     });
                   },
                 );
@@ -647,7 +647,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                       duration: Duration(seconds: 3),
                     ),
                   );
-                  return null; // Return null instead of false
+                  return null; // Return null instead of true to match the expected return type
                 });
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -735,26 +735,26 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
     );
   }
 
-  Future<bool> _confirmDeleteAccount(BuildContext context) async {
-    return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Account Deletion'),
-        content: const Text('Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    ).then((confirmed) => confirmed ?? false).catchError((error) {
-      print('Error in confirmation dialog: $error');
-      return false; // Return false when there's an error
-    });
-  }
+  // Future<bool> _confirmDeleteAccount(BuildContext context) async {
+  //   return await showDialog<bool>(
+  //     context: context,
+  //     builder: (context) => AlertDialog(
+  //       title: const Text('Confirm Account Deletion'),
+  //       content: const Text('Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.'),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.of(context).pop(false),
+  //           child: const Text('Cancel'),
+  //         ),
+  //         TextButton(
+  //           onPressed: () => Navigator.of(context).pop(true),
+  //           child: const Text('Delete'),
+  //         ),
+  //       ],
+  //     ),
+  //   ).then((confirmed) => confirmed ?? false).catchError((error) {
+  //     print('Error in confirmation dialog: $error');
+  //     return null; // Return null instead of false to match FutureOr<Null>
+  //   });
+  // }
 }

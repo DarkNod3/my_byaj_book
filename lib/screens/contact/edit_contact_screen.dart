@@ -4,9 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
 import 'package:my_byaj_book/providers/theme_provider.dart';
 import 'package:my_byaj_book/widgets/dialogs/confirm_dialog.dart';
+import 'package:my_byaj_book/screens/contact/contact_detail_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:my_byaj_book/screens/contact/contact_detail_screen.dart';
 
 class EditContactScreen extends StatefulWidget {
   final Map<String, dynamic> contact;
@@ -239,7 +239,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
         // Short delay to allow the previous screen to process the result
         Future.delayed(const Duration(milliseconds: 300), () {
           // Find the ContactDetailScreen and show the transaction entry dialog
-          final contactDetailScreen = Navigator.of(context).push(
+          Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => ContactDetailScreen(
                 contact: updatedContact,
@@ -317,7 +317,6 @@ class _EditContactScreenState extends State<EditContactScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final balance = _transactionProvider.calculateBalance(_contactId);
     final hasTransactions = _transactionProvider.getTransactionsForContact(_contactId).isNotEmpty;
 
     return Scaffold(

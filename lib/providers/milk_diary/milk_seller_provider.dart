@@ -179,7 +179,6 @@ class MilkSellerProvider with ChangeNotifier {
     
     // Get all payments for this seller
     final sellerPayments = getPaymentsForSeller(sellerId);
-    final totalPayments = sellerPayments.fold(0.0, (sum, payment) => sum + payment.amount);
     
     // Calculate the current due amount based on the stored dueAmount and payments
     // Since we're not directly updating dueAmount when entries are added (that would be done in the entry provider),

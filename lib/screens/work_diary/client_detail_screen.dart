@@ -24,7 +24,7 @@ class ClientDetailScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _ClientDetailScreenState createState() => _ClientDetailScreenState();
+  State<ClientDetailScreen> createState() => _ClientDetailScreenState();
 }
 
 class _ClientDetailScreenState extends State<ClientDetailScreen> {
@@ -570,6 +570,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   }
 
   // New method for confirming deletion via long press
+  // ignore: unused_element
   void _confirmAndDeleteWorkEntry(String entryId) {
     showDialog(
       context: context,
@@ -646,6 +647,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       final String formattedDate = DateFormat('dd-MM-yyyy_HH-mm').format(DateTime.now());
       final fileName = 'client_report_${client.name.replaceAll(' ', '_')}_$formattedDate.pdf';
       final filePath = '${directory!.path}/$fileName';
+      
+      // Check if the widget is still mounted before proceeding
+      if (!mounted) return;
       
       // Format currency without rupee symbol for PDF
       String formatCurrencyForPdf(double amount) {
@@ -734,7 +738,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                 // Calculate work and payment amounts
                 pw.Builder(
                   builder: (context) {
-                    final workAmount = client.workEntries
+                    // Calculate work entries (positive amounts)
+                    final double workAmount = client.workEntries
                         .where((entry) => 
                           !entry.description.toLowerCase().contains('received') && 
                           !entry.description.toLowerCase().contains('payment'))
@@ -1120,8 +1125,6 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     final workEntries = List<WorkEntry>.from(_client.workEntries)
       ..sort((a, b) => b.date.compareTo(a.date));
 
-    final totalEarnings = _client.totalEarnings;
-    
     // Group entries by month and year
     final groupedEntries = <String, List<WorkEntry>>{};
     for (var entry in workEntries) {
@@ -1132,10 +1135,12 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       groupedEntries[key]!.add(entry);
     }
 
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.of(context).pop();
-        return false;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         appBar: AppBar(
@@ -1246,8 +1251,6 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                           
                           // Calculate payments received
                           Builder(builder: (context) {
-                            final double totalAmount = totalEarnings;
-                            
                             // Calculate work entries (positive amounts)
                             final double workAmount = _client.workEntries
                                 .where((entry) => 
@@ -1461,7 +1464,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           width: 50,
           height: 50,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withAlpha(26),
             shape: BoxShape.circle,
           ),
           child: Center(
@@ -1555,8 +1558,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               children: [
                 CircleAvatar(
                   backgroundColor: isPayment 
-                      ? Colors.green.withOpacity(0.2) 
-                      : AppColors.primary.withOpacity(0.2),
+                      ? Colors.green.withAlpha(51) 
+                      : AppColors.primary.withAlpha(51),
                   child: Icon(
                     isPayment ? Icons.payments : getTypeIcon(), 
                     color: isPayment ? Colors.green : AppColors.primary
@@ -1614,8 +1617,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: isPayment 
-                                  ? Colors.green.withOpacity(0.15) 
-                                  : AppColors.primary.withOpacity(0.15),
+                                  ? Colors.green.withAlpha(38) 
+                                  : AppColors.primary.withAlpha(38),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(

@@ -36,7 +36,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   int _resendCountdown = 0;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _firebaseAvailable = true;
-  bool _verificationInProgress = false;
   bool _recaptchaVerified = false;
   
   // For custom reCAPTCHA timer
@@ -189,7 +188,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       setState(() {
         _isLoading = true;
         _errorMessage = null;
-        _verificationInProgress = true;
       });
       
       // If Firebase Auth is not available or we want to skip external reCAPTCHA,
@@ -229,7 +227,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             setState(() {
               _isLoading = false;
               _errorMessage = 'Verification failed: ${e.message}';
-              _verificationInProgress = false;
             });
           },
           codeSent: (String verificationId, int? resendToken) {
@@ -239,7 +236,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               _verificationId = verificationId;
               _resendToken = resendToken;
               _startResendTimer();
-              _verificationInProgress = false;
             });
             _transitionToNextStep();
             
@@ -251,9 +247,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           codeAutoRetrievalTimeout: (String verificationId) {
             // Auto-retrieval timeout
             print("Code auto retrieval timeout");
-            setState(() {
-              _verificationInProgress = false;
-            });
           },
           forceResendingToken: _resendToken,
         );

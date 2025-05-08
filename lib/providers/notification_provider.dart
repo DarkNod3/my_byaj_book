@@ -122,14 +122,6 @@ class NotificationProvider with ChangeNotifier {
           
           if (parts.length >= 3) {
             final int day = int.tryParse(parts[0]) ?? 1;
-            final String monthName = parts[1].replaceAll(',', '');
-            
-            // Get month number
-            final List<String> monthNames = [
-              'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-            ];
-            final int month = monthNames.indexOf(monthName) + 1;
             
             // Create date for current month's due date
             final now = DateTime.now();
@@ -321,6 +313,7 @@ class NotificationProvider with ChangeNotifier {
   }
   
   // Method to generate a unique notification ID
+  // ignore: unused_element
   int _generateNotificationId(String sourceId) {
     // Create a hash from the sourceId that fits within 32 bits
     final int idHash = sourceId.hashCode & 0x3FFFFFFF;

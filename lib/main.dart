@@ -372,6 +372,6 @@ Future<void> markLoanAsPaid(String loanId) async {
 }
 
 // Update NotificationService._markLoanAsPaid to use this function
-Future<void> _markLoanAsPaid(String loanId) async {
-  await markLoanAsPaid(loanId);
-}
+// Future<void> _markLoanAsPaid(String loanId) async {
+//   await markLoanAsPaid(loanId);
+// }

@@ -179,6 +179,8 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
   List<String> get _currentPresets => _selectedUnit == 'Liter (L)' ? _literPresets : _kgPresets;
 
   // Get rate for selected seller
+  // Unused method - commented out per analyzer warning
+  /*
   double _getSellerRate() {
     final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
     final seller = sellerProvider.getSellerById(widget.sellerId);
@@ -189,6 +191,7 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
     
     return 0.0;
   }
+  */
   
   void _updateRateFromSeller() {
     final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);

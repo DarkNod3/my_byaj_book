@@ -526,35 +526,6 @@ class MilkDiaryReportService {
     );
   }
   
-  pw.Widget _buildSellerSummary(List<DailyEntry> entries) {
-    final totalQuantity = entries.fold(0.0, (sum, entry) => sum + entry.quantity);
-    final totalAmount = entries.fold(0.0, (sum, entry) => sum + entry.amount);
-    final avgRate = entries.isEmpty ? 0.0 : totalAmount / totalQuantity;
-    
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'Seller Summary',
-          style: pw.TextStyle(
-            fontSize: 16,
-            fontWeight: pw.FontWeight.bold,
-          ),
-        ),
-        pw.SizedBox(height: 10),
-        pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
-            _buildSummaryItem('Total Quantity', '$totalQuantity L'),
-            _buildSummaryItem('Total Amount', '₹ ${totalAmount.toStringAsFixed(2)}'),
-            _buildSummaryItem('Avg. Rate', '₹ ${avgRate.toStringAsFixed(2)}/L'),
-          ],
-        ),
-        pw.SizedBox(height: 10),
-      ],
-    );
-  }
-  
   pw.Widget _buildSummaryItem(String label, String value) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -827,32 +798,6 @@ class MilkDiaryReportService {
         textAlign: pw.TextAlign.center,
       ),
     );
-  }
-  
-  // Helper to get ISO week number
-  int _getWeekNumber(DateTime date) {
-    // The algorithm is based on ISO-8601:
-    // https://en.wikipedia.org/wiki/ISO_week_date
-    int dayOfYear = int.parse(DateFormat('D').format(date));
-    int woy = ((dayOfYear - date.weekday + 10) / 7).floor();
-    if (woy < 1) {
-      woy = _getWeeksInYear(date.year - 1);
-    } else if (woy > _getWeeksInYear(date.year)) {
-      woy = 1;
-    }
-    return woy;
-  }
-  
-  // Helper to get the number of weeks in a year
-  int _getWeeksInYear(int year) {
-    final p1 = 365 * year + (year / 4).floor() - (year / 100).floor() + (year / 400).floor();
-    final p2 = (p1 + 1) % 7;
-    return p2 == 4 || (p2 == 3 && _isLeapYear(year)) ? 53 : 52;
-  }
-  
-  // Helper to check if a year is a leap year
-  bool _isLeapYear(int year) {
-    return (year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0));
   }
   
   // Helper method to build summary item for PDF

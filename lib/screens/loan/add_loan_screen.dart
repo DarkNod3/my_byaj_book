@@ -49,10 +49,6 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     'Business Loan',
   ];
 
-  final List<String> _interestTypes = [
-    'Fixed',
-  ];
-
   final List<String> _periodTypes = [
     'Years',
     'Months',

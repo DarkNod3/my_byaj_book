@@ -57,7 +57,7 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
     final loanAmount = double.parse(widget.loanData['loanAmount'] ?? '50000');
     final interestRate = double.parse(widget.loanData['interestRate'] ?? '12.0') / 100;
     final loanTerm = int.parse(widget.loanData['loanTerm'] ?? '12');
-    final startDate = widget.loanData['startDate'] ?? DateTime(2025, 4, 25);
+    // final startDate = widget.loanData['startDate'] ?? DateTime(2025, 4, 25);
     final firstPaymentDate = widget.loanData['firstPaymentDate'] ?? DateTime(2025, 5, 25);
 
     // Calculate EMI: P * r * (1+r)^n / ((1+r)^n - 1)

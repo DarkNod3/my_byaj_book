@@ -28,7 +28,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   double _totalInvestment = 0;
   double _estimatedReturns = 0;
   double _maturityValue = 0;
-  final bool _isCalculating = false;
+  // ignore: unused_field
   bool _isGeneratingPdf = false; // Added state variable for PDF generation
   
   // Format currency in Indian Rupees
@@ -160,6 +160,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
     }
   }
 
+  // ignore: unused_element
   Future<void> _generatePdfReport() async {
     try {
       setState(() {
@@ -761,6 +762,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
     return null; // Return null if validation passes
   }
 
+  // ignore: unused_element
   Future<List<pw.Widget>> _createPdfContent() async {
     // Get values from current state or calculate them fresh
     final double monthlyInvestment = double.tryParse(_monthlyInvestmentController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;

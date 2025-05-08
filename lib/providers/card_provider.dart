@@ -181,13 +181,13 @@ class CardProvider extends ChangeNotifier {
   }
 
   // Debug method to check persisted cards
-  Future<void> _printSavedCards() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cardsJson = prefs.getString('cards');
-      // Removed debug print
-    } catch (e) {
-      // Removed debug print
-    }
-  }
+  // Future<void> _printSavedCards() async {
+  //   try {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final cardsJson = prefs.getString('cards');
+  //     // Removed debug print
+  //   } catch (e) {
+  //     // Removed debug print
+  //   }
+  // }
 } 

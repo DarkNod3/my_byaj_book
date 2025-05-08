@@ -443,7 +443,7 @@ class _LoanScreenState extends State<LoanScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: loanColor.withOpacity(0.1),
+                      color: loanColor.withAlpha(26),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
@@ -597,7 +597,6 @@ class _LoanScreenState extends State<LoanScreen> {
   // Show options for a loan
   void _showLoanOptions(Map<String, dynamic> loan) {
     final loanProvider = Provider.of<LoanProvider>(context, listen: false);
-    final String loanId = loan['id'] ?? '';
     final bool isActive = loan['status'] == 'Active';
     
     showModalBottomSheet(
@@ -756,7 +755,7 @@ class _LoanScreenState extends State<LoanScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: badgeColor?.withOpacity(0.1) ?? Colors.red.withOpacity(0.1),
+                  color: badgeColor?.withAlpha(26) ?? Colors.red.withAlpha(26),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(

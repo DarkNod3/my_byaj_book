@@ -63,11 +63,9 @@ class DailyEntryProvider with ChangeNotifier {
     
     if (existingEntryIndex != -1) {
       // Instead of throwing an exception, try to update the existing entry
-      final existingEntry = _entries[existingEntryIndex];
-      
       // Create updated entry with new values but keep the existing ID
       final updatedEntry = DailyEntry(
-        id: existingEntry.id,
+        id: _entries[existingEntryIndex].id,
         sellerId: entry.sellerId,
         date: entry.date,
         shift: entry.shift,
