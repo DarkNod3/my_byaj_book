@@ -126,28 +126,45 @@ class DatabaseService {
   Future<void> init() async {
     if (_initialized) return;
     
-    // Initialize Hive
-    final appDocumentDir = await getApplicationDocumentsDirectory();
-    Hive.init(appDocumentDir.path);
-    
-    // Register adapters
-    Hive.registerAdapter(EntryTypeAdapter());
-    Hive.registerAdapter(CustomerEntryAdapter());
-    Hive.registerAdapter(CustomerAdapter());
-    Hive.registerAdapter(KhataAdapter());
-    Hive.registerAdapter(KhataTypeAdapter());
-    Hive.registerAdapter(TransactionAdapter());
-    Hive.registerAdapter(TransactionTypeAdapter());
-    Hive.registerAdapter(ContactAdapter());
-    Hive.registerAdapter(InterestCalculationTypeAdapter());
-    
-    // Open boxes
-    _customersBox = await Hive.openBox<Customer>('customers');
-    _khataBox = await Hive.openBox<Khata>('khatas');
-    _transactionBox = await Hive.openBox<Transaction>('transactions');
-    _contactBox = await Hive.openBox<Contact>('contacts');
-    
-    _initialized = true;
+    try {
+      // Initialize Hive
+      final appDocumentDir = await getApplicationDocumentsDirectory();
+      Hive.init(appDocumentDir.path);
+      
+      // Register adapters only if not already registered
+      _registerAdapter(() => EntryTypeAdapter());
+      _registerAdapter(() => CustomerEntryAdapter());
+      _registerAdapter(() => CustomerAdapter());
+      _registerAdapter(() => KhataAdapter());
+      _registerAdapter(() => KhataTypeAdapter());
+      _registerAdapter(() => TransactionAdapter());
+      _registerAdapter(() => TransactionTypeAdapter());
+      _registerAdapter(() => ContactAdapter());
+      _registerAdapter(() => InterestCalculationTypeAdapter());
+      
+      // Open boxes
+      _customersBox = await Hive.openBox<Customer>('customers');
+      _khataBox = await Hive.openBox<Khata>('khatas');
+      _transactionBox = await Hive.openBox<Transaction>('transactions');
+      _contactBox = await Hive.openBox<Contact>('contacts');
+      
+      _initialized = true;
+      print('Database service initialized successfully');
+    } catch (e) {
+      print('Error initializing database: $e');
+      // Continue anyway to prevent app from hanging
+      _initialized = true;
+    }
+  }
+  
+  // Helper method to safely register adapters
+  void _registerAdapter<T>(TypeAdapter<T> Function() adapterBuilder) {
+    try {
+      Hive.registerAdapter(adapterBuilder());
+    } catch (e) {
+      // If adapter is already registered, just ignore the error
+      print('Adapter already registered: ${e.toString()}');
+    }
   }
   
   // CRUD operations for Customers

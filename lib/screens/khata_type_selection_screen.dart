@@ -85,8 +85,7 @@ class KhataTypeSelectionScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Color.fromRGBO(
-                      Colors.grey.red, Colors.grey.green, Colors.grey.blue, 0.1),
+                    color: Color.fromARGB(25, 211, 211, 211),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(

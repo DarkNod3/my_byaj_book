@@ -22,9 +22,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   void initState() {
     super.initState();
     
-    // Initialize the UserProvider
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    userProvider.initialize();
+    // Initialize the UserProvider with timeout
+    _initializeApp();
     
     _controller = AnimationController(
       duration: const Duration(milliseconds: 2500),
@@ -56,30 +55,73 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     );
 
     _controller.forward();
-
-    // Check user and navigate after delay
-    Timer(const Duration(milliseconds: 3000), () {
-      _checkUserAndNavigate();
-    });
+  }
+  
+  Future<void> _initializeApp() async {
+    // Initialize the UserProvider
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    
+    // Create a timeout to ensure app doesn't get stuck
+    bool isInitialized = false;
+    
+    try {
+      // Try to initialize user provider with a timeout
+      await Future.any([
+        // Normal initialization
+        userProvider.initialize().then((_) {
+          isInitialized = true;
+          print('User provider initialized successfully');
+        }),
+        
+        // Timeout after 3 seconds
+        Future.delayed(const Duration(seconds: 3)).then((_) {
+          if (!isInitialized) {
+            print('User provider initialization timed out');
+          }
+        }),
+      ]);
+    } catch (e) {
+      print('Error initializing user provider: $e');
+    } finally {
+      // Navigate to next screen after a delay regardless of initialization status
+      Future.delayed(const Duration(milliseconds: 3000), () {
+        _checkUserAndNavigate();
+      });
+    }
   }
 
   Future<void> _checkUserAndNavigate() async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    
-    // The initialize method was called in initState, so user data should be loaded
-    final user = userProvider.user;
-    
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, animation1, animation2) => 
-          user != null ? const HomeScreen() : const LoginScreen(),
-        transitionDuration: const Duration(milliseconds: 500),
-        transitionsBuilder: (_, animation, __, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
-    );
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      
+      // The initialize method was called in initState, so user data should be loaded
+      final user = userProvider.user;
+      
+      // Add debug print to see what's happening
+      print('Splash screen navigation check: user = $user');
+      
+      // Force navigation to login if initialization takes too long
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, animation1, animation2) => 
+            user != null ? const HomeScreen() : const LoginScreen(),
+          transitionDuration: const Duration(milliseconds: 500),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      );
+    } catch (e, stackTrace) {
+      print('Error in splash screen navigation: $e');
+      print('Stack trace: $stackTrace');
+      
+      // Force navigation to login screen if there's an error
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+    }
   }
 
   @override

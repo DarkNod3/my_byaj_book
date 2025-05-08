@@ -8,7 +8,7 @@ class TransactionProvider extends ChangeNotifier {
   Map<String, List<Map<String, dynamic>>> _contactTransactions = {};
   
   // UUID generator
-  final _uuid = Uuid();
+  final _uuid = const Uuid();
   
   // Constructor
   TransactionProvider() {

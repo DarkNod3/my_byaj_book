@@ -1695,8 +1695,8 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     
                     return pw.TableRow(
                       decoration: index % 2 == 0 
-                          ? pw.BoxDecoration(color: PdfColors.grey100)
-                          : pw.BoxDecoration(color: PdfColors.white),
+                          ? const pw.BoxDecoration(color: PdfColors.grey100)
+                          : const pw.BoxDecoration(color: PdfColors.white),
                       children: [
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(5),
@@ -3395,7 +3395,7 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                     children: [
                       // Table header
                       pw.TableRow(
-                        decoration: pw.BoxDecoration(color: PdfColors.teal100),
+                        decoration: const pw.BoxDecoration(color: PdfColors.teal100),
                         children: [
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(6),
@@ -3437,8 +3437,8 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                         
                         return pw.TableRow(
                           decoration: index % 2 == 0 
-                              ? pw.BoxDecoration(color: PdfColors.grey100)
-                              : pw.BoxDecoration(color: PdfColors.white),
+                              ? const pw.BoxDecoration(color: PdfColors.grey100)
+                              : const pw.BoxDecoration(color: PdfColors.white),
                           children: [
                             // Date column
                             pw.Padding(

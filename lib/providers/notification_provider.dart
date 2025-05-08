@@ -439,6 +439,7 @@ class NotificationProvider with ChangeNotifier {
               final notification = AppNotification(
                 id: _uuid.v4(),
                 title: 'Payment Due: $loanName',
+                body: 'Installment #$installmentNumber for ₹${paymentAmount.toStringAsFixed(2)} is due on ${_formatDate(dueDate)}',
                 message: 'Installment #$installmentNumber for ₹${paymentAmount.toStringAsFixed(2)} is due on ${_formatDate(dueDate)}',
                 source: 'loan',
                 sourceId: loanId,
@@ -466,6 +467,7 @@ class NotificationProvider with ChangeNotifier {
           final notification = AppNotification(
             id: _uuid.v4(),
             title: 'Payment Due: $loanName',
+            body: 'First payment of ₹${paymentAmount.toStringAsFixed(2)} is due on ${_formatDate(firstPaymentDate)}',
             message: 'First payment of ₹${paymentAmount.toStringAsFixed(2)} is due on ${_formatDate(firstPaymentDate)}',
             source: 'loan',
             sourceId: loanId,

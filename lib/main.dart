@@ -51,87 +51,93 @@ void main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase with better error handling
+  // Initialize Firebase with better error handling and timeout
   try {
     print('===== FIREBASE INIT =====');
     print('Starting Firebase initialization...');
     print('Platform: ${Platform.isAndroid ? 'Android' : Platform.isIOS ? 'iOS' : 'Other'}');
     
-    // Initialize Firebase first
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: 'AIzaSyAyzvrHynsUE5ziad_Se-1IQxyLXptKu3A',
-        appId: '1:586549083907:android:1e440fdfd5589676aa7336',
-        messagingSenderId: '586549083907',
-        projectId: 'my-byaj-book',
-        storageBucket: 'my-byaj-book.firebasestorage.app',
-      ),
-    );
+    // Add timeout to Firebase initialization
+    bool firebaseInitialized = false;
     
-    // Setup FCM background message handler
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    await Future.any([
+      Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: 'AIzaSyAyzvrHynsUE5ziad_Se-1IQxyLXptKu3A',
+          appId: '1:586549083907:android:1e440fdfd5589676aa7336',
+          messagingSenderId: '586549083907',
+          projectId: 'my-byaj-book',
+          storageBucket: 'my-byaj-book.firebasestorage.app',
+        ),
+      ).then((_) {
+        firebaseInitialized = true;
+      }),
+      // Timeout after 5 seconds to prevent hanging
+      Future.delayed(const Duration(seconds: 5)).then((_) {
+        if (!firebaseInitialized) {
+          print('Firebase initialization timed out');
+          throw Exception('Firebase initialization timed out');
+        }
+      }),
+    ]);
     
-    // Initialize Firebase App Check - helps with security and app verification
-    await FirebaseAppCheck.instance.activate(
-      // Use debug provider for development, replace with proper provider for production
-      androidProvider: AndroidProvider.debug,
-      appleProvider: AppleProvider.debug,
-    );
-    
-    // Configure Firebase services with proper app information
-    // This helps set the app name in verification messages
-    try {
-      await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
-      // Set the app name for Firebase Auth services
-      FirebaseAuth.instance.setLanguageCode('en'); // Set to your preferred language
+    if (firebaseInitialized) {
+      // Setup FCM background message handler
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
       
-      // Request notification permissions
-      if (Platform.isIOS || Platform.isMacOS) {
-        // Request permission for iOS and macOS
-        await FirebaseMessaging.instance.requestPermission(
+      // Initialize Firebase App Check - helps with security and app verification
+      await FirebaseAppCheck.instance.activate(
+        // Use debug provider for development, replace with proper provider for production
+        androidProvider: AndroidProvider.debug,
+        appleProvider: AppleProvider.debug,
+      );
+      
+      // Configure Firebase services with proper app information
+      // This helps set the app name in verification messages
+      try {
+        await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+        // Set the app name for Firebase Auth services
+        FirebaseAuth.instance.setLanguageCode('en'); // Set to your preferred language
+        
+        // Request notification permissions
+        if (Platform.isIOS || Platform.isMacOS) {
+          // Request permission for iOS and macOS
+          await FirebaseMessaging.instance.requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+            provisional: false,
+          );
+        } else if (Platform.isAndroid) {
+          // For Android, permissions are handled in the manifest
+          // We request notification permission in newer Android versions
+          await FirebaseMessaging.instance.requestPermission();
+        }
+        
+        // Get FCM token for this device
+        String? token = await FirebaseMessaging.instance.getToken();
+        print('FCM Token: $token');
+        
+        // Configure FCM foreground notification presentation options
+        await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
           alert: true,
           badge: true,
           sound: true,
-          provisional: false,
         );
-      } else if (Platform.isAndroid) {
-        // For Android, permissions are handled in the manifest
-        // We request notification permission in newer Android versions
-        await FirebaseMessaging.instance.requestPermission();
+        
+        print('Firebase App Check and FCM configured successfully');
+      } catch (appCheckError) {
+        print('Firebase App Check error: $appCheckError');
       }
-      
-      // Get FCM token for this device
-      String? token = await FirebaseMessaging.instance.getToken();
-      print('FCM Token: $token');
-      
-      // Configure FCM foreground notification presentation options
-      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-      
-      print('Firebase App Check and FCM configured successfully');
-    } catch (appCheckError) {
-      print('Firebase App Check error: $appCheckError');
-    }
-    
-    // Check if Firebase is actually initialized correctly
-    if (Firebase.apps.isEmpty) {
-      throw Exception('Firebase app initialization failed - no apps registered');
     }
     
     // Enable Firebase Crashlytics in release mode
-    if (!kDebugMode) {
+    if (!kDebugMode && firebaseInitialized) {
       await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
       FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
     }
     
     print('Firebase initialized successfully!');
-    print('Firebase app name: ${Firebase.app().name}');
-    print('Firebase options: ${Firebase.app().options.projectId}');
-    print('Firebase API key: ${Firebase.app().options.apiKey}');
-    print('============================');
   } catch (e, stackTrace) {
     // More detailed error handling
     print('===== FIREBASE INIT ERROR =====');
@@ -139,16 +145,6 @@ void main() async {
     print('Stack trace: $stackTrace');
     print('App will continue in local-only mode without Firebase.');
     print('==============================');
-    
-    // Check if Firebase was partially initialized and needs cleanup
-    if (Firebase.apps.isNotEmpty) {
-      try {
-        await Firebase.app().delete();
-        print('Cleaned up partially initialized Firebase app');
-      } catch (cleanupError) {
-        print('Error cleaning up Firebase app: $cleanupError');
-      }
-    }
   }
   
   // Initialize Hive for local storage

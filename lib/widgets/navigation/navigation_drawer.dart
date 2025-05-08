@@ -556,7 +556,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                           duration: const Duration(seconds: 3),
                         ),
                       );
-                      return false; // Return false to indicate the operation failed
+                      return null; // Return null instead of false
                     });
                   },
                 );
@@ -647,6 +647,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                       duration: Duration(seconds: 3),
                     ),
                   );
+                  return null; // Return null instead of false
                 });
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(

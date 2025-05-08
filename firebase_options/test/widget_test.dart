@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// Create a simple stub app for testing
+// Define a minimal test app class
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       home: Scaffold(
         body: Center(
-          child: Text("Test App"),
+          child: const Text("Test App"),
         ),
       ),
     );
@@ -26,10 +26,7 @@ class MyApp extends StatelessWidget {
 
 void main() {
   testWidgets('Dummy test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
     await tester.pumpWidget(const MyApp());
-
-    // Just a basic existence test
-    expect(find.byType(MaterialApp), findsOneWidget);
+    expect(find.text('Test App'), findsOneWidget);
   });
 }

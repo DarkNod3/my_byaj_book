@@ -161,8 +161,17 @@ class UserProvider with ChangeNotifier {
 
   // Initialize provider and load persisted user data
   Future<void> initialize() async {
-    await _loadUserData();
-    notifyListeners();
+    try {
+      await _loadUserData();
+      print('UserProvider initialization complete: user = $_user');
+    } catch (e) {
+      print('Error initializing UserProvider: $e');
+      // Ensure we don't leave the user in a stuck state
+      _user = null;
+    } finally {
+      // Always notify listeners even if there was an error
+      notifyListeners();
+    }
   }
 
   // Logout user
