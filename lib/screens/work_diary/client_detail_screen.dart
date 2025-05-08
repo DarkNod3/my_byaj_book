@@ -653,7 +653,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       
       // Format currency without rupee symbol for PDF
       String formatCurrencyForPdf(double amount) {
-        return NumberFormat.currency(locale: 'en_IN', symbol: '', decimalDigits: 0).format(amount);
+        return NumberFormat.currency(locale: 'en_IN', symbol: 'Rs. ', decimalDigits: 0).format(amount);
       }
 
       // Generate PDF

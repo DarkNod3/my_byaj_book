@@ -427,11 +427,12 @@ class PdfTemplateService {
   
   /// Formats currency for PDF display (without the rupee symbol)
   static String formatCurrency(double amount) {
-    // Format without currency symbol
-    return amount.toStringAsFixed(2).replaceAllMapped(
+    // Format with Rs. prefix
+    final formatted = amount.toStringAsFixed(2).replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match match) => '${match[1]},'
     );
+    return formatted;
   }
   
   // Helper function to create PDF document in isolate
