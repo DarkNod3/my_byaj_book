@@ -594,7 +594,7 @@ class _CardScreenState extends State<CardScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                    color: selectedColor.withAlpha(26),
+                    color: selectedColor.withOpacity(0.1),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(24),
                       topRight: Radius.circular(24),
@@ -774,7 +774,7 @@ class _CardScreenState extends State<CardScreen> {
                 ),
                         const SizedBox(height: 16),
                         
-                        // Due Date
+                        // Due Date - clickable field to select date
                 TextField(
                     controller: dueDateController,
                             decoration: InputDecoration(
@@ -826,14 +826,14 @@ class _CardScreenState extends State<CardScreen> {
                                   height: 50,
                                   margin: const EdgeInsets.only(right: 10),
                           decoration: BoxDecoration(
-                          color: isSelected ? color.withAlpha(51) : Colors.transparent,
+                          color: color,
                           shape: BoxShape.circle,
                                     border: isSelected
                                         ? Border.all(color: Colors.white, width: 3)
                               : null,
                                     boxShadow: [
                                   BoxShadow(
-                                        color: color.withAlpha(128),
+                                        color: isSelected ? color.withOpacity(0.7) : color.withOpacity(0.4),
                                         blurRadius: 8,
                                         spreadRadius: isSelected ? 2 : 0,
             ),
@@ -859,7 +859,7 @@ class _CardScreenState extends State<CardScreen> {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withAlpha(13),
+                        color: Colors.black.withOpacity(0.05),
                         spreadRadius: 1,
                         blurRadius: 10,
                         offset: const Offset(0, -5),
@@ -927,12 +927,12 @@ class _CardScreenState extends State<CardScreen> {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                            backgroundColor: selectedColor.withAlpha(26),
+                            backgroundColor: selectedColor,
                         foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
-          ),
+                          ),
                       ),
                       child: const Text(
                             'Add Card',
@@ -1006,7 +1006,7 @@ class _CardScreenState extends State<CardScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: selectedColor.withAlpha(26),
+                    color: selectedColor.withOpacity(0.1),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(24),
                       topRight: Radius.circular(24),
@@ -1166,26 +1166,6 @@ class _CardScreenState extends State<CardScreen> {
                         ),
                         const SizedBox(height: 8),
                         
-                        // Current Balance
-                        TextField(
-                          controller: balanceController,
-                          decoration: InputDecoration(
-                            labelText: 'Current Balance',
-                            hintText: 'e.g. 5000',
-                            prefixText: '₹ ',
-                            prefixIcon: Icon(Icons.account_balance_wallet, color: selectedColor),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: selectedColor, width: 2),
-                            ),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                        const SizedBox(height: 16),
-                        
                         // Credit Limit field
                         TextField(
                           controller: limitController,
@@ -1206,7 +1186,7 @@ class _CardScreenState extends State<CardScreen> {
                         ),
                         const SizedBox(height: 16),
                         
-                        // Due Date with date picker button
+                        // Due Date with date picker - clickable field to select date
                         TextField(
                           controller: dueDateController,
                           decoration: InputDecoration(
@@ -1258,14 +1238,14 @@ class _CardScreenState extends State<CardScreen> {
                                   height: 50,
                                   margin: const EdgeInsets.only(right: 10),
                                   decoration: BoxDecoration(
-                                    color: isSelected ? color.withAlpha(51) : Colors.transparent,
+                                    color: color,
                                     shape: BoxShape.circle,
                                     border: isSelected
                                         ? Border.all(color: Colors.white, width: 3)
                                         : null,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: color.withAlpha(128),
+                                        color: isSelected ? color.withOpacity(0.7) : color.withOpacity(0.4),
                                         blurRadius: 8,
                                         spreadRadius: isSelected ? 2 : 0,
                                       ),
@@ -1291,13 +1271,13 @@ class _CardScreenState extends State<CardScreen> {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withAlpha(13),
+                        color: Colors.black.withOpacity(0.05),
                         spreadRadius: 1,
                         blurRadius: 10,
                         offset: const Offset(0, -5),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
                   child: Row(
                     children: [
                       Expanded(
@@ -1305,10 +1285,7 @@ class _CardScreenState extends State<CardScreen> {
                           onPressed: () => Navigator.pop(context),
                           child: Text(
                             'Cancel',
-                            style: TextStyle(
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: TextStyle(color: Colors.grey[700]),
                           ),
                         ),
                       ),
@@ -1358,7 +1335,7 @@ class _CardScreenState extends State<CardScreen> {
                             );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: selectedColor.withAlpha(26),
+                            backgroundColor: selectedColor,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
@@ -1708,9 +1685,6 @@ class _CardScreenState extends State<CardScreen> {
                       Expanded(
                         child: TextButton(
                           onPressed: () => Navigator.pop(context),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
                           child: Text(
                             'Cancel',
                             style: TextStyle(color: Colors.grey[700]),

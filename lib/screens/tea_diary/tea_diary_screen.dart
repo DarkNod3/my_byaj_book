@@ -1318,122 +1318,233 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
     final pendingAmount = customer.totalAmount - customer.paymentsMade;
     final String lastUpdatedTime = _getFormattedTime(customer.lastUpdated);
     
-    return Card(
+    return Dismissible(
       key: ValueKey(customer.id),
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20.0),
+        color: Colors.red,
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.delete,
+              color: Colors.white,
+            ),
+            SizedBox(height: 4),
+            Text(
+              "Delete",
+              style: TextStyle(color: Colors.white, fontSize: 12),
+            ),
+          ],
+        ),
       ),
-      child: InkWell(
-        onTap: () => _showCustomerActions(customer),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(
-            children: [
-              // Avatar
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: Colors.primaries[index % Colors.primaries.length],
-                child: Text(
-                  customer.name[0].toUpperCase(),
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                ),
+      confirmDismiss: (direction) async {
+        return await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Confirm Delete"),
+              content: Text(
+                "Are you sure you want to delete ${customer.name}? This action cannot be undone.",
               ),
-              const SizedBox(width: 12),
-              
-              // Main content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Name
-                        Text(
-                          customer.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text("CANCEL"),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text(
+                    "DELETE",
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+      onDismissed: (direction) {
+        // Delete customer
+        _deleteCustomer(customer);
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        elevation: 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: InkWell(
+          onTap: () => _showCustomerActions(customer),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                // Avatar
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.primaries[index % Colors.primaries.length],
+                  child: Text(
+                    customer.name[0].toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                
+                // Main content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Name
+                          Text(
+                            customer.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
-                        ),
-                        
-                        // Cup count
-                        Text(
-                          '${customer.cups} cups',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Tea rate
-                        Text(
-                          'Tea: ₹${customer.teaRate.toStringAsFixed(1)}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 11,
-                          ),
-                        ),
-                        
-                        // Pending amount
-                        Text(
-                          '₹${pendingAmount.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: pendingAmount > 0 ? Colors.red[700] : Colors.green[700],
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Last updated time
-                        Text(
-                          'Updated: $lastUpdatedTime',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 10,
-                          ),
-                        ),
-                        
-                        // Details button
-                        TextButton.icon(
-                          onPressed: () => _showCustomerHistory(customer),
-                          icon: Icon(
-                            Icons.visibility,
-                            size: 14,
-                            color: Colors.blue.shade700,
-                          ),
-                          label: Text(
-                            'View History',
-                            style: TextStyle(
+                          
+                          // Cup count
+                          Text(
+                            '${customer.cups} cups',
+                            style: const TextStyle(
                               fontSize: 12,
-                              color: Colors.blue.shade700,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            minimumSize: const Size(0, 0),
+                        ],
+                      ),
+                      
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Tea rate
+                          Text(
+                            'Tea: ₹${customer.teaRate.toStringAsFixed(1)}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 11,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                          
+                          // Pending amount
+                          Text(
+                            '₹${pendingAmount.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: pendingAmount > 0 ? Colors.red[700] : Colors.green[700],
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Last updated time
+                          Text(
+                            'Updated: $lastUpdatedTime',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 10,
+                            ),
+                          ),
+                          
+                          // Actions row
+                          Row(
+                            children: [
+                              // View History button
+                              TextButton.icon(
+                                onPressed: () => _showCustomerHistory(customer),
+                                icon: Icon(
+                                  Icons.visibility,
+                                  size: 14,
+                                  color: Colors.blue.shade700,
+                                ),
+                                label: Text(
+                                  'View History',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue.shade700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  minimumSize: const Size(0, 0),
+                                ),
+                              ),
+                              // Three-dot menu
+                              PopupMenuButton<String>(
+                                padding: EdgeInsets.zero,
+                                icon: Icon(
+                                  Icons.more_vert,
+                                  size: 18,
+                                  color: Colors.grey[700],
+                                ),
+                                onSelected: (value) {
+                                  switch (value) {
+                                    case 'payment':
+                                      _showAddPaymentDialog(customer);
+                                      break;
+                                    case 'edit':
+                                      _editCustomer(customer);
+                                      break;
+                                    case 'delete':
+                                      _confirmDeleteCustomer(customer);
+                                      break;
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'payment',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.payment, size: 20, color: Colors.green),
+                                        SizedBox(width: 8),
+                                        Text('Add Payment'),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'edit',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.edit, size: 20, color: Colors.blue),
+                                        SizedBox(width: 8),
+                                        Text('Edit Customer'),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete, size: 20, color: Colors.red),
+                                        SizedBox(width: 8),
+                                        Text('Delete Customer', style: TextStyle(color: Colors.red)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -2764,6 +2875,401 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
         backgroundColor: Colors.teal,
         child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  // Delete customer method
+  void _deleteCustomer(Customer customer) {
+    setState(() {
+      // Remove from lists
+      _allCustomers.removeWhere((c) => c.id == customer.id);
+      _customersForSelectedDate.removeWhere((c) => c.id == customer.id);
+      _filteredCustomers.removeWhere((c) => c.id == customer.id);
+      
+      // Update totals
+      _updateTotals();
+      
+      // Save changes
+      _saveCustomers();
+    });
+    
+    // Show snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${customer.name} deleted'),
+        action: SnackBarAction(
+          label: 'UNDO',
+          onPressed: () {
+            // Add back the customer
+            setState(() {
+              _allCustomers.add(customer);
+              _filterDataBySelectedDate();
+              _updateTotals();
+              _filterCustomers(); // Apply any current search filter
+              _sortCustomers();
+              _saveCustomers();
+            });
+          },
+        ),
+      ),
+    );
+  }
+  
+  // Show confirm delete dialog separately from dismissible
+  void _confirmDeleteCustomer(Customer customer) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Confirm Delete"),
+          content: Text(
+            "Are you sure you want to delete ${customer.name}? This action cannot be undone.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("CANCEL"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteCustomer(customer);
+              },
+              child: const Text(
+                "DELETE",
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  // Show add payment dialog
+  void _showAddPaymentDialog(Customer customer) {
+    final pendingAmount = customer.totalAmount - customer.paymentsMade;
+    final TextEditingController paymentController = TextEditingController();
+    
+    // Select date for the payment
+    DateTime selectedDate = DateTime.now();
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            
+            // Select date method
+            Future<void> selectDate(BuildContext context) async {
+              final DateTime? picked = await showDatePicker(
+                context: context,
+                initialDate: selectedDate,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now(),
+              );
+              
+              if (picked != null && picked != selectedDate) {
+                setState(() {
+                  selectedDate = picked;
+                });
+              }
+            }
+            
+            return AlertDialog(
+              title: Text('Add Payment for ${customer.name}'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Show pending amount
+                  Text(
+                    'Pending Amount: ₹${pendingAmount.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: Colors.red[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Date selector
+                  InkWell(
+                    onTap: () => selectDate(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.teal.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Date: ${DateFormat('dd-MM-yyyy').format(selectedDate)}',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          Icon(
+                            Icons.calendar_today,
+                            color: Colors.teal.shade300,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Payment amount input
+                  TextField(
+                    controller: paymentController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Payment Amount (₹)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.payment),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('CANCEL'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    // Validate and add payment
+                    final paymentText = paymentController.text.trim();
+                    if (paymentText.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter payment amount')),
+                      );
+                      return;
+                    }
+                    
+                    final double paymentAmount = double.tryParse(paymentText) ?? 0;
+                    if (paymentAmount <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter a valid amount')),
+                      );
+                      return;
+                    }
+                    
+                    // Add payment
+                    customer.paymentsMade += paymentAmount;
+                    
+                    // Add to history
+                    customer.history.add(
+                      CustomerEntry(
+                        type: EntryType.payment,
+                        cups: 0,
+                        amount: paymentAmount,
+                        timestamp: DateTime(
+                          selectedDate.year,
+                          selectedDate.month,
+                          selectedDate.day,
+                          DateTime.now().hour,
+                          DateTime.now().minute,
+                        ),
+                      ),
+                    );
+                    
+                    // Update last updated timestamp
+                    customer.lastUpdated = DateTime.now();
+                    
+                    // Update totals and save
+                    setState(() {
+                      _updateTotals();
+                      _saveCustomers();
+                    });
+                    
+                    // Close dialog
+                    Navigator.pop(context);
+                    
+                    // Show success message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Payment of ₹$paymentAmount added'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('ADD PAYMENT'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+  
+  // Edit customer method
+  void _editCustomer(Customer customer) {
+    final TextEditingController nameController = TextEditingController(text: customer.name);
+    final TextEditingController phoneController = TextEditingController(text: customer.phoneNumber ?? '');
+    final TextEditingController teaRateController = TextEditingController(text: customer.teaRate.toString());
+    final TextEditingController coffeeRateController = TextEditingController(text: customer.coffeeRate.toString());
+    final TextEditingController milkRateController = TextEditingController(text: customer.milkRate.toString());
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Customer'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Name
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Phone
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number (Optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Tea Rate
+                TextField(
+                  controller: teaRateController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Tea Rate (₹)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Coffee Rate
+                TextField(
+                  controller: coffeeRateController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Coffee Rate (₹)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Milk Rate
+                TextField(
+                  controller: milkRateController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Milk Rate (₹)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // Validate input
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Name is required')),
+                  );
+                  return;
+                }
+                
+                final teaRateText = teaRateController.text.trim();
+                if (teaRateText.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Tea rate is required')),
+                  );
+                  return;
+                }
+                
+                final double teaRate = double.tryParse(teaRateText) ?? 0;
+                if (teaRate <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a valid tea rate')),
+                  );
+                  return;
+                }
+                
+                // Create a new customer with updated information but preserved history
+                final updatedCustomer = Customer(
+                  id: customer.id,
+                  name: name,
+                  phoneNumber: phoneController.text.trim().isEmpty ? null : phoneController.text.trim(),
+                  cups: customer.cups,
+                  teaRate: teaRate,
+                  coffeeRate: double.tryParse(coffeeRateController.text.trim()) ?? 0.0,
+                  milkRate: double.tryParse(milkRateController.text.trim()) ?? 0.0,
+                  totalAmount: customer.totalAmount,
+                  paymentsMade: customer.paymentsMade,
+                  date: customer.date,
+                  lastUpdated: DateTime.now(),
+                  history: customer.history,
+                );
+                
+                // Update customer in lists
+                setState(() {
+                  // Find and update customer in all lists
+                  final allIndex = _allCustomers.indexWhere((c) => c.id == customer.id);
+                  if (allIndex != -1) {
+                    _allCustomers[allIndex] = updatedCustomer;
+                  }
+                  
+                  final dateIndex = _customersForSelectedDate.indexWhere((c) => c.id == customer.id);
+                  if (dateIndex != -1) {
+                    _customersForSelectedDate[dateIndex] = updatedCustomer;
+                  }
+                  
+                  final filteredIndex = _filteredCustomers.indexWhere((c) => c.id == customer.id);
+                  if (filteredIndex != -1) {
+                    _filteredCustomers[filteredIndex] = updatedCustomer;
+                  }
+                  
+                  // Save changes
+                  _saveCustomers();
+                });
+                
+                // Close dialog
+                Navigator.pop(context);
+                
+                // Show success message
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('$name updated'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('SAVE'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

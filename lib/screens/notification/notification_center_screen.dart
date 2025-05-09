@@ -219,7 +219,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
                           Container(
                             width: 10,
                             height: 10,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               shape: BoxShape.circle,
                               color: AppTheme.primaryColor,
                             ),

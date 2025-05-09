@@ -29,7 +29,7 @@ class MilkDiaryScreen extends StatefulWidget {
 
 class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  DateTime _selectedDate = DateTime.now();
+  final DateTime _selectedDate = DateTime.now();
   
   @override
   void initState() {
@@ -49,22 +49,6 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
     super.dispose();
   }
 
-  // Select date method
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2025),
-    );
-    
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
-    }
-  }
-  
   // Create a summary item widget
   Widget _buildSummaryItem(String value, String title, IconData icon, Color color) {
     return Column(
@@ -145,92 +129,98 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
     });
   }
   
-  // Format date for display
-  String _formatDate(DateTime date) {
-    return DateFormat('dd MMM yyyy').format(date);
-  }
-  
   // Time ago format for last entry
   String _timeAgo(DateTime date) {
     return timeago.format(date, locale: 'en_short');
   }
   
-  // Updated _buildSummaryCard method to remove the Payment Due card
+  // Updated _buildSummaryCard method to show complete history and current month dues
   Widget _buildSummaryCard(BuildContext context) {
     return Consumer2<DailyEntryProvider, MilkSellerProvider>(
                 builder: (context, entryProvider, sellerProvider, child) {
-        // Check if today is the 1st day of the month - reset stats if it is
+        // Current month calculations for the 4th button
         final now = DateTime.now();
-        
-        // Get entries for the current month only
         final DateTime firstDayOfMonth = DateTime(now.year, now.month, 1);
         final DateTime lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
         
         // Format for date range display
         final String dateRangeText = "1-${now.day} ${DateFormat('MMM yyyy').format(now)}";
         
-        // Use selected date only if it falls within current month, otherwise use the current month data
-        final bool selectedDateInCurrentMonth = 
-            _selectedDate.year == now.year && _selectedDate.month == now.month;
-        
-        final entriesForDate = selectedDateInCurrentMonth 
-            ? entryProvider.getEntriesForDate(_selectedDate)
-            : entryProvider.getEntriesForDate(now);
-        
-        // Get all entries for the current month
+        // Get entries for current month (for 4th button only)
         final entriesForMonth = entryProvider.getEntriesInDateRange(firstDayOfMonth, lastDayOfMonth);
-                  
-        // Calculate statistics with proper rounding
-        final totalQuantity = entriesForDate.isEmpty ? 0.0 :
-          double.parse(entriesForDate.fold(0.0, (sum, entry) => sum + entry.quantity).toStringAsFixed(2));
-          
         final monthlyAmount = entriesForMonth.isEmpty ? 0.0 :
           double.parse(entriesForMonth.fold(0.0, (sum, entry) => sum + entry.amount).toStringAsFixed(2));
         
-        // Get the most common unit for today's entries
-        String displayUnit = 'L'; // Default to L
-        if (entriesForDate.isNotEmpty) {
-          // Count the occurrences of each unit
-          final unitCounts = <String, int>{};
-          for (var entry in entriesForDate) {
-            unitCounts[entry.unit] = (unitCounts[entry.unit] ?? 0) + 1;
-          }
-          
-          // Find the most common unit
-          String? mostCommonUnit;
-          int maxCount = 0;
-          unitCounts.forEach((unit, count) {
-            if (count > maxCount) {
-              mostCommonUnit = unit;
-              maxCount = count;
-            }
-          });
-          
-          // Use the null-aware operator to safely assign the value
-          displayUnit = mostCommonUnit ?? 'L';
-        }
-        
-        // Calculate payments for the current month
+        // Get payments for current month (for 4th button only)
         final allPayments = sellerProvider.payments;
+        final validPayments = allPayments.where((payment) => 
+          sellerProvider.getSellerById(payment.sellerId) != null
+        ).toList();
         
-        // Filter valid payments that have existing sellerIds 
-        final validPayments = allPayments.where((payment) {
-          // Only include payments for which we can find the seller in provider
-          return sellerProvider.getSellerById(payment.sellerId) != null;
-        }).toList();
-        
-        // Filter further for the date range
         final paymentsForMonth = validPayments.where((payment) => 
           payment.date.isAfter(firstDayOfMonth.subtract(const Duration(days: 1))) &&
           payment.date.isBefore(lastDayOfMonth.add(const Duration(days: 1)))
         ).toList();
         
-        // Calculate total paid amount for the current month with proper rounding
-        final totalPaid = paymentsForMonth.isEmpty ? 0.0 :
+        final monthlyPaid = paymentsForMonth.isEmpty ? 0.0 :
           double.parse(paymentsForMonth.fold(0.0, (sum, payment) => sum + payment.amount).toStringAsFixed(2));
         
-        // Ensure due amount is correctly calculated
-        final amountDue = max(0.0, monthlyAmount - totalPaid);
+        // Calculate monthly dues by seller (only consider positive dues)
+        final Map<String, double> sellerMonthlyDues = {};
+        final sellers = sellerProvider.sellers;
+        
+        // Calculate each seller's monthly due amount
+        for (var seller in sellers) {
+          // Get seller's entries for this month
+          final sellerEntries = entriesForMonth.where((entry) => entry.sellerId == seller.id).toList();
+          final sellerAmount = sellerEntries.isEmpty ? 0.0 :
+            sellerEntries.fold(0.0, (sum, entry) => sum + entry.amount);
+            
+          // Get seller's payments for this month
+          final sellerPayments = paymentsForMonth.where((payment) => payment.sellerId == seller.id).toList();
+          final sellerPaid = sellerPayments.isEmpty ? 0.0 :
+            sellerPayments.fold(0.0, (sum, payment) => sum + payment.amount);
+            
+          // Calculate due amount (can be negative if paid in advance)
+          sellerMonthlyDues[seller.id] = sellerAmount - sellerPaid;
+        }
+        
+        // Sum only positive dues for the monthly due total (ignore negative dues)
+        final monthlyDue = sellerMonthlyDues.values
+          .where((due) => due > 0) // Only consider positive dues
+          .fold(0.0, (sum, due) => sum + due);
+        
+        // Get all-time entries and payments (for first 3 buttons)
+        final allEntries = entryProvider.entries;
+        final allTimeAmount = allEntries.isEmpty ? 0.0 :
+          double.parse(allEntries.fold(0.0, (sum, entry) => sum + entry.amount).toStringAsFixed(2));
+        
+        final allTimePaid = validPayments.isEmpty ? 0.0 :
+          double.parse(validPayments.fold(0.0, (sum, payment) => sum + payment.amount).toStringAsFixed(2));
+        
+        // Calculate all-time dues by seller (only consider positive dues)
+        final Map<String, double> sellerAllTimeDues = {};
+        
+        // Calculate each seller's all-time due amount
+        for (var seller in sellers) {
+          // Get all of seller's entries
+          final sellerAllEntries = allEntries.where((entry) => entry.sellerId == seller.id).toList();
+          final sellerAllAmount = sellerAllEntries.isEmpty ? 0.0 :
+            sellerAllEntries.fold(0.0, (sum, entry) => sum + entry.amount);
+            
+          // Get all of seller's payments
+          final sellerAllPayments = validPayments.where((payment) => payment.sellerId == seller.id).toList();
+          final sellerAllPaid = sellerAllPayments.isEmpty ? 0.0 :
+            sellerAllPayments.fold(0.0, (sum, payment) => sum + payment.amount);
+            
+          // Calculate due amount (can be negative if paid in advance)
+          sellerAllTimeDues[seller.id] = sellerAllAmount - sellerAllPaid;
+        }
+        
+        // Sum only positive dues for the all-time due total (ignore negative dues/advance payments)
+        final allTimeDue = sellerAllTimeDues.values
+          .where((due) => due > 0) // Only consider positive dues
+          .fold(0.0, (sum, due) => sum + due);
         
         return Column(
           children: [
@@ -244,7 +234,7 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                   Icon(Icons.date_range, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 4),
                   Text(
-                    dateRangeText,
+                    "All-Time + ${DateFormat('MMM yyyy').format(now)}",
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       fontSize: 14,
@@ -267,43 +257,43 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          // Total Milk Today
+                          // Total All-Time Amount
                           Expanded(
                             child: _buildSummaryItem(
-                              '${totalQuantity.toStringAsFixed(2)} $displayUnit',
-                              'Milk Today',
-                              Icons.water_drop,
-                              Colors.blue,
-                            ),
-                          ),
-                          
-                          // Total Amount
-                          Expanded(
-                            child: _buildSummaryItem(
-                              '₹${monthlyAmount.toStringAsFixed(0)}',
+                              '₹${allTimeAmount.toStringAsFixed(0)}',
                               'Total Amount',
                               Icons.currency_rupee,
                               Colors.green,
                             ),
                           ),
                           
-                          // Received Amount
+                          // All-Time Received Amount
                           Expanded(
                             child: _buildSummaryItem(
-                              '₹${totalPaid.toStringAsFixed(0)}',
-                              'Received',
+                              '₹${allTimePaid.toStringAsFixed(0)}',
+                              'All Received',
                               Icons.payments,
                               Colors.purple,
                             ),
                           ),
                           
-                          // Due Amount
+                          // All-Time Due Amount
                           Expanded(
                             child: _buildSummaryItem(
-                              '₹${amountDue.toStringAsFixed(0)}',
-                              'Due Amount',
+                              '₹${allTimeDue.toStringAsFixed(0)}',
+                              'Total Due',
                               Icons.account_balance_wallet,
                               Colors.red,
+                            ),
+                          ),
+                          
+                          // This Month Dues Only
+                          Expanded(
+                            child: _buildSummaryItem(
+                              '₹${monthlyDue.toStringAsFixed(0)}',
+                              '${DateFormat('MMM').format(now)} Dues',
+                              Icons.calendar_month,
+                              Colors.orange,
                             ),
                           ),
                         ],
@@ -519,20 +509,11 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                       Expanded(
                         child: InkWell(
                           onTap: () {
-                            // Navigate to payment history screen - commented out since MilkPaymentsScreen is undefined
-                            /* 
+                            // Navigate to payment history screen
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const MilkPaymentsScreen(),
-                              ),
-                            );
-                            */
-                            // Show a message instead
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Payment history feature is not available'),
-                                duration: Duration(seconds: 2),
                               ),
                             );
                           },
@@ -595,19 +576,6 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
     final seller = sellerProvider.getSellerById(sellerId);
     if (seller == null) return const SizedBox();
     
-    // Calculate total for today
-    final entriesForToday = entries.where((entry) => 
-      entry.date.year == _selectedDate.year && 
-      entry.date.month == _selectedDate.month && 
-      entry.date.day == _selectedDate.day
-    ).toList();
-    
-    final totalQuantityToday = entriesForToday.isEmpty ? 0.0 :
-      entriesForToday.fold(0.0, (sum, entry) => sum + entry.quantity);
-    
-    final totalAmountToday = entriesForToday.isEmpty ? 0.0 :
-      entriesForToday.fold(0.0, (sum, entry) => sum + entry.amount);
-    
     // Get most recent entry
     final mostRecentEntry = entries.isNotEmpty 
       ? entries.reduce((a, b) => a.date.isAfter(b.date) ? a : b) 
@@ -616,9 +584,6 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
     // Calculate totals for all entries (not just today)
     final totalAmount = entries.isEmpty ? 0.0 :
       entries.fold(0.0, (sum, entry) => sum + entry.amount);
-    
-    // Get the unit from the most recent entry or default to L
-    final mostRecentUnit = mostRecentEntry?.unit ?? 'L';
     
     // Get payments data - calculate actual payments
     final payments = sellerProvider.getPaymentsForSeller(sellerId);
@@ -725,18 +690,8 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                           case 'view_history':
                             _showSellerDetails(context, sellerId);
                             break;
-                          case 'edit_entry':
-                            if (entriesForToday.isNotEmpty) {
-                              MilkDiaryAddEntry.showAddEntryBottomSheet(
-                                context,
-                                entry: entriesForToday.last,
-                                sellerId: sellerId,
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('No entries found for today')),
-                              );
-                            }
+                          case 'edit_seller':
+                            _editSeller(context, seller);
                             break;
                           case 'delete':
                             _confirmDeleteSeller(context, seller);
@@ -765,12 +720,12 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                           ),
                         ),
                         const PopupMenuItem<String>(
-                          value: 'edit_entry',
+                          value: 'edit_seller',
                           child: Row(
                             children: [
                               Icon(Icons.edit, size: 20, color: Colors.blue),
                               SizedBox(width: 8),
-                              Text('Edit Entry'),
+                              Text('Edit Seller'),
                             ],
                           ),
                         ),
@@ -785,60 +740,6 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                           ),
                         ),
                       ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          
-          const Divider(height: 1),
-          
-          // Today's summary (kept only this part)
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Today's quantity
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Today',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      '${totalQuantityToday.toStringAsFixed(1)} ${entriesForToday.isNotEmpty ? entriesForToday.last.unit : mostRecentUnit}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                
-                // Today's amount
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Amount',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      '₹${totalAmountToday.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green[700],
-                      ),
                     ),
                   ],
                 ),
@@ -878,6 +779,9 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
     // Update seller's due amount for future reference
     seller.updateDueAmount(dueAmount);
       
+    // Store a reference to the current context for later use
+    final BuildContext currentContext = context;
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -990,10 +894,10 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
               final updatedDueAmount = dueAmount - amount;
               seller.updateDueAmount(updatedDueAmount);
               sellerProvider.updateSeller(seller);
-                          
+              
               // Show success message
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
+              ScaffoldMessenger.of(currentContext).showSnackBar(
                 SnackBar(
                   content: Text('Payment of ₹${amount.toStringAsFixed(2)} added successfully'),
                   backgroundColor: Colors.green,
@@ -1066,38 +970,6 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
           // App bar
           _buildAppBar(),
         
-          // Date selector row
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Date display
-                  Text(
-                  _formatDate(_selectedDate),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  // Date selector button
-                  Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withAlpha(26),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.calendar_today, size: 20),
-                      onPressed: () => _selectDate(context),
-                      color: AppTheme.primaryColor,
-                      tooltip: 'Select Date',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          
           // Main content area
           Expanded(
             child: RefreshIndicator(
@@ -1423,6 +1295,21 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
         ],
       ),
     );
+  }
+
+  // Add a new method for editing sellers
+  void _editSeller(BuildContext context, MilkSeller seller) async {
+    // Use a local variable instead of depending on the widget's mounted property
+    final updatedSeller = await MilkDiaryAddSeller.showAddSellerBottomSheet(
+      context,
+      seller: seller,
+    );
+    
+    // Check if the widget is still mounted using the context.mounted property
+    if (updatedSeller != null && context.mounted) {
+      // Use the provider from the current context
+      Provider.of<MilkSellerProvider>(context, listen: false).updateSeller(updatedSeller);
+    }
   }
 }
 
@@ -1902,45 +1789,99 @@ class SellerProfileScreen extends StatelessWidget {
       );
     }
     
+    // Get the seller provider from context
+    final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
+    
     // Sort payments by date - most recent first
     payments.sort((a, b) => b.date.compareTo(a.date));
     
     return ListView.builder(
+      padding: const EdgeInsets.all(16),
       itemCount: payments.length,
       itemBuilder: (context, index) {
         final payment = payments[index];
+        final seller = sellerProvider.getSellerById(payment.sellerId);
+        
         return Card(
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: const EdgeInsets.only(bottom: 12),
           color: Colors.green[50],
-          child: ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: Colors.green,
-              child: Icon(Icons.payments, color: Colors.white, size: 20),
-            ),
-            title: Text('₹${payment.amount.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(DateFormat('dd MMM yyyy').format(payment.date)),
-                if (payment.note != null && payment.note!.isNotEmpty)
-                  Text(
-                    payment.note!,
-                    style: const TextStyle(
-                      fontStyle: FontStyle.italic,
-                      fontSize: 12,
-                    ),
+                // Avatar
+                CircleAvatar(
+                  backgroundColor: Colors.deepPurple,
+                  child: Text(
+                    seller?.name[0].toUpperCase() ?? "U",
+                    style: const TextStyle(color: Colors.white),
                   ),
+                ),
+                
+                const SizedBox(width: 12),
+                
+                // Seller details and date
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        seller?.name ?? 'Unknown Seller',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(
+                            DateFormat('dd MMM yyyy').format(payment.date),
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                      if (payment.note != null && payment.note!.isNotEmpty)
+                        Text(
+                          payment.note!,
+                          style: const TextStyle(
+                            fontStyle: FontStyle.italic,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+                
+                // Amount and delete button
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '₹${payment.amount.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.green,
+                      ),
+                    ),
+                    IconButton(
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.only(left: 8),
+                      icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                      onPressed: () => _confirmDeletePayment(context, payment, sellerProvider),
+                    ),
+                  ],
+                ),
               ],
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () {
-                _confirmDeletePayment(context, payment);
-              },
             ),
           ),
         );
@@ -1949,7 +1890,8 @@ class SellerProfileScreen extends StatelessWidget {
   }
   
   // Method to confirm deletion of a payment
-  void _confirmDeletePayment(BuildContext context, MilkPayment payment) {
+  void _confirmDeletePayment(BuildContext context, MilkPayment payment, MilkSellerProvider sellerProvider) {
+    final BuildContext currentContext = context;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1963,25 +1905,18 @@ class SellerProfileScreen extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _deletePayment(context, payment);
+              sellerProvider.deletePayment(payment.id);
+              ScaffoldMessenger.of(currentContext).showSnackBar(
+                const SnackBar(
+                  content: Text('Payment deleted successfully'),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                ),
+              );
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
-      ),
-    );
-  }
-  
-  // Method to delete a payment
-  void _deletePayment(BuildContext context, MilkPayment payment) {
-    final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
-    sellerProvider.deletePayment(payment.id);
-    
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-        content: Text('Payment deleted successfully'),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 2),
       ),
     );
   }
@@ -2010,6 +1945,9 @@ class SellerProfileScreen extends StatelessWidget {
     
     // Update seller's due amount for future reference
     seller.updateDueAmount(dueAmount);
+    
+    // Store a reference to the current context for later use
+    final BuildContext currentContext = context;
     
     showDialog(
       context: context,
@@ -2055,9 +1993,9 @@ class SellerProfileScreen extends StatelessWidget {
                       );
                       if (date != null) {
                         dateController.text = DateFormat('dd-MM-yyyy').format(date);
-                }
-              },
-            ),
+                      }
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -2103,7 +2041,7 @@ class SellerProfileScreen extends StatelessWidget {
               DateTime date;
               try {
                 date = DateFormat('dd-MM-yyyy').parse(dateController.text);
-    } catch (e) {
+              } catch (e) {
                 date = DateTime.now();
               }
               
@@ -2126,20 +2064,20 @@ class SellerProfileScreen extends StatelessWidget {
               
               // Show success message
               Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+              ScaffoldMessenger.of(currentContext).showSnackBar(
+                SnackBar(
                   content: Text('Payment of ₹${amount.toStringAsFixed(2)} added successfully'),
                   backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
+                  duration: const Duration(seconds: 2),
                 ),
               );
             },
             child: const Text('Add Payment', style: TextStyle(color: Colors.blue)),
           ),
         ],
-          ),
-        );
-      }
+      ),
+    );
+  }
 
   // Method to edit an entry
   void _editEntry(BuildContext context, DailyEntry entry) {
@@ -2165,7 +2103,7 @@ class SellerProfileScreen extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // _deleteEntry(context, entry);
+              _deleteEntry(context, entry);
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
@@ -2175,18 +2113,18 @@ class SellerProfileScreen extends StatelessWidget {
   }
   
   // Method to delete an entry
-  // void _deleteEntry(BuildContext context, DailyEntry entry) {
-  //   final entryProvider = Provider.of<DailyEntryProvider>(context, listen: false);
-  //   entryProvider.deleteEntry(entry.id);
-  //   
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     const SnackBar(
-  //       content: Text('Entry deleted successfully'),
-  //       backgroundColor: Colors.red,
-  //       duration: Duration(seconds: 2),
-  //     ),
-  //   );
-  // }
+  void _deleteEntry(BuildContext context, DailyEntry entry) {
+    final entryProvider = Provider.of<DailyEntryProvider>(context, listen: false);
+    entryProvider.deleteEntry(entry.id);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Entry deleted successfully'),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 }
 
 // Add a method to confirm deletion of a seller
@@ -2268,5 +2206,162 @@ void _deleteSeller(BuildContext context, String sellerId) async {
         ),
       );
     }
+  }
+}
+
+// Add MilkPaymentsScreen class at the end of the file
+class MilkPaymentsScreen extends StatelessWidget {
+  const MilkPaymentsScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Payment History'),
+        backgroundColor: AppTheme.primaryColor,
+      ),
+      body: Consumer<MilkSellerProvider>(
+        builder: (context, sellerProvider, child) {
+          final allPayments = sellerProvider.payments;
+          
+          if (allPayments.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Text('No payment history found'),
+              ),
+            );
+          }
+          
+          // Sort payments by date (newest first)
+          final sortedPayments = List<MilkPayment>.from(allPayments)
+              ..sort((a, b) => b.date.compareTo(a.date));
+          
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: sortedPayments.length,
+            itemBuilder: (context, index) {
+              final payment = sortedPayments[index];
+              final seller = sellerProvider.getSellerById(payment.sellerId);
+              
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                color: Colors.green[50],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Avatar
+                      CircleAvatar(
+                        backgroundColor: Colors.deepPurple,
+                        child: Text(
+                          seller?.name[0].toUpperCase() ?? "U",
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      
+                      const SizedBox(width: 12),
+                      
+                      // Seller details and date
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              seller?.name ?? 'Unknown Seller',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text(
+                                  DateFormat('dd MMM yyyy').format(payment.date),
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ],
+                            ),
+                            if (payment.note != null && payment.note!.isNotEmpty)
+                              Text(
+                                payment.note!,
+                                style: const TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Amount and delete button
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '₹${payment.amount.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.green,
+                            ),
+                          ),
+                          IconButton(
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.only(left: 8),
+                            icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                            onPressed: () => _confirmDeletePayment(context, payment, sellerProvider),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+  
+  void _confirmDeletePayment(BuildContext context, MilkPayment payment, MilkSellerProvider sellerProvider) {
+    final BuildContext currentContext = context;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Payment'),
+        content: Text('Are you sure you want to delete this payment of ₹${payment.amount.toStringAsFixed(2)}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              sellerProvider.deletePayment(payment.id);
+              ScaffoldMessenger.of(currentContext).showSnackBar(
+                const SnackBar(
+                  content: Text('Payment deleted successfully'),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 } 

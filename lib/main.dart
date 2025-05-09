@@ -224,35 +224,33 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       );
       
       // Generate notifications for any due payments
-      if (notificationProvider != null) {
-        final loanProvider = Provider.of<LoanProvider>(
-          navigatorKey.currentContext!,
-          listen: false,
-        );
-        
-        final cardProvider = Provider.of<CardProvider>(
-          navigatorKey.currentContext!,
-          listen: false,
-        );
-        
-        final transactionProvider = Provider.of<TransactionProvider>(
-          navigatorKey.currentContext!,
-          listen: false,
-        );
-        
-        final billNoteProvider = Provider.of<BillNoteProvider>(
-          navigatorKey.currentContext!,
-          listen: false,
-        );
-        
-        notificationProvider.generateDueNotifications(
-          loanProvider: loanProvider,
-          cardProvider: cardProvider,
-          transactionProvider: transactionProvider,
-          billNoteProvider: billNoteProvider,
-        );
-      }
-    }
+      final loanProvider = Provider.of<LoanProvider>(
+        navigatorKey.currentContext!,
+        listen: false,
+      );
+      
+      final cardProvider = Provider.of<CardProvider>(
+        navigatorKey.currentContext!,
+        listen: false,
+      );
+      
+      final transactionProvider = Provider.of<TransactionProvider>(
+        navigatorKey.currentContext!,
+        listen: false,
+      );
+      
+      final billNoteProvider = Provider.of<BillNoteProvider>(
+        navigatorKey.currentContext!,
+        listen: false,
+      );
+      
+      notificationProvider.generateDueNotifications(
+        loanProvider: loanProvider,
+        cardProvider: cardProvider,
+        transactionProvider: transactionProvider,
+        billNoteProvider: billNoteProvider,
+      );
+        }
   }
 
   // This widget is the root of your application.

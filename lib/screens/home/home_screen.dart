@@ -17,7 +17,6 @@ import 'package:my_byaj_book/constants/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:my_byaj_book/providers/nav_preferences_provider.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
-import 'package:my_byaj_book/providers/notification_provider.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:my_byaj_book/screens/tea_diary/tea_diary_screen.dart';
@@ -29,7 +28,6 @@ import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
 import 'package:my_byaj_book/widgets/notification_badge.dart';
-import 'package:my_byaj_book/screens/notification/notification_center_screen.dart';
 
 // Add dummy MyApp class as requested
 class MyApp extends StatelessWidget {

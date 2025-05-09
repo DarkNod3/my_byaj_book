@@ -2,16 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:my_byaj_book/constants/app_theme.dart';
 import 'package:my_byaj_book/widgets/header/app_header.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
-import 'package:my_byaj_book/providers/user_provider.dart';
 import 'package:my_byaj_book/services/pdf_service.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:flutter/services.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});

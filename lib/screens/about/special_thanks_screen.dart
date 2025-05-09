@@ -143,15 +143,15 @@ class SpecialThanksScreen extends StatelessWidget {
         // Section title
         Container(
           margin: const EdgeInsets.only(bottom: 16),
-          child: Row(
+          child: const Row(
             children: [
               Icon(
                 Icons.groups,
                 color: AppTheme.primaryColor,
                 size: 22,
               ),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 "My Amazing Team",
                 style: TextStyle(
                   fontSize: 18,
