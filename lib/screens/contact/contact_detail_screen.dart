@@ -36,7 +36,7 @@ class ContactDetailScreen extends StatefulWidget {
 
 class _ContactDetailScreenState extends State<ContactDetailScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
+  final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: 'Rs. ');
   final dateFormat = DateFormat('dd MMM yyyy, HH:mm');
   List<Map<String, dynamic>> _filteredTransactions = [];
   bool _isSearching = false;
@@ -142,67 +142,54 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           else
             _buildBasicSummaryCard(),
 
-          // Action buttons
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildActionButton(
-                  context,
-                  Icons.call,
-                  'Call',
-                  themeProvider.primaryColor,
-                  onTap: _handleCallButton,
-                ),
-                _buildActionButton(
-                  context,
-                  Icons.picture_as_pdf,
-                  'PDF Report',
-                  themeProvider.primaryColor,
-                  onTap: _handlePdfReport,
-                ),
-                _buildActionButton(
-                  context,
-                  Icons.notifications,
-                  'Reminder',
-                  themeProvider.primaryColor,
-                  onTap: _setReminder,
-                ),
-                _buildActionButton(
-                  context,
-                  Icons.sms,
-                  'SMS',
-                  themeProvider.primaryColor,
-                  onTap: _handleSmsButton,
+          // Transactions header
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  offset: const Offset(0, 2),
+                  blurRadius: 5,
                 ),
               ],
             ),
-          ),
-
-          // Transactions header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'TRANSACTIONS',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.receipt_long,
+                      size: 18,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'TRANSACTIONS',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-                    IconButton(
-                      icon: Icon(_isSearching ? Icons.close : Icons.search),
-                      onPressed: () {
-                        setState(() {
-                          _isSearching = !_isSearching;
-                          if (!_isSearching) {
-                            _searchController.clear();
-                          }
-                        });
-                      },
+                IconButton(
+                  icon: Icon(
+                    _isSearching ? Icons.close : Icons.search,
+                    size: 22,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isSearching = !_isSearching;
+                      if (!_isSearching) {
+                        _searchController.clear();
+                      }
+                    });
+                  },
                 ),
               ],
             ),
@@ -210,19 +197,34 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
 
           // Search bar (visible only when searching)
           if (_isSearching)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    offset: const Offset(0, 2),
+                    blurRadius: 5,
+                  ),
+                ],
+              ),
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'Search transactions',
+                  prefixIcon: const Icon(Icons.search, size: 20),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 8,
+                    vertical: 14,
                   ),
+                  fillColor: Colors.white,
+                  filled: true,
                 ),
               ),
             ),
@@ -232,7 +234,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
             child: _filteredTransactions.isEmpty
                 ? const Center(child: Text('No transactions found'))
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     itemCount: _filteredTransactions.length,
                     itemBuilder: (context, index) {
                       final tx = _filteredTransactions[index];
@@ -284,36 +286,43 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     IconData icon,
     String label,
     Color color,
-    {required VoidCallback onTap}
+    {required VoidCallback onTap, required Gradient gradient}
   ) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
-        width: 70,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 5),
+        width: 75,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: Icon(
                 icon,
-                color: color,
-                size: 20,
+                color: Colors.white,
+                size: 22,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: color,
-                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade800,
+                fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
             ),
@@ -337,15 +346,15 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       // Delete transaction on long press
       onLongPress: () => _confirmDeleteTransaction(tx, originalIndex),
       child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-        elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.1),
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 0),
+        elevation: 3,
+        shadowColor: Colors.black.withOpacity(0.2),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           side: BorderSide(color: Colors.grey.shade200),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -361,7 +370,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: isGave ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
@@ -369,7 +378,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     child: Text(
                       isGave ? 'PAID' : 'RECEIVED',
                       style: TextStyle(
-                        fontSize: 9,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: isGave ? Colors.red : Colors.green,
                       ),
@@ -377,7 +386,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -387,7 +396,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       children: [
                         Text(
                           tx['note'] ?? '',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                         ),
                         if (hasImage)
                           GestureDetector(
@@ -402,7 +411,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                                     'View Receipt',
                                     style: TextStyle(
                                       color: Colors.blue,
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -416,7 +425,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                   Text(
                     currencyFormat.format(tx['amount']),
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: isGave ? Colors.red : Colors.green,
                     ),
@@ -425,14 +434,14 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               ),
               if (hasImage)
                 Padding(
-                  padding: const EdgeInsets.only(top: 4),
+                  padding: const EdgeInsets.only(top: 8),
                   child: Row(
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
                         child: Container(
-                          height: 32,
-                          width: 32,
+                          height: 40,
+                          width: 40,
                           decoration: BoxDecoration(
                             border: Border.all(color: Colors.grey.shade300),
                             borderRadius: BorderRadius.circular(4),
@@ -446,17 +455,18 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     ],
                   ),
                 ),
+              const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Text(
                     'Balance: ',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                   Text(
                     currencyFormat.format(runningBalance.abs()),
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: runningBalance >= 0 ? Colors.green : Colors.red,
                     ),
@@ -1645,6 +1655,72 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                 ),
               ],
             ),
+            
+            // Add action buttons
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 15),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildActionButtonCompact(
+                    context,
+                    Icons.call,
+                    'Call',
+                    Colors.blue,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF6A74CC), Color(0xFF3B5AC0)],
+                    ),
+                    onTap: _handleCallButton,
+                  ),
+                  _buildActionButtonCompact(
+                    context,
+                    Icons.picture_as_pdf,
+                    'PDF Report',
+                    Colors.red,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFE57373), Color(0xFFC62828)],
+                    ),
+                    onTap: _handlePdfReport,
+                  ),
+                  _buildActionButtonCompact(
+                    context,
+                    Icons.notifications,
+                    'Reminder',
+                    Colors.orange,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFFFB74D), Color(0xFFE65100)],
+                    ),
+                    onTap: _setReminder,
+                  ),
+                  _buildActionButtonCompact(
+                    context,
+                    Icons.sms,
+                    'SMS',
+                    Colors.green,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF81C784), Color(0xFF2E7D32)],
+                    ),
+                    onTap: _handleSmsButton,
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -1707,49 +1783,250 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     final balance = _calculateBalance();
     final isPositive = balance >= 0;
     
-    return Card(
+    // Calculate total paid and received for additional statistics
+    double totalPaid = 0;
+    double totalReceived = 0;
+    final transactions = _transactionProvider.getTransactionsForContact(_contactId);
+    
+    for (var tx in transactions) {
+      if (tx['type'] == 'gave') {
+        totalPaid += tx['amount'] as double;
+      } else {
+        totalReceived += tx['amount'] as double;
+      }
+    }
+    
+    // Choose colors based on balance status
+    final Color primaryColor = isPositive ? Colors.green.shade700 : Colors.red.shade700;
+    final Color secondaryColor = isPositive ? Colors.green.shade400 : Colors.red.shade400;
+    final Color lightColor = isPositive ? Colors.green.shade50 : Colors.red.shade50;
+    
+    return Container(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: primaryColor.withOpacity(0.2),
+            offset: const Offset(0, 4),
+            blurRadius: 12,
+          ),
+        ],
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            primaryColor,
+            secondaryColor,
+          ],
+        ),
+      ),
+      child: Column(
+        children: [
+          // Main balance section
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  isPositive ? 'TO RECEIVE' : 'TO PAY',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: isPositive ? Colors.green.shade700 : Colors.red.shade700,
-                  ),
+                // Header with label and info button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          isPositive ? Icons.account_balance_wallet : Icons.payments,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isPositive ? 'TO RECEIVE' : 'TO PAY',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    GestureDetector(
+                      onTap: _showContactInfo,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                GestureDetector(
-                  onTap: _showContactInfo,
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 16),
-                      SizedBox(width: 4),
-                      Text('DETAILS', style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
+                const SizedBox(height: 16),
+                
+                // Balance amount with currency
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Rs. ',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        NumberFormat('#,##,##0.00').format(balance.abs()),
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                // Last updated info
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Last updated: ${DateFormat('dd MMM yyyy').format(DateTime.now())}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              currencyFormat.format(balance.abs()),
-              style: TextStyle(
-                fontSize: 34,
-                fontWeight: FontWeight.bold,
-                color: isPositive ? Colors.green.shade700 : Colors.red.shade700,
+          ),
+          
+          // Statistics section
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 15),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.9),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(16),
+                bottomRight: Radius.circular(16),
               ),
             ),
-          ],
-        ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildActionButtonCompact(
+                  context,
+                  Icons.call,
+                  'Call',
+                  Colors.blue,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF6A74CC), Color(0xFF3B5AC0)],
+                  ),
+                  onTap: _handleCallButton,
+                ),
+                _buildActionButtonCompact(
+                  context,
+                  Icons.picture_as_pdf,
+                  'PDF Report',
+                  Colors.red,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFE57373), Color(0xFFC62828)],
+                  ),
+                  onTap: _handlePdfReport,
+                ),
+                _buildActionButtonCompact(
+                  context,
+                  Icons.notifications,
+                  'Reminder',
+                  Colors.orange,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFFFB74D), Color(0xFFE65100)],
+                  ),
+                  onTap: _setReminder,
+                ),
+                _buildActionButtonCompact(
+                  context,
+                  Icons.sms,
+                  'SMS',
+                  Colors.green,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF81C784), Color(0xFF2E7D32)],
+                  ),
+                  onTap: _handleSmsButton,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Helper widget for compact action buttons in the summary card
+  Widget _buildActionButtonCompact(
+    BuildContext context,
+    IconData icon,
+    String label,
+    Color color,
+    {required VoidCallback onTap, required Gradient gradient}
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: gradient,
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.shade800,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

@@ -32,7 +32,7 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   late AnimationController _animationController;
-  final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+  final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: 'Rs. ', decimalDigits: 0);
   DateTime _selectedDate = DateTime.now();
   bool _isDialOpen = false;
 

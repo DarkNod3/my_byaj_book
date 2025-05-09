@@ -110,4 +110,7 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    
+    // Required for Firebase Phone Authentication with in-app reCAPTCHA verification
+    implementation("androidx.browser:browser:1.4.0")
 }

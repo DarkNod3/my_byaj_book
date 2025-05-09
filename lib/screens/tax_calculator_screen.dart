@@ -117,7 +117,7 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
           taxAmount += slabTax;
           
           breakdown.add({
-            'slab': 'Rs. ${PdfTemplateService.formatCurrency(start)} to Rs. ${end < double.infinity ? PdfTemplateService.formatCurrency(end) : "∞"}',
+            'slab': '₹${PdfTemplateService.formatCurrency(start)} to ₹${end < double.infinity ? PdfTemplateService.formatCurrency(end) : "∞"}',
             'rate': '$rate%',
             'tax': slabTax,
           });
@@ -550,13 +550,13 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildResultRow('Taxable Income', 'Rs. ${PdfTemplateService.formatCurrency(_taxableIncome)}'),
-            _buildResultRow('Income Tax', 'Rs. ${PdfTemplateService.formatCurrency(_taxAmount)}'),
-            _buildResultRow('Health & Education Cess (4%)', 'Rs. ${PdfTemplateService.formatCurrency(_cessAmount)}'),
+            _buildResultRow('Taxable Income', '₹${PdfTemplateService.formatCurrency(_taxableIncome)}'),
+            _buildResultRow('Income Tax', '₹${PdfTemplateService.formatCurrency(_taxAmount)}'),
+            _buildResultRow('Health & Education Cess (4%)', '₹${PdfTemplateService.formatCurrency(_cessAmount)}'),
             const Divider(thickness: 1),
             _buildResultRow(
               'Total Tax Liability',
-              'Rs. ${PdfTemplateService.formatCurrency(_totalTaxLiability)}',
+              '₹${PdfTemplateService.formatCurrency(_totalTaxLiability)}',
               isTotal: true,
             ),
             _buildResultRow(
@@ -678,7 +678,7 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
                       ),
                       Padding(
                         padding: const EdgeInsets.all(8),
-                        child: Text('Rs. ${PdfTemplateService.formatCurrency(taxAmount)}'),
+                        child: Text('₹${PdfTemplateService.formatCurrency(taxAmount)}'),
                       ),
                     ],
                   );

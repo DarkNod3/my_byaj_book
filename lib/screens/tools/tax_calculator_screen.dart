@@ -94,7 +94,7 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
     try {
       double? amount = double.tryParse(_incomeController.text);
       if (amount != null && amount > 20000000000) { // 200 Crore
-        return 'Amount cannot exceed 200 Crore (₹200,00,00,000)';
+        return 'Amount cannot exceed 200 Crore (Rs. 200,00,00,000)';
       }
     } catch (_) {}
     return null;
@@ -104,7 +104,7 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
     try {
       double? amount = double.tryParse(_investmentsController.text);
       if (amount != null && amount > 150000) { // 1.5 Lakh
-        return 'Investments under 80C cannot exceed ₹1,50,000';
+        return 'Investments under 80C cannot exceed Rs. 1,50,000';
       }
     } catch (_) {}
     return null;
@@ -114,7 +114,7 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
     try {
       double? amount = double.tryParse(_deductionsController.text);
       if (amount != null && amount > 100000000) { // 1 Crore
-        return 'Deductions cannot exceed 1 Crore (₹1,00,00,000)';
+        return 'Deductions cannot exceed 1 Crore (Rs. 1,00,00,000)';
       }
     } catch (_) {}
     return null;
@@ -123,7 +123,7 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
   // Format currency in Indian Rupees
   // final _currencyFormat = NumberFormat.currency(
   //   locale: 'en_IN',
-  //   symbol: '₹',
+  //   symbol: 'Rs. ',
   //   decimalDigits: 0,
   // );
   
@@ -131,7 +131,7 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
   String _formatCurrency(dynamic amount) {
     // Convert to double if not already a double
     double amountDouble = amount is double ? amount : amount.toDouble();
-    return '₹${amountDouble.toStringAsFixed(0).replaceAllMapped(
+    return 'Rs. ${amountDouble.toStringAsFixed(0).replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]},'
     )}';
@@ -663,11 +663,23 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
                     keyboardType: TextInputType.number,
                         inputFormatters: [_incomeFormatter],
                         decoration: InputDecoration(
-                      labelText: 'Total Income (₹)',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.currency_rupee),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                          errorText: _validateIncome(),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.blue, width: 2),
+                      ),
+                      labelText: 'Total Income (Rs.)',
+                      errorText: _validateIncome(),
                     ),
                     onChanged: (_) => _calculateTax(),
                       ),
@@ -699,11 +711,23 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
               keyboardType: TextInputType.number,
               inputFormatters: [_investmentsFormatter],
               decoration: InputDecoration(
-                labelText: 'Investments (80C) (₹)',
-                helperText: 'PF, PPF, LIC, ELSS, etc. Max: ₹1,50,000',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.savings),
-                contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.blue, width: 2),
+                ),
+                labelText: 'Investments (80C) (Rs.)',
+                helperText: 'PF, PPF, LIC, ELSS, etc. Max: Rs. 1,50,000',
                 errorText: _validateInvestments(),
               ),
               onChanged: (_) => _calculateTax(),
@@ -716,11 +740,23 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
               keyboardType: TextInputType.number,
               inputFormatters: [_deductionsFormatter],
               decoration: InputDecoration(
-                labelText: 'Other Deductions (₹)',
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.blue, width: 2),
+                ),
+                labelText: 'Other Deductions (Rs.)',
                 helperText: 'HRA, Medical Insurance, NPS, etc.',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.money_off),
-                contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                 errorText: _validateDeductions(),
               ),
               onChanged: (_) => _calculateTax(),
@@ -999,22 +1035,22 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
             _buildTaxTip(
               icon: Icons.savings,
               title: 'Maximize Section 80C',
-              description: 'Invest in PPF, ELSS, EPF, etc. to claim deduction up to ₹1.5 lakhs',
+              description: 'Invest in PPF, ELSS, EPF, etc. to claim deduction up to Rs. 1.5 lakhs',
             ),
             _buildTaxTip(
               icon: Icons.local_hospital,
               title: 'Health Insurance Premium',
-              description: 'Claim deduction up to ₹25,000 under Section 80D for health insurance premiums',
+              description: 'Claim deduction up to Rs. 25,000 under Section 80D for health insurance premiums',
             ),
             _buildTaxTip(
               icon: Icons.account_balance,
               title: 'National Pension Scheme',
-              description: 'Invest in NPS to claim additional deduction up to ₹50,000 under Section 80CCD(1B)',
+              description: 'Invest in NPS to claim additional deduction up to Rs. 50,000 under Section 80CCD(1B)',
             ),
             _buildTaxTip(
               icon: Icons.home,
               title: 'Home Loan Benefits',
-              description: 'Claim interest up to ₹2 lakhs under Section 24(b) and principal under Section 80C',
+              description: 'Claim interest up to Rs. 2 lakhs under Section 24(b) and principal under Section 80C',
             ),
             const SizedBox(height: 8),
             const Text(

@@ -2306,21 +2306,21 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                   ),
                 pw.SizedBox(height: 5),
                 pw.Text(
-                  'Tea Rate: Rs.${customer.teaRate.toStringAsFixed(2)}/cup',
+                  'Tea Rate: Rs. ${customer.teaRate.toStringAsFixed(2)}/cup',
                   style: const pw.TextStyle(
                     fontSize: 12,
                   ),
                 ),
                             if (customer.coffeeRate > 0)
                   pw.Text(
-                    'Coffee Rate: Rs.${customer.coffeeRate.toStringAsFixed(2)}/cup',
+                    'Coffee Rate: Rs. ${customer.coffeeRate.toStringAsFixed(2)}/cup',
                     style: const pw.TextStyle(
                       fontSize: 12,
                     ),
                   ),
                 if (customer.milkRate > 0)
                             pw.Text(
-                    'Milk Rate: Rs.${customer.milkRate.toStringAsFixed(2)}/cup',
+                    'Milk Rate: Rs. ${customer.milkRate.toStringAsFixed(2)}/cup',
                     style: const pw.TextStyle(
                       fontSize: 12,
                               ),
@@ -2342,9 +2342,9 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 _pdfSummaryItem('Total Cups', customer.cups.toString()),
-                _pdfSummaryItem('Total Amount', 'Rs.${customer.totalAmount.toStringAsFixed(2)}'),
-                _pdfSummaryItem('Paid Amount', 'Rs.${customer.paymentsMade.toStringAsFixed(2)}'),
-                _pdfSummaryItem('Due Amount', 'Rs.${totalDue.toStringAsFixed(2)}'),
+                _pdfSummaryItem('Total Amount', 'Rs. ${customer.totalAmount.toStringAsFixed(2)}'),
+                _pdfSummaryItem('Paid Amount', 'Rs. ${customer.paymentsMade.toStringAsFixed(2)}'),
+                _pdfSummaryItem('Due Amount', 'Rs. ${totalDue.toStringAsFixed(2)}'),
                   ],
                 ),
               ),
@@ -2461,8 +2461,8 @@ class _TeaDiaryScreenState extends State<TeaDiaryScreen> with SingleTickerProvid
                               padding: const pw.EdgeInsets.all(6),
                               child: pw.Text(
                                 isPayment 
-                                ? '+ Rs.${historyItem.amount.toStringAsFixed(2)}'
-                                : '- Rs.${historyItem.amount.toStringAsFixed(2)}',
+                                ? '+ Rs. ${historyItem.amount.toStringAsFixed(2)}'
+                                : '- Rs. ${historyItem.amount.toStringAsFixed(2)}',
                                 style: pw.TextStyle(
                                   color: isPayment ? PdfColors.green700 : PdfColors.red700,
                                 ),

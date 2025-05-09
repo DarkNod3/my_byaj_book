@@ -778,11 +778,16 @@ class NotificationService {
     bool isSoundEnabled = true,
     String? soundPath,
   }) async {
+    // Extract the scheduled date from data if available, otherwise use current time
+    final scheduledDate = notification.data != null && notification.data!.containsKey('dueDate')
+        ? DateTime.parse(notification.data!['dueDate'])
+        : DateTime.now();
+        
     await _scheduleTimedNotification(
       id: notification.id.hashCode,
       title: notification.title,
-      body: notification.body,
-      scheduledDate: notification.scheduledDate,
+      body: notification.message,
+      scheduledDate: scheduledDate,
       payload: jsonEncode(notification.toJson()),
     );
   }

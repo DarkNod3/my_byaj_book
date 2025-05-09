@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:my_byaj_book/constants/app_theme.dart';
 import 'package:my_byaj_book/widgets/header/app_header.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
+import 'package:my_byaj_book/providers/user_provider.dart';
 import 'package:my_byaj_book/services/pdf_service.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter/services.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -140,13 +144,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
+                color: AppTheme.primaryColor.withAlpha(25),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.history,
                 size: 72,
-                color: AppTheme.primaryColor.withOpacity(0.7),
+                color: AppTheme.primaryColor.withAlpha(179),
               ),
             ),
             const SizedBox(height: 24),
@@ -195,10 +199,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       elevation: 2,
-      shadowColor: AppTheme.primaryColor.withOpacity(0.3),
+      shadowColor: AppTheme.primaryColor.withAlpha(77),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.1)),
+        side: BorderSide(color: AppTheme.primaryColor.withAlpha(25)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
@@ -213,8 +217,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: isDebit 
-                      ? Colors.red.withOpacity(0.1) 
-                      : Colors.green.withOpacity(0.1),
+                      ? Colors.red.withAlpha(25)
+                      : Colors.green.withAlpha(25),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -310,7 +314,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withAlpha(25),
             spreadRadius: 1,
             blurRadius: 1,
             offset: const Offset(0, 1),
@@ -345,7 +349,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         });
       },
       backgroundColor: Colors.grey.shade200,
-      selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+      selectedColor: AppTheme.primaryColor.withAlpha(51),
       checkmarkColor: AppTheme.primaryColor,
       labelStyle: TextStyle(
         color: isSelected ? AppTheme.primaryColor : Colors.black87,
@@ -360,6 +364,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  // Intentionally keeping this method for future use
+  // ignore: unused_element
   void _showFilterDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -398,7 +404,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : Colors.transparent,
+          color: isSelected ? AppTheme.primaryColor.withAlpha(25) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
@@ -451,8 +457,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: isDebit 
-                          ? Colors.red.withOpacity(0.1) 
-                          : Colors.green.withOpacity(0.1),
+                          ? Colors.red.withAlpha(25)
+                          : Colors.green.withAlpha(25),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -532,19 +538,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // Generate PDF report
+  // Intentionally keeping this method for future use
+  // ignore: unused_element
   Future<void> _generatePdfReport() async {
+    if (!mounted) return;
+    
     // Get filtered transactions
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     final allTransactions = transactionProvider.getAllTransactions();
     final filteredTransactions = _filterTransactions(allTransactions);
     
     if (filteredTransactions.isEmpty) {
+      if (!mounted) return;
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No transactions to generate report'))
       );
       return;
     }
+    
+    // Store context-dependent objects before any async operations
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigatorState = Navigator.of(context);
     
     // Show a loading indicator
     showDialog(
@@ -565,12 +580,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
     
     try {
-      // Import necessary packages at the top of the file
-      // import 'dart:io';
-      // import 'package:path_provider/path_provider.dart';
-      // import 'package:open_file/open_file.dart';
-      // import 'package:my_byaj_book/services/pdf_service.dart';
-      
       // Get application document directory for saving the PDF
       final directory = await getApplicationDocumentsDirectory();
       final filePath = '${directory.path}/transaction_history_${DateTime.now().millisecondsSinceEpoch}.pdf';
@@ -587,62 +596,72 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
       
       // Close loading dialog
-      Navigator.pop(context);
+      if (!mounted) return;
+      navigatorState.pop();
       
       // Show success message with options
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Report Generated'),
-            content: const Text('Your transaction report has been generated successfully.'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('Close'),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // Open the generated PDF
-                  OpenFile.open(filePath);
-                },
-                icon: const Icon(Icons.visibility),
-                label: const Text('View'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Report Generated'),
+              content: const Text('Your transaction report has been generated successfully.'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Close'),
                 ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // Share the generated PDF
-                  Share.shareXFiles([XFile(filePath)], text: 'Transaction History Report');
-                },
-                icon: const Icon(Icons.share),
-                label: const Text('Share'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // Open the generated PDF
+                    OpenFile.open(filePath);
+                  },
+                  icon: const Icon(Icons.visibility),
+                  label: const Text('View'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                  ),
                 ),
-              ),
-            ],
-          );
-        }
-      );
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // Share the generated PDF
+                    _sharePdf(filePath);
+                  },
+                  icon: const Icon(Icons.share),
+                  label: const Text('Share'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                  ),
+                ),
+              ],
+            );
+          }
+        );
+      }
     } catch (e) {
       // Close loading dialog
-      Navigator.pop(context);
+      if (!mounted) return;
+      navigatorState.pop();
       
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate PDF: $e'))
-      );
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Failed to generate PDF: $e'))
+        );
+      }
     }
   }
   
-  // The sharing functionality has been integrated directly in the _generatePdfReport method
+  // Separate method for sharing to handle SharePlus deprecation
+  void _sharePdf(String filePath) {
+    final file = XFile(filePath);
+    Share.shareXFiles([file], subject: 'Transaction History Report');
+  }
 }
 
 extension StringExtension on String {

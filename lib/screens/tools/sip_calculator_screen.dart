@@ -34,7 +34,7 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   // Format currency in Indian Rupees
   final _currencyFormat = NumberFormat.currency(
     locale: 'en_IN',
-    symbol: '₹',
+    symbol: 'Rs. ',
     decimalDigits: 0,
   );
   
@@ -311,18 +311,32 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              _currencyFormat.format(_maturityValue),
-              style: const TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            const SizedBox(height: 12),
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: 280,
+                maxWidth: double.infinity,
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Text(
+                    _currencyFormat.format(_maturityValue),
+                    style: const TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildResultDetail(
                   title: 'Invested',
@@ -350,25 +364,40 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
     required String title,
     required String value,
   }) {
-    return Column(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.white70,
-          ),
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: Column(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.white70,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 70),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -579,11 +608,25 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   Widget _buildTableCell(String text, {required int flex}) {
     return Expanded(
       flex: flex,
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontSize: 13,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2.0),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 50),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2.0),
+              child: Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -699,19 +742,35 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
+        Expanded(
+          flex: 2,
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            color: color,
-            fontSize: isBold ? 16 : 14,
+        Expanded(
+          flex: 3,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 100),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                  color: color,
+                  fontSize: isBold ? 16 : 14,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+              ),
+            ),
           ),
         ),
       ],
@@ -755,8 +814,8 @@ class _SipCalculatorScreenState extends State<SipCalculatorScreen> {
   String? _validateInvestmentPeriod() {
     try {
       int? years = int.tryParse(_investmentPeriodController.text);
-      if (years != null && years > 100) {
-        return 'Investment period cannot exceed 100 years';
+      if (years != null && years > 50) {
+        return 'Investment period cannot exceed 50 years';
       }
     } catch (_) {}
     return null; // Return null if validation passes

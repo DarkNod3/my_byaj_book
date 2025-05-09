@@ -195,9 +195,9 @@ class MilkDiaryReportService {
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       _buildSummaryPdfItem('Total Milk', '${totalQuantity.toStringAsFixed(2)} L'),
-                      _buildSummaryPdfItem('Total Amount', '₹${totalAmount.toStringAsFixed(2)}'),
-                      _buildSummaryPdfItem('Total Paid', '₹${totalPaid.toStringAsFixed(2)}'),
-                      _buildSummaryPdfItem('Amount Due', '₹${amountDue.toStringAsFixed(2)}'),
+                      _buildSummaryPdfItem('Total Amount', 'Rs. ${totalAmount.toStringAsFixed(2)}'),
+                      _buildSummaryPdfItem('Total Paid', 'Rs. ${totalPaid.toStringAsFixed(2)}'),
+                      _buildSummaryPdfItem('Amount Due', 'Rs. ${amountDue.toStringAsFixed(2)}'),
                     ],
                   ),
                 ],
@@ -227,8 +227,8 @@ class MilkDiaryReportService {
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       _buildSummaryPdfItem('Month Milk', '${currentMonthQuantity.toStringAsFixed(2)} L'),
-                      _buildSummaryPdfItem('Month Amount', '₹${currentMonthAmount.toStringAsFixed(2)}'),
-                      _buildSummaryPdfItem('Month Paid', '₹${currentMonthPaid.toStringAsFixed(2)}'),
+                      _buildSummaryPdfItem('Month Amount', 'Rs. ${currentMonthAmount.toStringAsFixed(2)}'),
+                      _buildSummaryPdfItem('Month Paid', 'Rs. ${currentMonthPaid.toStringAsFixed(2)}'),
                     ],
                   ),
                 ],
@@ -384,7 +384,7 @@ class MilkDiaryReportService {
                       ),
                     pw.SizedBox(height: 3),
                     pw.Text(
-                      'Default Rate: ₹${seller.defaultRate}/L',
+                      'Default Rate: Rs.${seller.defaultRate}/L',
                       style: const pw.TextStyle(
                         fontSize: 10,
                       ),
@@ -460,7 +460,7 @@ class MilkDiaryReportService {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             _buildSummaryItem('Total Quantity', '$totalQuantity L'),
-            _buildSummaryItem('Total Amount', '₹ ${totalAmount.toStringAsFixed(2)}'),
+            _buildSummaryItem('Total Amount', 'Rs. ${totalAmount.toStringAsFixed(2)}'),
             _buildSummaryItem('Total Sellers', '$totalSellers'),
           ],
         ),
@@ -507,7 +507,7 @@ class MilkDiaryReportService {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             _buildSummaryItem('Total Quantity', '$totalQuantity L'),
-            _buildSummaryItem('Total Amount', '₹ ${totalAmount.toStringAsFixed(2)}'),
+            _buildSummaryItem('Total Amount', 'Rs. ${totalAmount.toStringAsFixed(2)}'),
             _buildSummaryItem('Total Sellers', '$totalSellers'),
           ],
         ),
@@ -582,8 +582,8 @@ class MilkDiaryReportService {
               children: [
                 _buildTableCell('Shift', isHeader: true),
                 _buildTableCell('Quantity (L)', isHeader: true),
-                _buildTableCell('Rate (₹)', isHeader: true),
-                _buildTableCell('Amount (₹)', isHeader: true),
+                _buildTableCell('Rate (Rs.)', isHeader: true),
+                _buildTableCell('Amount (Rs.)', isHeader: true),
               ],
             ),
             // Morning Row
@@ -675,7 +675,7 @@ class MilkDiaryReportService {
                 _buildTableCell('Week', isHeader: true),
                 _buildTableCell('Period', isHeader: true),
                 _buildTableCell('Quantity (L)', isHeader: true),
-                _buildTableCell('Amount (₹)', isHeader: true),
+                _buildTableCell('Amount (Rs.)', isHeader: true),
               ],
             ),
             // Data Rows - Week wise

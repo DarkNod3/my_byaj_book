@@ -29,6 +29,9 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'screens/about/special_thanks_screen.dart';
+import 'providers/notification_provider.dart';
+import 'screens/notification/notification_center_screen.dart';
 
 // Global notification service
 final notificationService = NotificationService.instance;
@@ -183,6 +186,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => DailyEntryProvider()),
         ChangeNotifierProvider(create: (_) => MilkSellerProvider()),
         ChangeNotifierProvider(create: (_) => CardProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: const MyApp(),
     ),
@@ -211,23 +215,44 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Listen for app lifecycle changes
     if (state == AppLifecycleState.resumed) {
-      // When app is resumed, schedule notifications for any due loans
-      _scheduleNotifications();
+      // App came to the foreground - check for notifications
+      final notificationProvider = Provider.of<NotificationProvider>(
+        navigatorKey.currentContext!,
+        listen: false,
+      );
+      
+      // Generate notifications for any due payments
+      if (notificationProvider != null) {
+        final loanProvider = Provider.of<LoanProvider>(
+          navigatorKey.currentContext!,
+          listen: false,
+        );
+        
+        final cardProvider = Provider.of<CardProvider>(
+          navigatorKey.currentContext!,
+          listen: false,
+        );
+        
+        final transactionProvider = Provider.of<TransactionProvider>(
+          navigatorKey.currentContext!,
+          listen: false,
+        );
+        
+        final billNoteProvider = Provider.of<BillNoteProvider>(
+          navigatorKey.currentContext!,
+          listen: false,
+        );
+        
+        notificationProvider.generateDueNotifications(
+          loanProvider: loanProvider,
+          cardProvider: cardProvider,
+          transactionProvider: transactionProvider,
+          billNoteProvider: billNoteProvider,
+        );
+      }
     }
-  }
-
-  void _scheduleNotifications() {
-    final loanProvider = Provider.of<LoanProvider>(navigatorKey.currentContext!, listen: false);
-    notificationService.scheduleLoanPaymentNotifications(loanProvider);
-    
-    // Also schedule card due date notifications
-    final cardProvider = Provider.of<CardProvider>(navigatorKey.currentContext!, listen: false);
-    notificationService.scheduleCardDueNotifications(cardProvider);
-    
-    // Schedule manual reminders
-    final transactionProvider = Provider.of<TransactionProvider>(navigatorKey.currentContext!, listen: false);
-    notificationService.scheduleManualReminders(transactionProvider);
   }
 
   // This widget is the root of your application.
@@ -247,6 +272,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider(create: (_) => DailyEntryProvider()),
         ChangeNotifierProvider(create: (_) => MilkSellerProvider()),
         ChangeNotifierProvider(create: (_) => CardProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -262,6 +288,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               TeaDiaryScreen.routeName: (ctx) => const TeaDiaryScreen(showAppBar: true),
               ProfileEditScreen.routeName: (ctx) => const ProfileEditScreen(),
               ReminderScreen.routeName: (ctx) => const ReminderScreen(),
+              SpecialThanksScreen.routeName: (ctx) => const SpecialThanksScreen(),
+              NotificationCenterScreen.routeName: (ctx) => const NotificationCenterScreen(),
               '/login': (ctx) => const LoginScreen(),
             },
           );

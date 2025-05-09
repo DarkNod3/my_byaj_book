@@ -70,18 +70,18 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
         // Normal initialization
         userProvider.initialize().then((_) {
           isInitialized = true;
-          print('User provider initialized successfully');
+          debugPrint('User provider initialized successfully');
         }),
         
         // Timeout after 3 seconds
         Future.delayed(const Duration(seconds: 3)).then((_) {
           if (!isInitialized) {
-            print('User provider initialization timed out');
+            debugPrint('User provider initialization timed out');
           }
         }),
       ]);
     } catch (e) {
-      print('Error initializing user provider: $e');
+      debugPrint('Error initializing user provider: $e');
     } finally {
       // Navigate to next screen after a delay regardless of initialization status
       Future.delayed(const Duration(milliseconds: 3000), () {
@@ -98,7 +98,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       final user = userProvider.user;
       
       // Add debug print to see what's happening
-      print('Splash screen navigation check: user = $user');
+      debugPrint('Splash screen navigation check: user = $user');
       
       // Force navigation to login if initialization takes too long
       Navigator.pushReplacement(
@@ -113,8 +113,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
         ),
       );
     } catch (e, stackTrace) {
-      print('Error in splash screen navigation: $e');
-      print('Stack trace: $stackTrace');
+      debugPrint('Error in splash screen navigation: $e');
+      debugPrint('Stack trace: $stackTrace');
       
       // Force navigation to login screen if there's an error
       Navigator.pushReplacement(
@@ -174,20 +174,20 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
+                                  color: Colors.black.withAlpha(38),
                                   spreadRadius: 2,
                                   blurRadius: 15,
                                   offset: const Offset(0, 7),
                                 ),
                                 BoxShadow(
-                                  color: Colors.blue.shade700.withOpacity(0.1),
+                                  color: Colors.blue.shade700.withAlpha(26),
                                   spreadRadius: 10,
                                   blurRadius: 20,
                                   offset: const Offset(0, 0),
                                 ),
                               ],
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withAlpha(230),
                                 width: 4,
                               ),
                               gradient: LinearGradient(
@@ -195,7 +195,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                 end: Alignment.bottomRight,
                                 colors: [
                                   Colors.white,
-                                  Colors.white.withOpacity(0.9),
+                                  Colors.white.withAlpha(230),
                                 ],
                               ),
                             ),
@@ -233,7 +233,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               Shadow(
                                 offset: const Offset(2, 2),
                                 blurRadius: 3.0,
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.black.withAlpha(77),
                               ),
                             ],
                           ),
@@ -252,7 +252,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withAlpha(204),
                       ),
                     ),
                   ),
@@ -267,7 +267,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       height: 40,
                       child: CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.white.withOpacity(0.9),
+                          Colors.white.withAlpha(230),
                         ),
                         strokeWidth: 3,
                       ),
@@ -288,7 +288,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     Text(
                       "powered by",
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withAlpha(179),
                         fontSize: 12,
                         fontWeight: FontWeight.w300,
                       ),

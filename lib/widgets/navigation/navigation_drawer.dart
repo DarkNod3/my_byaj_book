@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:my_byaj_book/screens/settings/nav_settings_screen.dart';
 import 'package:my_byaj_book/screens/settings/settings_screen.dart';
 import 'package:my_byaj_book/screens/profile/profile_edit_screen.dart';
+import 'package:my_byaj_book/screens/about/special_thanks_screen.dart';
 import '../../constants/app_theme.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
@@ -53,6 +54,19 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                     );
                   },
                   description: 'App preferences and account settings',
+                ),
+                _buildMenuItem(
+                  context,
+                  title: 'Special Thanks',
+                  icon: Icons.volunteer_activism,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context, 
+                      MaterialPageRoute(builder: (context) => const SpecialThanksScreen()),
+                    );
+                  },
+                  description: 'People who made this app possible',
                 ),
                 _buildMenuItem(
                   context,

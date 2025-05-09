@@ -17,7 +17,7 @@ class AppConstants {
   
   // Default Settings
   static const int defaultInterestRate = 10;
-  static const String defaultCurrency = '₹';
+  static const String defaultCurrency = 'Rs. ';
   
   // UI Related
   static const double defaultPadding = 16.0;

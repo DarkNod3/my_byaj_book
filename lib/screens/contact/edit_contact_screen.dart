@@ -29,7 +29,7 @@ class _EditContactScreenState extends State<EditContactScreen> {
   bool _isWithInterest = false;
   final _interestRateController = TextEditingController();
   String _selectedType = 'borrower';
-  final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
+  final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: 'Rs. ');
   File? _profileImage;
   bool _isDeleteLoading = false;
   

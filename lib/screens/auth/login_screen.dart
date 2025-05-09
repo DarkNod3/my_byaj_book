@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
+import 'package:firebase_auth_platform_interface/firebase_auth_platform_interface.dart';
+import 'package:flutter/foundation.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -38,10 +40,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   bool _firebaseAvailable = true;
   bool _recaptchaVerified = false;
   
-  // For custom reCAPTCHA timer
-  Timer? _captchaTimer;
-  int _captchaProgress = 0;
+  // For reCAPTCHA verification
   bool _captchaInProgress = false;
+  int _captchaProgress = 0;
+  Timer? _captchaTimer;
   
   // This will help us bypass the external verification
   bool _useMockAuthInstead = false;
@@ -69,24 +71,27 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     // Check if Firebase Auth is working properly
     _firebaseAvailable = true; // Start assuming Firebase is available
     try {
-      print("Checking Firebase Auth availability...");
+      debugPrint("Checking Firebase Auth availability...");
       _auth.authStateChanges().listen((user) {
-        print("Firebase Auth is working correctly: ${user == null ? 'No user signed in' : 'User signed in'}");
+        debugPrint("Firebase Auth is working correctly: ${user == null ? 'No user signed in' : 'User signed in'}");
       }, onError: (error) {
-        print("Firebase Auth error detected: $error");
+        debugPrint("Firebase Auth error detected: $error");
         setState(() {
           _firebaseAvailable = false; // Firebase Auth has issues
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Using mock authentication - Firebase Auth error: $error'),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Using mock authentication - Firebase Auth error: $error'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
       });
     } catch (e) {
-      print("Firebase Auth initialization error: $e");
+      debugPrint("Firebase Auth initialization error: $e");
       setState(() {
         _firebaseAvailable = false; // Firebase Auth failed to initialize
       });
@@ -173,8 +178,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       });
     });
   }
-
-  // Modified verification method to avoid browser-based reCAPTCHA
+  
+  // Modified verification method to use in-app reCAPTCHA
   void _verifyMobile() {
     if (_formKey.currentState!.validate()) {
       // Check if reCAPTCHA verification was completed
@@ -190,37 +195,37 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         _errorMessage = null;
       });
       
-      // If Firebase Auth is not available or we want to skip external reCAPTCHA,
+      // If Firebase Auth is not available or we want to skip Firebase auth,
       // use our mock authentication instead
       if (!_firebaseAvailable || _useMockAuthInstead) {
         _mockAuthentication();
         return;
       }
       
-      // For actual deployment, we'll try Firebase authentication once,
-      // but if it opens a browser for reCAPTCHA, we'll set a flag to use mock auth
-      // on subsequent attempts
       try {
         // Get the mobile number with country code
         final phoneNumber = '+91${_mobileController.text.trim()}';
-        print("Verifying phone number: $phoneNumber");
+        debugPrint("Verifying phone number: $phoneNumber");
         
-        // No applicationVerifier parameter - we'll handle the external verification case
+        // Use verifyPhoneNumber without any applicationVerifier - 
+        // Firebase will handle the reCAPTCHA automatically based on your configuration
         _auth.verifyPhoneNumber(
           phoneNumber: phoneNumber,
           timeout: const Duration(seconds: 60),
           verificationCompleted: (PhoneAuthCredential credential) async {
             // Auto-verification on Android (rare)
-            print("Auto verification completed");
+            debugPrint("Auto verification completed");
             await _signInWithCredential(credential);
           },
           verificationFailed: (FirebaseAuthException e) {
-            print("Verification failed: ${e.message}");
+            debugPrint("Verification failed: ${e.message}");
             
-            // If error indicates reCAPTCHA was needed, switch to mock auth next time
+            // Handle errors related to reCAPTCHA
             if (e.message?.contains('recaptcha') ?? false) {
-              _useMockAuthInstead = true;
-              _mockAuthentication();
+              setState(() {
+                _isLoading = false;
+                _errorMessage = 'Verification failed: ${e.message}';
+              });
               return;
             }
             
@@ -230,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             });
           },
           codeSent: (String verificationId, int? resendToken) {
-            print("OTP code sent. VerificationId: $verificationId");
+            debugPrint("OTP code sent. VerificationId: $verificationId");
             setState(() {
               _isLoading = false;
               _verificationId = verificationId;
@@ -246,12 +251,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           },
           codeAutoRetrievalTimeout: (String verificationId) {
             // Auto-retrieval timeout
-            print("Code auto retrieval timeout");
+            debugPrint("Code auto retrieval timeout");
           },
           forceResendingToken: _resendToken,
         );
       } catch (e) {
-        print("Error in verifyPhoneNumber: $e");
+        debugPrint("Error in verifyPhoneNumber: $e");
         // If any error occurs during Firebase auth, switch to mock
         _useMockAuthInstead = true;
         _mockAuthentication();
@@ -273,7 +278,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       }
       
       try {
-        print("Verifying OTP: ${_otpController.text.trim()}");
+        debugPrint("Verifying OTP: ${_otpController.text.trim()}");
         // Create credential with verification ID and OTP
         final credential = PhoneAuthProvider.credential(
           verificationId: _verificationId ?? '',
@@ -282,7 +287,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         
         _signInWithCredential(credential);
       } catch (e) {
-        print("OTP verification error: $e");
+        debugPrint("OTP verification error: $e");
         setState(() {
           _isLoading = false;
           _errorMessage = 'Invalid OTP. Please try again.';
@@ -293,46 +298,57 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Future<void> _signInWithCredential(PhoneAuthCredential credential) async {
     try {
-      print("Signing in with credential...");
+      debugPrint("Signing in with credential...");
+      
+      // Capture the user provider reference before any async operations
+      final userProvider = context.mounted ? Provider.of<UserProvider>(context, listen: false) : null;
+      
       final userCredential = await _auth.signInWithCredential(credential);
       final firebaseUser = userCredential.user;
       
+      if (!mounted || userProvider == null) return;
+      
       if (firebaseUser != null) {
-        print("Successfully signed in with phone number: ${firebaseUser.phoneNumber}");
-        // Successfully signed in
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        debugPrint("Successfully signed in with phone number: ${firebaseUser.phoneNumber}");
         
         // Check if user exists in your own database
         final exists = await userProvider.checkUserExists(_mobileController.text);
         
-          if (exists) {
-          print("Existing user found in database");
-            // Existing user - login and go to home
+        if (!mounted) return;
+        
+        if (exists) {
+          debugPrint("Existing user found in database");
+          // Existing user - login and go to home
           await userProvider.loginWithMobile(_mobileController.text);
-          _navigateToHome();
-          } else {
-          print("New user - requesting name");
-            // New user - request name
+          
+          if (mounted) {
+            _navigateToHome();
+          }
+        } else {
+          debugPrint("New user - requesting name");
+          // New user - request name
+          if (mounted) {
             setState(() {
               _isLoading = false;
             });
             _transitionToNextStep();
           }
+        }
       } else {
-        print("Sign-in failed: No user returned");
+        debugPrint("Sign-in failed: No user returned");
         setState(() {
           _isLoading = false;
           _errorMessage = 'Sign-in failed. Please try again.';
         });
       }
     } on FirebaseAuthException catch (e) {
-      print("Firebase Auth Exception: ${e.code} - ${e.message}");
+      debugPrint("Firebase Auth Exception: ${e.code} - ${e.message}");
       setState(() {
         _isLoading = false;
         _errorMessage = 'Error: ${e.message}';
       });
     } catch (e) {
-      print("Unexpected error during sign in: $e");
+      debugPrint("Unexpected error during sign in: $e");
       setState(() {
         _isLoading = false;
         _errorMessage = 'An unexpected error occurred.';
@@ -407,20 +423,20 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.15),
+                                      color: Colors.black.withAlpha(38),
                                       spreadRadius: 2,
                                       blurRadius: 15,
                                       offset: const Offset(0, 7),
                                     ),
                                     BoxShadow(
-                                      color: Colors.blue.shade700.withOpacity(0.1),
+                                      color: Colors.blue.shade700.withAlpha(25),
                                       spreadRadius: 10,
                                       blurRadius: 20,
                                       offset: const Offset(0, 0),
                                     ),
                                   ],
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withAlpha(229),
                                     width: 4,
                                   ),
                                   gradient: LinearGradient(
@@ -428,7 +444,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     end: Alignment.bottomRight,
                                     colors: [
                                       Colors.white,
-                                      Colors.white.withOpacity(0.9),
+                                      Colors.white.withAlpha(229),
                                     ],
                                   ),
                                 ),
@@ -481,7 +497,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 border: Border.all(color: Colors.red.shade200),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: Colors.black.withAlpha(25),
                                     spreadRadius: 1,
                                     blurRadius: 3,
                                     offset: const Offset(0, 2),
@@ -566,7 +582,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           // Thin divider line
           Container(
             height: 1, // Very thin line
-            color: Colors.white.withOpacity(0.2), // Subtle white color
+            color: Colors.white.withAlpha(25), // Subtle white color
           ),
           // Footer content based on current step
           _currentStep == 1 
@@ -604,7 +620,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     Text(
                       "powered by",
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withAlpha(178),
                         fontSize: 12,
                         fontWeight: FontWeight.w300,
                       ),
@@ -657,7 +673,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.shade500.withOpacity(0.4),
+            color: Colors.blue.shade500.withAlpha(102),
             spreadRadius: 2,
             blurRadius: 8,
             offset: const Offset(0, 4),
@@ -813,6 +829,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             child: Column(
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Checkbox(
                       value: _recaptchaVerified,
@@ -848,6 +865,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           : Icon(Icons.shield_outlined, color: Colors.grey.shade600),
                   ],
                 ),
+                // Show progress during verification
                 if (_captchaInProgress) ...[
                   const SizedBox(height: 10),
                   LinearProgressIndicator(
@@ -1050,16 +1068,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         mobile: _mobileController.text,
         name: _nameController.text,
       ).then((_) {
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 300),
-          ),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 300),
+            ),
+          );
+        }
       });
     }
   }
@@ -1087,7 +1107,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   // Enhanced mock authentication to provide a better OTP experience
   void _mockAuthentication() {
-    print("Using mock authentication flow");
+    debugPrint("Using mock authentication flow");
     // Simulate network delay
     Future.delayed(const Duration(seconds: 1), () {
       setState(() {
@@ -1116,37 +1136,59 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   // Mock OTP verification for when Firebase is not available
   void _mockVerifyOTP() {
-    print("Using mock OTP verification");
+    debugPrint("Using mock OTP verification");
+    
+    // Store everything we need outside the async operation
+    final mobileNumber = _mobileController.text.trim();
+    
+    // Create separate login function that doesn't use context directly
+    Future<void> loginUser(String mobile) async {
+      final provider = Provider.of<UserProvider>(context, listen: false);
+      try {
+        await provider.loginWithMobile(mobile);
+        if (!mounted) return;
+        _navigateToHome();
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Login error: $e';
+        });
+      }
+    }
+    
     // Simulate network delay
     Future.delayed(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      
       final enteredOTP = _otpController.text.trim();
       
       // For testing, accept any 6-digit OTP
       if (enteredOTP.length == 6 && int.tryParse(enteredOTP) != null) {
-        print("Mock OTP accepted: $enteredOTP");
-        // Check if user exists in the app's database
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        debugPrint("Mock OTP accepted: $enteredOTP");
         
         // For demo, consider mobile number "9876543210" as existing user
-        if (_mobileController.text.trim() == "9876543210") {
-          print("Existing user detected: ${_mobileController.text.trim()}");
-          userProvider.loginWithMobile(_mobileController.text).then((_) {
-            _navigateToHome();
-          });
+        if (mobileNumber == "9876543210") {
+          debugPrint("Existing user detected: $mobileNumber");
+          loginUser(mobileNumber);
         } else {
-          print("New user detected: ${_mobileController.text.trim()}");
+          debugPrint("New user detected: $mobileNumber");
           // New user - request name
-          setState(() {
-            _isLoading = false;
-          });
-          _transitionToNextStep();
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+            _transitionToNextStep();
+          }
         }
       } else {
-        print("Invalid mock OTP format: $enteredOTP");
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Invalid OTP. Please enter a 6-digit number.';
-        });
+        debugPrint("Invalid mock OTP format: $enteredOTP");
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Invalid OTP. Please enter a 6-digit number.';
+          });
+        }
       }
     });
   }

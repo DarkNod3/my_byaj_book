@@ -29,7 +29,7 @@ class ClientDetailScreen extends StatefulWidget {
 
 class _ClientDetailScreenState extends State<ClientDetailScreen> {
   late Client _client;
-  final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+  final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: 'Rs. ', decimalDigits: 0);
   final dateFormat = DateFormat('dd MMM yyyy');
   final dateTimeFormat = DateFormat('dd MMM yyyy');
   final timeFormat = DateFormat('hh:mm a');
@@ -653,7 +653,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       
       // Format currency without rupee symbol for PDF
       String formatCurrencyForPdf(double amount) {
-        return NumberFormat.currency(locale: 'en_IN', symbol: 'Rs. ', decimalDigits: 0).format(amount);
+        return NumberFormat.currency(locale: 'en_IN', symbol: '', decimalDigits: 0).format(amount);
       }
 
       // Generate PDF

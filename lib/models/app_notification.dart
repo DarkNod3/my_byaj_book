@@ -1,133 +1,93 @@
-import 'dart:convert';
-
 class AppNotification {
   final String id;           // Unique identifier for this notification
+  final String type;         // Type of notification ("loan", "bill", "card", "contact", "fcm")
   final String title;        // Notification title
-  final String body;         // Notification body
   final String message;      // Notification message
-  final String source;       // Source of notification (loan, card, contact, etc.)
-  final String sourceId;     // ID of the source entity (loanId, cardId, etc.) 
-  final DateTime dueDate;    // Due date for the notification
-  final DateTime scheduledDate;
-  final double amount;       // Amount associated with the notification
-  final bool isRead;         // Whether the notification has been read
-  final bool hasSound;       // Whether this notification should play sound
-  final String soundPath;    // Custom sound path (if any)
-  final int daysLeft;
+  final DateTime timestamp;  // Timestamp of the notification
+  bool isRead;               // Whether the notification has been read
+  bool isPaid;               // Whether the notification is paid (for due types only)
+  final Map<String, dynamic>? data; // Additional data for specific notification types
   
   AppNotification({
     required this.id,
+    required this.type,
     required this.title,
-    this.body = '',
-    this.message = '',
-    required this.source,
-    required this.sourceId,
-    required this.dueDate,
-    DateTime? scheduledDate,
-    this.amount = 0.0,
+    required this.message,
+    required this.timestamp,
     this.isRead = false,
-    this.hasSound = true,
-    this.soundPath = '',
-    int? daysLeft,
-  }) : 
-    scheduledDate = scheduledDate ?? dueDate,
-    daysLeft = daysLeft ?? _calculateDaysLeft(dueDate);
+    this.isPaid = false,
+    this.data,
+  });
   
-  static int _calculateDaysLeft(DateTime dueDate) {
-    final now = DateTime.now();
-    return dueDate.difference(now).inDays;
-  }
-  
-  // Create a copy of the notification with updated fields
-  AppNotification copyWith({
-    String? id,
-    String? title,
-    String? body,
-    String? message,
-    String? source,
-    String? sourceId,
-    DateTime? dueDate,
-    DateTime? scheduledDate,
-    double? amount,
-    bool? isRead,
-    bool? hasSound,
-    String? soundPath,
-    int? daysLeft,
-  }) {
+  // Create from JSON (for storage and retrieval)
+  factory AppNotification.fromJson(Map<String, dynamic> json) {
     return AppNotification(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      body: body ?? this.body,
-      message: message ?? this.message,
-      source: source ?? this.source,
-      sourceId: sourceId ?? this.sourceId,
-      dueDate: dueDate ?? this.dueDate,
-      scheduledDate: scheduledDate ?? this.scheduledDate,
-      amount: amount ?? this.amount,
-      isRead: isRead ?? this.isRead,
-      hasSound: hasSound ?? this.hasSound,
-      soundPath: soundPath ?? this.soundPath,
-      daysLeft: daysLeft ?? this.daysLeft,
+      id: json['id'],
+      type: json['type'],
+      title: json['title'],
+      message: json['message'],
+      timestamp: DateTime.parse(json['timestamp']),
+      isRead: json['isRead'] ?? false,
+      isPaid: json['isPaid'] ?? false,
+      data: json['data'],
     );
   }
   
-  // Check if the due date is today
-  bool get isDueToday => daysLeft == 0;
-  
-  // Check if the due date is tomorrow
-  bool get isDueTomorrow => daysLeft == 1;
-  
-  // Check if the due date is overdue
-  bool get isOverdue => daysLeft < 0;
-  
-  // Convert notification to Map
-  Map<String, dynamic> toMap() {
+  // Convert to JSON
+  Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'type': type,
       'title': title,
-      'body': body,
       'message': message,
-      'source': source,
-      'sourceId': sourceId,
-      'dueDate': dueDate.toIso8601String(),
-      'scheduledDate': scheduledDate.toIso8601String(),
-      'amount': amount,
+      'timestamp': timestamp.toIso8601String(),
       'isRead': isRead,
-      'hasSound': hasSound,
-      'soundPath': soundPath,
-      'daysLeft': daysLeft,
+      'isPaid': isPaid,
+      'data': data,
     };
   }
   
-  // Convert to JSON string
-  String toJson() {
-    return jsonEncode(toMap());
-  }
-  
-  // Create from JSON string
-  factory AppNotification.fromJson(String jsonString) {
-    final Map<String, dynamic> data = jsonDecode(jsonString);
+  // Create a copy with updated fields
+  AppNotification copyWith({
+    String? id,
+    String? type,
+    String? title,
+    String? message,
+    DateTime? timestamp,
+    bool? isRead,
+    bool? isPaid,
+    Map<String, dynamic>? data,
+  }) {
     return AppNotification(
-      id: data['id'],
-      title: data['title'],
-      body: data['body'] ?? '',
-      message: data['message'] ?? '',
-      source: data['source'],
-      sourceId: data['sourceId'],
-      dueDate: DateTime.parse(data['dueDate']),
-      scheduledDate: data['scheduledDate'] != null 
-          ? DateTime.parse(data['scheduledDate']) 
-          : null,
-      amount: data['amount'] ?? 0.0,
-      isRead: data['isRead'] ?? false,
-      hasSound: data['hasSound'] ?? true,
-      soundPath: data['soundPath'] ?? '',
-      daysLeft: data['daysLeft'],
+      id: id ?? this.id,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      message: message ?? this.message,
+      timestamp: timestamp ?? this.timestamp,
+      isRead: isRead ?? this.isRead,
+      isPaid: isPaid ?? this.isPaid,
+      data: data ?? this.data,
     );
   }
   
   @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is AppNotification &&
+        other.id == id &&
+        other.type == type &&
+        other.title == title &&
+        other.message == message &&
+        other.timestamp == timestamp &&
+        other.isRead == isRead &&
+        other.isPaid == isPaid;
+  }
+  
+  @override
+  int get hashCode => id.hashCode;
+  
+  @override
   String toString() {
-    return 'AppNotification(id: $id, title: $title, dueDate: $dueDate, isRead: $isRead)';
+    return 'AppNotification(id: $id, title: $title, timestamp: $timestamp, isRead: $isRead)';
   }
 } 

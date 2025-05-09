@@ -215,7 +215,7 @@ class _CardScreenState extends State<CardScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: cardProvider.cards.length,
-        itemBuilder: (context, index) {
+      itemBuilder: (context, index) {
         final card = cardProvider.cards[index];
         final isSelected = index == cardProvider.selectedCardIndex;
         
@@ -247,13 +247,14 @@ class _CardScreenState extends State<CardScreen> {
             child: Card(
               elevation: isSelected ? 6 : 2,
               shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16),
                 side: isSelected 
                     ? BorderSide(color: card['color'], width: 2)
                     : BorderSide.none,
               ),
               child: Column(
                 children: [
+                  // Card header with gradient
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -261,44 +262,51 @@ class _CardScreenState extends State<CardScreen> {
                         topLeft: Radius.circular(16),
                         topRight: Radius.circular(16),
                       ),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            card['color'].withAlpha(179),
-            card['color'].withAlpha(128),
-          ],
-        ),
-          ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  card['bank'],
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          card['color'],
+                          card['color'].withOpacity(0.85),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: card['color'].withOpacity(0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              card['bank'],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             Row(
                               children: [
-                Text(
-                  card['cardType'],
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
+                                Text(
+                                  card['cardType'],
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
                                 const SizedBox(width: 8),
                                 PopupMenuButton(
                                   icon: const Icon(
                                     Icons.more_vert,
                                     color: Colors.white,
-            ),
+                                  ),
                                   onSelected: (value) {
                                     if (value == 'edit') {
                                       _showEditCardDialog(index);
@@ -334,56 +342,56 @@ class _CardScreenState extends State<CardScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-            Text(
-              card['cardNumber'],
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
+                        Text(
+                          card['cardNumber'],
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
                             letterSpacing: 1,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'CARD HOLDER',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 10,
-                      ),
-                    ),
-                    Text(
-                      card['holderName'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'EXPIRES',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 10,
-                      ),
-                    ),
-                    Text(
-                      card['expiry'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'CARD HOLDER',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                                Text(
+                                  card['holderName'],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'EXPIRES',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                                Text(
+                                  card['expiry'],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -396,35 +404,36 @@ class _CardScreenState extends State<CardScreen> {
                                 ),
                                 Text(
                                   card['cvv'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Icon(
+                              Icons.credit_card,
+                              color: Colors.white,
+                              size: 30,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                const Icon(
-                  Icons.credit_card,
-                  color: Colors.white,
-                  size: 30,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+                  ),
+                  // Card body with details
                   Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+                              children: [
+                                Text(
                                   'Due Amount',
                                   style: TextStyle(
                                     fontSize: 12,
@@ -435,7 +444,7 @@ class _CardScreenState extends State<CardScreen> {
                                   card['balance'],
                                   style: const TextStyle(
                                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.bold,
                                     color: Colors.red,
                                   ),
                                 ),
@@ -456,23 +465,23 @@ class _CardScreenState extends State<CardScreen> {
                                           fontSize: 11,
                                           color: Colors.grey[800],
                                           fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
                                 ],
                               ],
                             ),
                             Column(
                               children: [
                                 // Add Entry button
-                            ElevatedButton(
-                              onPressed: () => _showAddEntryDialog(index),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: card['color'].withAlpha(26),
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Add Entry'),
+                                ElevatedButton(
+                                  onPressed: () => _showAddEntryDialog(index),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: card['color'].withOpacity(0.1),
+                                    foregroundColor: card['color'],
+                                  ),
+                                  child: const Text('Add Entry'),
                                 ),
                                 const SizedBox(height: 8),
                                 // View Details button
@@ -481,19 +490,19 @@ class _CardScreenState extends State<CardScreen> {
                                   icon: const Icon(Icons.history),
                                   label: const Text('View Details'),
                                   style: TextButton.styleFrom(
-                                    foregroundColor: card['color'].withAlpha(26),
+                                    foregroundColor: card['color'],
                                   ),
                                 ),
                               ],
                             ),
                           ],
-                    ),
+                        ),
                         
                         // Add progress bar for credit limit
                         if (card['limit'] != 'N/A') ...[
                           const SizedBox(height: 16),
                           Row(
-                        children: [
+                            children: [
                               Text(
                                 'Credit Limit: ',
                                 style: TextStyle(
@@ -518,7 +527,7 @@ class _CardScreenState extends State<CardScreen> {
                             value: percentUsed,
                             backgroundColor: Colors.grey[200],
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              percentUsed > 0.75 ? Colors.red : card['color'].withAlpha(128)
+                              percentUsed > 0.75 ? Colors.red : card['color'].withOpacity(0.5)
                             ),
                             minHeight: 8,
                             borderRadius: BorderRadius.circular(4),
@@ -529,14 +538,14 @@ class _CardScreenState extends State<CardScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               color: percentUsed > 0.75 ? Colors.red : Colors.grey[600],
-                      ),
-                    ),
-                  ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
