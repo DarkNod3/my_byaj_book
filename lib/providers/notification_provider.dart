@@ -31,6 +31,26 @@ class NotificationProvider with ChangeNotifier {
   List<AppNotification> get fcmNotifications => 
     _notifications.where((notification) => notification.type == 'fcm').toList();
   
+  // Get today's notifications
+  List<AppNotification> get todayNotifications {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+    
+    return _notifications.where((notification) => 
+      notification.timestamp.isAfter(today) && 
+      notification.timestamp.isBefore(tomorrow)).toList();
+  }
+  
+  // Get upcoming notifications (future dates)
+  List<AppNotification> get upcomingNotifications {
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    
+    return _notifications.where((notification) => 
+      notification.timestamp.isAfter(tomorrow)).toList();
+  }
+  
   // Count unread notifications
   int get unreadCount => unreadNotifications.length;
 
@@ -405,5 +425,91 @@ class NotificationProvider with ChangeNotifier {
         _notifications.add(notification);
       }
     }
+  }
+
+  // Handle FCM message notification
+  Future<void> handleFcmMessage(String title, String body, Map<String, dynamic>? data) async {
+    // Create a new notification ID
+    final id = const Uuid().v4();
+    
+    // Determine notification type based on data
+    String type = 'fcm';
+    if (data != null) {
+      if (data.containsKey('type')) {
+        type = data['type'];
+      } else if (data.containsKey('loanId')) {
+        type = 'loan';
+      } else if (data.containsKey('cardId')) {
+        type = 'card';
+      } else if (data.containsKey('contactId')) {
+        type = 'contact';
+      } else if (data.containsKey('billId')) {
+        type = 'bill';
+      }
+    }
+    
+    // Create the notification
+    final notification = AppNotification(
+      id: id,
+      type: type,
+      title: title,
+      message: body,
+      timestamp: DateTime.now(),
+      data: data,
+    );
+    
+    // Add the notification
+    await addNotification(notification);
+  }
+  
+  // Add a contact reminder notification
+  Future<void> addContactReminderNotification({
+    required String contactId,
+    required String contactName,
+    required double amount,
+    required DateTime dueDate,
+    required String paymentType, // 'collect' or 'pay'
+  }) async {
+    // Create notification ID
+    final id = const Uuid().v4();
+    
+    // Create title and message based on payment type
+    final title = paymentType == 'collect' 
+        ? 'Payment to Collect' 
+        : 'Payment to Make';
+        
+    final message = paymentType == 'collect'
+        ? 'You need to collect ${amount.toStringAsFixed(1)} from $contactName'
+        : 'You need to pay ${amount.toStringAsFixed(1)} to $contactName';
+    
+    // Create notification
+    final notification = AppNotification(
+      id: id,
+      type: 'contact',
+      title: title,
+      message: message,
+      timestamp: DateTime.now(),
+      data: {
+        'contactId': contactId,
+        'contactName': contactName,
+        'amount': amount,
+        'dueDate': dueDate.toIso8601String(),
+        'paymentType': paymentType,
+      },
+    );
+    
+    // Add notification
+    await addNotification(notification);
+  }
+  
+  // Get notifications by type
+  List<AppNotification> getNotificationsByType(String type) {
+    return _notifications.where((notification) => notification.type == type).toList();
+  }
+  
+  // Get due notifications by type
+  List<AppNotification> getDueNotificationsByType(String type) {
+    return _notifications.where((notification) => 
+      notification.type == type && !notification.isPaid).toList();
   }
 } 

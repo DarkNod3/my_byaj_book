@@ -22,7 +22,7 @@ dependencies:
   pdf: ^3.11.3
   open_file: ^3.5.10
   path_provider: ^2.0.11
-  timezone: ^0.10.0
+  timezone: ^0.10.1
   device_info_plus: ^11.4.0
   flutter_local_notifications: ^19.1.0
   cross_file: ^0.3.3+6
@@ -37,6 +37,7 @@ dependencies:
 
   uuid: any
   path: any
+  flutter_timezone: ^4.1.0
   
 dev_dependencies:
   flutter_test:

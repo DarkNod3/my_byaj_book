@@ -168,28 +168,28 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       color: Theme.of(context).primaryColor,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'TRANSACTIONS',
-                      style: TextStyle(
+                const Text(
+                  'TRANSACTIONS',
+                  style: TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    fontWeight: FontWeight.bold,
+                  ),
                     ),
                   ],
                 ),
-                IconButton(
+                    IconButton(
                   icon: Icon(
                     _isSearching ? Icons.close : Icons.search,
                     size: 22,
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _isSearching = !_isSearching;
-                      if (!_isSearching) {
-                        _searchController.clear();
-                      }
-                    });
-                  },
+                      onPressed: () {
+                        setState(() {
+                          _isSearching = !_isSearching;
+                          if (!_isSearching) {
+                            _searchController.clear();
+                          }
+                        });
+                      },
                 ),
               ],
             ),
@@ -696,13 +696,17 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  TextField(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextField(
                     controller: amountController,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                          ],
                     decoration: InputDecoration(
-                      prefixText: '₹ ',
-                      prefixStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       hintText: '0.00',
                       filled: true,
                       fillColor: Colors.grey.shade100,
@@ -711,112 +715,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      errorText: amountError, // Add error text
-                    ),
-                    onChanged: (value) {
-                      // Validate input amount
-                      if (value.isNotEmpty) {
-                        try {
-                          final amount = double.parse(value);
-                          if (amount > maxAmount) {
-                            setState(() {
-                              amountError = 'Maximum allowed amount is ₹99 cr';
-                            });
-                          } else {
-                            setState(() {
-                              amountError = null;
-                            });
-                          }
-                        } catch (e) {
-                          setState(() {
-                            amountError = 'Invalid amount';
-                          });
-                        }
-                      } else {
-                        setState(() {
-                          amountError = null;
-                        });
-                      }
-                    },
-                    // Add this to prevent entering more than maxAmount
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                      TextInputFormatter.withFunction((oldValue, newValue) {
-                        try {
-                          // First check if it's not empty and is a valid number
-                          if (newValue.text.isEmpty) {
-                            return newValue;
-                          }
-                          
-                          final double? value = double.tryParse(newValue.text);
-                          if (value == null) {
-                            return oldValue;
-                          }
-                          
-                          // Return old value if amount exceeds max
-                          if (value > maxAmount) {
-                            return oldValue;
-                          }
-                          
-                          return newValue;
-                        } catch (e) {
-                          return oldValue;
-                        }
-                      }),
-                    ],
-                  ),
-                  
-                  // Principal/Interest Switch (Only for with-interest contacts when appropriate)
-                  if (showInterestOption) ...[
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Is this amount for:',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildSelectionButton(
-                          title: 'Interest',
-                          isSelected: !isPrincipalAmount,
-                          icon: Icons.savings,
-                          color: Colors.amber.shade700,
-                          onTap: () {
-                            setState(() {
-                              isPrincipalAmount = false;
-                            });
-                          },
+                            prefixText: '₹ ',
+                            errorText: amountError,
+                          ),
+                        ),
                         ),
                         const SizedBox(width: 8),
-                        _buildSelectionButton(
-                          title: 'Principal',
-                          isSelected: isPrincipalAmount,
-                          icon: Icons.money,
-                          color: Colors.blue,
-                          onTap: () {
-                            setState(() {
-                              isPrincipalAmount = true;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  
-                  // Date Picker
-                  const Text(
-                    'Date',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
+                      // Date selection now appears directly to the right of amount
                   GestureDetector(
                     onTap: () async {
                       final DateTime? picked = await showDatePicker(
@@ -842,6 +747,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       }
                     },
                     child: Container(
+                          height: 48,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade100,
@@ -859,16 +765,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                             dateFormat.format(selectedDate).split(',')[0],
                             style: const TextStyle(fontSize: 14),
                           ),
-                          const Spacer(),
-                          Icon(
-                            Icons.arrow_drop_down, 
-                            color: type == 'gave' ? Colors.red : Colors.green,
-                            size: 20,
-                          ),
                         ],
                       ),
                     ),
                   ),
+                    ],
+                  ),
+                  
                   const SizedBox(height: 12),
                   
                   // Note Field
@@ -980,6 +883,48 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
+                  
+                  // Principal/Interest Switch (Only for with-interest contacts when appropriate)
+                  if (showInterestOption) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Is this amount for:',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildSelectionButton(
+                          title: 'Interest',
+                          isSelected: !isPrincipalAmount,
+                          icon: Icons.savings,
+                          color: Colors.amber.shade700,
+                          onTap: () {
+                            setState(() {
+                              isPrincipalAmount = false;
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _buildSelectionButton(
+                          title: 'Principal',
+                          isSelected: isPrincipalAmount,
+                          icon: Icons.money,
+                          color: Colors.blue,
+                          onTap: () {
+                            setState(() {
+                              isPrincipalAmount = true;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 12),
                   
                   // Action Buttons
                   Row(
@@ -1179,6 +1124,20 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
 
   Future<void> _getImage(ImageSource source, Function(String) onImageSelected) async {
     final picker = ImagePicker();
+    
+    // Check for appropriate permission first
+    bool hasPermission = false;
+    
+    if (source == ImageSource.camera) {
+      hasPermission = await _checkCameraPermission();
+    } else {
+      hasPermission = await _checkGalleryPermission();
+    }
+    
+    if (!hasPermission) {
+      return; // Return if permission not granted
+    }
+    
     try {
       final pickedFile = await picker.pickImage(
         source: source,
@@ -1194,6 +1153,111 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         SnackBar(content: Text('Error: $e')),
       );
     }
+  }
+  
+  // Add methods to check for camera and gallery permissions
+  Future<bool> _checkCameraPermission() async {
+    // Check if permission is already granted
+    var status = await Permission.camera.status;
+    if (status.isGranted) {
+      return true;
+    }
+    
+    // If permission is permanently denied, direct to settings
+    if (status.isPermanentlyDenied) {
+      if (!mounted) return false;
+      
+      final bool shouldOpenSettings = await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Camera Permission Required'),
+          content: const Text(
+            'To take photos, this app needs camera permission. Please enable it in app settings.'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      ) ?? false;
+      
+      if (shouldOpenSettings) {
+        await openAppSettings();
+      }
+      return false;
+    }
+    
+    // Request permission
+    status = await Permission.camera.request();
+    
+    if (!status.isGranted && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Camera permission is needed to take photos'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+    
+    return status.isGranted;
+  }
+  
+  Future<bool> _checkGalleryPermission() async {
+    // Check if permission is already granted
+    var status = await Permission.photos.status;
+    if (status.isGranted) {
+      return true;
+    }
+    
+    // If permission is permanently denied, direct to settings
+    if (status.isPermanentlyDenied) {
+      if (!mounted) return false;
+      
+      final bool shouldOpenSettings = await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Gallery Permission Required'),
+          content: const Text(
+            'To select photos, this app needs gallery permission. Please enable it in app settings.'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      ) ?? false;
+      
+      if (shouldOpenSettings) {
+        await openAppSettings();
+      }
+      return false;
+    }
+    
+    // Request permission
+    status = await Permission.photos.request();
+    
+    if (!status.isGranted && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gallery permission is needed to select photos'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+    
+    return status.isGranted;
   }
 
   Widget _buildInterestSummaryCard() {
@@ -1826,13 +1890,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           // Main balance section
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 15),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
                 // Header with label and info button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                     Row(
                       children: [
                         Icon(
@@ -1841,19 +1905,19 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                           size: 20,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          isPositive ? 'TO RECEIVE' : 'TO PAY',
+                Text(
+                  isPositive ? 'TO RECEIVE' : 'TO PAY',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             letterSpacing: 0.5,
                           ),
-                        ),
+                  ),
                       ],
-                    ),
-                    GestureDetector(
-                      onTap: _showContactInfo,
+                ),
+                GestureDetector(
+                  onTap: _showContactInfo,
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
@@ -1892,26 +1956,26 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                           color: Colors.white,
                         ),
                         overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
+              ],
+            ),
                 
                 // Last updated info
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text(
+            Text(
                       'Last updated: ${DateFormat('dd MMM yyyy').format(DateTime.now())}',
-                      style: TextStyle(
+              style: TextStyle(
                         fontSize: 11,
                         color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
+          ],
+        ),
+              ],
+      ),
           ),
           
           // Statistics section
@@ -1938,7 +2002,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     colors: [Color(0xFF6A74CC), Color(0xFF3B5AC0)],
                   ),
                   onTap: _handleCallButton,
-                ),
+            ),
                 _buildActionButtonCompact(
                   context,
                   Icons.picture_as_pdf,
@@ -1950,7 +2014,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     colors: [Color(0xFFE57373), Color(0xFFC62828)],
                   ),
                   onTap: _handlePdfReport,
-                ),
+            ),
                 _buildActionButtonCompact(
                   context,
                   Icons.notifications,
@@ -1977,11 +2041,11 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            ),
+          ],
+        ),
+      );
+    }
   
   // Helper widget for compact action buttons in the summary card
   Widget _buildActionButtonCompact(
@@ -2025,15 +2089,15 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
     );
   }
 
   void _handleCallButton() async {
     final phone = widget.contact['phone'];
-    
+      
     if (phone == null || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No phone number available for this contact')),
@@ -2041,124 +2105,32 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       return;
     }
     
-    // Format phone number (remove spaces)
-    final formattedPhone = phone.replaceAll(RegExp(r'\s+'), '');
+    // Format phone number (remove spaces and special characters)
+    final formattedPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
     
-    // Try with permission first
-    final hasPhonePermission = await _checkPhonePermission();
-    
-    if (hasPhonePermission) {
-      // Direct call with permission
-      final phoneUrl = 'tel:$formattedPhone';
-      
-      try {
-        if (await canLaunchUrl(Uri.parse(phoneUrl))) {
-          await launchUrl(Uri.parse(phoneUrl));
-          return;
-        }
-      } catch (e) {
-        // Continue to alternative methods
-      }
-    }
-    
-    // If permission denied or direct call failed, show options dialog
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Contact Options'),
-          content: Text('Would you like to call ${widget.contact['name']}?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // Use the copy to clipboard option as fallback
-                Clipboard.setData(ClipboardData(text: formattedPhone));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Phone number copied to clipboard'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-              child: const Text('Copy Number'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                // Try to open using default URL handler
-                final phoneUrl = 'tel:$formattedPhone';
-                if (await canLaunchUrl(Uri.parse(phoneUrl))) {
-                  await launchUrl(Uri.parse(phoneUrl), mode: LaunchMode.externalApplication);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Could not open phone app')),
-                  );
-                }
-              },
-              child: const Text('Open Dialer'),
-            ),
-          ],
-        ),
+    try {
+      // Use direct intent URL that bypasses the confirmation dialog
+      // First try using the tel: scheme with external application mode
+      bool launched = await launchUrl(
+        Uri.parse('tel:$formattedPhone'),
+        mode: LaunchMode.externalNonBrowserApplication,
       );
-    }
-  }
-  
-  Future<bool> _checkPhonePermission() async {
-    // Check current permission status
-    if (await Permission.phone.isGranted) {
-      return true;
-    }
     
-    // If permission is denied but can be requested
-    if (await Permission.phone.isPermanentlyDenied) {
-      // Show dialog explaining how to enable permission in settings
-      final bool shouldOpenSettings = await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Phone Permission Required'),
-          content: const Text(
-            'To call contacts, this app needs phone permission. Please enable it in app settings.'
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Open Settings'),
-            ),
-          ],
-        ),
-      ) ?? false;
-      
-      if (shouldOpenSettings) {
-        await openAppSettings();
+      // If the above didn't work, try alternate approach
+      if (!launched) {
+        await launchUrl(
+          Uri.parse('tel:$formattedPhone'),
+          mode: LaunchMode.externalApplication,
+        );
       }
-      return false;
-    }
-    
-    // Request permission
-    final status = await Permission.phone.request();
-    
-    // If denied after request, show explanation
-    if (!status.isGranted) {
+    } catch (e) {
+      // Show error message if dialer can't be opened
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Phone permission is needed to make calls directly from the app'),
-            duration: Duration(seconds: 4),
-          ),
+          const SnackBar(content: Text('Could not open phone dialer')),
         );
       }
     }
-    
-    return status.isGranted;
   }
 
   void _handlePdfReport() async {
@@ -2493,26 +2465,30 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   }
 
   void _handleSmsButton() async {
-    // Prepare payment summary message
     final balance = _calculateBalance();
     final isPositive = balance >= 0;
     
     final message = '''
 Dear ${widget.contact['name']},
 
-This is a friendly reminder regarding your account with me.
+🙏 *Payment Reminder*
 
+This is a gentle reminder regarding your account with My Byaj Book:
+
+💰 *Account Summary:*
 Current balance: ${currencyFormat.format(balance.abs())}
-${isPositive ? 'Payment due' : 'Payment to make'} this amount to me.
+${isPositive ? '➡️ Payment due to be received' : '➡️ Payment to be made'}
+
+${isPositive ? '✅ Kindly arrange the payment at your earliest convenience.' : '✅ I will arrange the payment shortly.'}
+
+Thank you for your attention to this matter.
 
 Best regards,
-${_getAppUserName()}
+${_getAppUserName()} 📱
 ''';
     
-    // Try to send via WhatsApp first
     bool whatsappOpened = await _tryOpenWhatsApp(message);
     
-    // If WhatsApp not available, use SMS
     if (!whatsappOpened) {
       await _trySendSMS(message);
     }
@@ -2520,7 +2496,6 @@ ${_getAppUserName()}
   
   Future<bool> _tryOpenWhatsApp(String message) async {
     final phone = widget.contact['phone'];
-    
     if (phone == null || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No phone number available for this contact')),
@@ -2528,31 +2503,36 @@ ${_getAppUserName()}
       return false;
     }
     
-    // Format phone number for WhatsApp (remove spaces and special characters)
-    final formattedPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    // Just get a clean number with no spaces or special chars
+    final formattedPhone = phone.replaceAll(RegExp(r'[^\d]'), '');
     
-    // Create WhatsApp URL with encoded message
+    // For India, make sure we have 91 prefix for proper WhatsApp opening
+    String whatsappPhone = formattedPhone;
+    if (formattedPhone.length == 10) {
+      whatsappPhone = "91$formattedPhone";
+    }
+    
+    // Create the URL
     final whatsappUrl = Uri.parse(
-      'whatsapp://send?phone=$formattedPhone&text=${Uri.encodeComponent(message)}',
+      'whatsapp://send?phone=$whatsappPhone&text=${Uri.encodeComponent(message)}',
     );
     
     try {
-      // Check if WhatsApp is installed
-      if (await canLaunchUrl(whatsappUrl)) {
-        await launchUrl(whatsappUrl);
-        return true;
-      } else {
-        return false;
-      }
+      // Launch directly with explicit mode setting
+      await launchUrl(
+        whatsappUrl,
+        mode: LaunchMode.externalNonBrowserApplication,
+      );
+      return true;
     } catch (e) {
-      // Error opening WhatsApp
+      print('Error opening WhatsApp: $e');
+      // WhatsApp not installed or couldn't be launched
       return false;
     }
   }
   
   Future<void> _trySendSMS(String message) async {
     final phone = widget.contact['phone'];
-    
     if (phone == null || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No phone number available for this contact')),
@@ -2560,22 +2540,20 @@ ${_getAppUserName()}
       return;
     }
     
-    // Format phone for SMS (remove spaces)
-    final formattedPhone = phone.replaceAll(' ', '');
+    // For SMS, keep the + prefix for international numbers
+    String formattedPhone = phone.replaceAll(RegExp(r'\s+'), '');
     
-    // Create SMS URL with encoded message
+    // Create SMS URL
     final smsUrl = Uri.parse(
       'sms:$formattedPhone?body=${Uri.encodeComponent(message)}',
     );
     
     try {
-      if (await canLaunchUrl(smsUrl)) {
-        await launchUrl(smsUrl);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not launch SMS app')),
-        );
-      }
+      // Launch directly without checking canLaunchUrl first
+      await launchUrl(
+        smsUrl,
+        mode: LaunchMode.externalNonBrowserApplication,
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error sending SMS: $e')),
@@ -3007,13 +2985,17 @@ ${_getAppUserName()}
                     ),
                   ),
                   const SizedBox(height: 4),
-                  TextField(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextField(
                     controller: amountController,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                          ],
                     decoration: InputDecoration(
-                      prefixText: '₹ ',
-                      prefixStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       hintText: '0.00',
                       filled: true,
                       fillColor: Colors.grey.shade100,
@@ -3022,112 +3004,13 @@ ${_getAppUserName()}
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      errorText: amountError, // Add error text
-                    ),
-                    onChanged: (value) {
-                      // Validate input amount
-                      if (value.isNotEmpty) {
-                        try {
-                          final amount = double.parse(value);
-                          if (amount > maxAmount) {
-                            setState(() {
-                              amountError = 'Maximum allowed amount is ₹99 cr';
-                            });
-                          } else {
-                            setState(() {
-                              amountError = null;
-                            });
-                          }
-                        } catch (e) {
-                          setState(() {
-                            amountError = 'Invalid amount';
-                          });
-                        }
-                      } else {
-                        setState(() {
-                          amountError = null;
-                        });
-                      }
-                    },
-                    // Add input formatters to prevent entering more than maxAmount
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                      TextInputFormatter.withFunction((oldValue, newValue) {
-                        try {
-                          // First check if it's not empty and is a valid number
-                          if (newValue.text.isEmpty) {
-                            return newValue;
-                          }
-                          
-                          final double? value = double.tryParse(newValue.text);
-                          if (value == null) {
-                            return oldValue;
-                          }
-                          
-                          // Return old value if amount exceeds max
-                          if (value > maxAmount) {
-                            return oldValue;
-                          }
-                          
-                          return newValue;
-                        } catch (e) {
-                          return oldValue;
-                        }
-                      }),
-                    ],
+                            prefixText: '₹ ',
+                            errorText: amountError,
                   ),
-                  
-                  // Principal/Interest Switch (Only for with-interest contacts when appropriate)
-                  if (showInterestOption) ...[
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Is this amount for:',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildSelectionButton(
-                          title: 'Interest',
-                          isSelected: !isPrincipalAmount,
-                          icon: Icons.savings,
-                          color: Colors.amber.shade700,
-                          onTap: () {
-                            setState(() {
-                              isPrincipalAmount = false;
-                            });
-                          },
+                        ),
                         ),
                         const SizedBox(width: 8),
-                        _buildSelectionButton(
-                          title: 'Principal',
-                          isSelected: isPrincipalAmount,
-                          icon: Icons.money,
-                          color: Colors.blue,
-                          onTap: () {
-                            setState(() {
-                              isPrincipalAmount = true;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  
-                  // Date Picker
-                  const Text(
-                    'Date',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
+                      // Date selection now appears directly to the right of amount
                   GestureDetector(
                     onTap: () async {
                       final DateTime? picked = await showDatePicker(
@@ -3153,6 +3036,7 @@ ${_getAppUserName()}
                       }
                     },
                     child: Container(
+                          height: 48,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade100,
@@ -3170,16 +3054,13 @@ ${_getAppUserName()}
                             dateFormat.format(selectedDate).split(',')[0],
                             style: const TextStyle(fontSize: 14),
                           ),
-                          const Spacer(),
-                          Icon(
-                            Icons.arrow_drop_down, 
-                            color: type == 'gave' ? Colors.red : Colors.green,
-                            size: 20,
-                          ),
                         ],
                       ),
                     ),
                   ),
+                    ],
+                  ),
+                  
                   const SizedBox(height: 12),
                   
                   // Note Field
@@ -3291,6 +3172,48 @@ ${_getAppUserName()}
                     ),
                   ),
                   const SizedBox(height: 16),
+                  
+                  // Principal/Interest Switch (Only for with-interest contacts when appropriate)
+                  if (showInterestOption) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Is this amount for:',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildSelectionButton(
+                          title: 'Interest',
+                          isSelected: !isPrincipalAmount,
+                          icon: Icons.savings,
+                          color: Colors.amber.shade700,
+                          onTap: () {
+                            setState(() {
+                              isPrincipalAmount = false;
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _buildSelectionButton(
+                          title: 'Principal',
+                          isSelected: isPrincipalAmount,
+                          icon: Icons.money,
+                          color: Colors.blue,
+                          onTap: () {
+                            setState(() {
+                              isPrincipalAmount = true;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 12),
                   
                   // Transaction Type Toggle Button
                   const Text(

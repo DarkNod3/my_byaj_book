@@ -32,6 +32,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'screens/about/special_thanks_screen.dart';
 import 'providers/notification_provider.dart';
 import 'screens/notification/notification_center_screen.dart';
+import 'dart:async';
 
 // Global notification service
 final notificationService = NotificationService.instance;
@@ -201,29 +202,43 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  Timer? _notificationRefreshTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    
+    // Initialize notifications after build is complete
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeNotifications();
+      _setupFCMHandlers();
+    });
+    
+    // Set up a timer to refresh notifications periodically
+    _notificationRefreshTimer = Timer.periodic(
+      const Duration(minutes: 15), // Refresh every 15 minutes
+      (_) => _refreshNotifications(),
+    );
   }
 
   @override
   void dispose() {
+    _notificationRefreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Listen for app lifecycle changes
-    if (state == AppLifecycleState.resumed) {
-      // App came to the foreground - check for notifications
+  
+  // Initialize all notifications when app starts
+  Future<void> _initializeNotifications() async {
+    if (!mounted) return;
+    
+    try {
       final notificationProvider = Provider.of<NotificationProvider>(
         navigatorKey.currentContext!,
         listen: false,
       );
       
-      // Generate notifications for any due payments
       final loanProvider = Provider.of<LoanProvider>(
         navigatorKey.currentContext!,
         listen: false,
@@ -244,13 +259,180 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         listen: false,
       );
       
-      notificationProvider.generateDueNotifications(
+      // Generate notifications for all providers
+      await notificationProvider.generateDueNotifications(
         loanProvider: loanProvider,
         cardProvider: cardProvider,
         transactionProvider: transactionProvider,
         billNoteProvider: billNoteProvider,
       );
-        }
+      
+      // Schedule notifications through the notification service
+      await notificationService.scheduleLoanPaymentNotifications(loanProvider);
+      await notificationService.scheduleCardDueNotifications(cardProvider);
+      await notificationService.scheduleManualReminders(transactionProvider);
+    } catch (e) {
+      // Handle errors silently
+    }
+  }
+  
+  // Refresh notifications when timer fires or app resumes
+  Future<void> _refreshNotifications() async {
+    if (!mounted) return;
+    
+    try {
+      final notificationProvider = Provider.of<NotificationProvider>(
+        navigatorKey.currentContext!,
+        listen: false,
+      );
+      
+      final loanProvider = Provider.of<LoanProvider>(
+        navigatorKey.currentContext!,
+        listen: false,
+      );
+      
+      final cardProvider = Provider.of<CardProvider>(
+        navigatorKey.currentContext!,
+        listen: false,
+      );
+      
+      final transactionProvider = Provider.of<TransactionProvider>(
+        navigatorKey.currentContext!,
+        listen: false,
+      );
+      
+      final billNoteProvider = Provider.of<BillNoteProvider>(
+        navigatorKey.currentContext!,
+        listen: false,
+      );
+      
+      // Generate notifications for any due payments
+      await notificationProvider.generateDueNotifications(
+        loanProvider: loanProvider,
+        cardProvider: cardProvider,
+        transactionProvider: transactionProvider,
+        billNoteProvider: billNoteProvider,
+      );
+    } catch (e) {
+      // Handle errors silently
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Listen for app lifecycle changes
+    if (state == AppLifecycleState.resumed) {
+      // App came to the foreground - refresh notifications
+      _refreshNotifications();
+    }
+  }
+
+  // Setup FCM message handlers
+  void _setupFCMHandlers() {
+    // Handle messages that arrive when the app is in the foreground
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // Add to notification provider
+      if (message.notification != null) {
+        final notificationProvider = Provider.of<NotificationProvider>(
+          navigatorKey.currentContext!,
+          listen: false,
+        );
+        
+        notificationProvider.handleFcmMessage(
+          message.notification!.title ?? 'New Notification',
+          message.notification!.body ?? '',
+          message.data,
+        );
+      }
+      
+      // Also show notification (already handled by NotificationService)
+      notificationService.showLocalNotificationFromFCM(message);
+    });
+    
+    // Handle notification taps when app is in background but not terminated
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      // Add to notification provider if not already added
+      if (message.notification != null) {
+        final notificationProvider = Provider.of<NotificationProvider>(
+          navigatorKey.currentContext!,
+          listen: false,
+        );
+        
+        notificationProvider.handleFcmMessage(
+          message.notification!.title ?? 'New Notification',
+          message.notification!.body ?? '',
+          message.data,
+        );
+        
+        // Navigate based on message type/data
+        _handleNotificationTap(message);
+      }
+    });
+    
+    // Get initial message if app was opened from a notification
+    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+      if (message != null && message.notification != null) {
+        // Add to notification provider
+        final notificationProvider = Provider.of<NotificationProvider>(
+          navigatorKey.currentContext!,
+          listen: false,
+        );
+        
+        notificationProvider.handleFcmMessage(
+          message.notification!.title ?? 'New Notification',
+          message.notification!.body ?? '',
+          message.data,
+        );
+        
+        // Navigate based on message type/data
+        _handleNotificationTap(message);
+      }
+    });
+  }
+  
+  // Handle notification tap navigation
+  void _handleNotificationTap(RemoteMessage message) {
+    if (message.data.containsKey('type')) {
+      final type = message.data['type'];
+      
+      switch (type) {
+        case 'loan':
+          if (message.data.containsKey('loanId')) {
+            final loanId = message.data['loanId'];
+            // Find the loan data first
+            final context = navigatorKey.currentContext;
+            if (context != null) {
+              final loanProvider = Provider.of<LoanProvider>(context, listen: false);
+              final loan = loanProvider.activeLoans.firstWhere(
+                (loan) => loan['id'] == loanId,
+                orElse: () => <String, dynamic>{},
+              );
+              
+              if (loan.isNotEmpty) {
+                navigatorKey.currentState?.push(
+                  MaterialPageRoute(
+                    builder: (context) => LoanDetailsScreen(
+                      loanData: loan,
+                      initialTab: 0, // Default to overview tab
+                    ),
+                  ),
+                );
+              }
+            }
+          }
+          break;
+        case 'reminder':
+          navigatorKey.currentState?.pushNamed(ReminderScreen.routeName);
+          break;
+        case 'notification':
+          navigatorKey.currentState?.pushNamed(NotificationCenterScreen.routeName);
+          break;
+        // Add other types as needed
+      }
+    } else {
+      // Default to opening the notification center
+      navigatorKey.currentState?.pushNamed(NotificationCenterScreen.routeName);
+    }
   }
 
   // This widget is the root of your application.

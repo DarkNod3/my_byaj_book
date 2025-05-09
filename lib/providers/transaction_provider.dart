@@ -12,9 +12,106 @@ class TransactionProvider extends ChangeNotifier {
   
   // Constructor
   TransactionProvider() {
-    _loadTransactions();
-    _loadContacts();
-    _loadManualReminders();
+    _loadContacts().then((_) {
+      _loadTransactions().then((_) {
+        _loadManualReminders().then((_) {
+          // Ensure proper initialization is complete by synchronizing data
+          _ensureContactTransactionSynchronization();
+        });
+      });
+    });
+  }
+  
+  // Ensure contact transactions are synchronized
+  Future<void> _ensureContactTransactionSynchronization() async {
+    try {
+      // Wait a short moment to ensure contacts and transactions are loaded
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Get list of contacts and check if their transactions are loaded
+      final prefs = await SharedPreferences.getInstance();
+      final contactIds = prefs.getStringList('transaction_contacts') ?? [];
+      
+      bool dataChanged = false;
+      
+      // For each contact ID that has transactions, make sure it's in our contacts list
+      for (final contactId in contactIds) {
+        // Check if we have this contact in our contacts list
+        final contactIndex = _contacts.indexWhere((c) => c['phone'] == contactId);
+        
+        // If contact is not found but has transactions, try to reload transactions
+        if (contactIndex < 0) {
+          // Contact might be missing but transactions exist, load them anyway
+          final serializedTransactions = prefs.getStringList('transactions_$contactId') ?? [];
+          
+          if (serializedTransactions.isNotEmpty) {
+            _contactTransactions[contactId] = serializedTransactions.map((txString) {
+              final txMap = jsonDecode(txString) as Map<String, dynamic>;
+              
+              // Convert ISO string back to DateTime
+              if (txMap['date'] is String) {
+                txMap['date'] = DateTime.parse(txMap['date']);
+              }
+              
+              return txMap;
+            }).toList();
+            
+            // Sort transactions by date (newest first)
+            _contactTransactions[contactId]!.sort((a, b) {
+              final dateA = a['date'] as DateTime;
+              final dateB = b['date'] as DateTime;
+              return dateB.compareTo(dateA); // Descending order (newest first)
+            });
+            
+            dataChanged = true;
+          }
+        } else {
+          // Contact exists but check if transactions are loaded properly
+          if (!_contactTransactions.containsKey(contactId)) {
+            // Transactions not loaded, load them now
+            final serializedTransactions = prefs.getStringList('transactions_$contactId') ?? [];
+            
+            if (serializedTransactions.isNotEmpty) {
+              _contactTransactions[contactId] = serializedTransactions.map((txString) {
+                final txMap = jsonDecode(txString) as Map<String, dynamic>;
+                
+                // Convert ISO string back to DateTime
+                if (txMap['date'] is String) {
+                  txMap['date'] = DateTime.parse(txMap['date']);
+                }
+                
+                return txMap;
+              }).toList();
+              
+              // Sort transactions by date (newest first)
+              _contactTransactions[contactId]!.sort((a, b) {
+                final dateA = a['date'] as DateTime;
+                final dateB = b['date'] as DateTime;
+                return dateB.compareTo(dateA); // Descending order (newest first)
+              });
+              
+              dataChanged = true;
+            }
+          }
+        }
+      }
+      
+      // Also check for contacts that have empty transaction lists and create them
+      for (final contact in _contacts) {
+        final contactId = contact['phone'] as String?;
+        if (contactId != null && contactId.isNotEmpty && !_contactTransactions.containsKey(contactId)) {
+          _contactTransactions[contactId] = [];
+          dataChanged = true;
+        }
+      }
+      
+      // Notify listeners if data changed
+      if (dataChanged) {
+        notifyListeners();
+      }
+    } catch (e) {
+      // Handle error silently
+    }
   }
   
   // Get transactions for a specific contact
@@ -699,7 +796,30 @@ class TransactionProvider extends ChangeNotifier {
       // Check if contact with this phone already exists
       final existingIndex = _contacts.indexWhere((c) => c['phone'] == contactId);
       if (existingIndex >= 0) {
-        // Contact already exists, no need to add
+        // Contact already exists, ensure contact data is up to date
+        final existingContact = _contacts[existingIndex];
+        
+        // Update fields if needed (e.g., name might have changed)
+        bool hasChanges = false;
+        final updateContact = Map<String, dynamic>.from(existingContact);
+        
+        // Check basic fields to update
+        for (var key in ['name', 'category', 'type', 'interestPeriod', 'interestRate', 'tabType']) {
+          if (contact.containsKey(key) && contact[key] != existingContact[key]) {
+            updateContact[key] = contact[key];
+            hasChanges = true;
+          }
+        }
+        
+        // If changes detected, update the contact
+        if (hasChanges) {
+          _contacts[existingIndex] = updateContact;
+          await _saveContacts();
+        }
+        
+        // Make sure transactions are loaded for this contact
+        await _ensureTransactionsLoaded(contactId);
+        
         return true;
       }
       
@@ -718,8 +838,22 @@ class TransactionProvider extends ChangeNotifier {
         sanitizedContact['interestRate'] = 0.0;
       }
       
+      // Ensure the contact has a tabType
+      if (!sanitizedContact.containsKey('tabType')) {
+        if (sanitizedContact.containsKey('interestRate') || 
+            (sanitizedContact.containsKey('type') && sanitizedContact['type'] != null && 
+             sanitizedContact['type'].toString().isNotEmpty)) {
+          sanitizedContact['tabType'] = 'withInterest';
+        } else {
+          sanitizedContact['tabType'] = 'withoutInterest';
+        }
+      }
+      
       // Add the sanitized contact since it doesn't exist
       _contacts.add(sanitizedContact);
+      
+      // Check if there are existing transactions for this contact ID
+      await _ensureTransactionsLoaded(contactId);
       
       // Save to SharedPreferences
       await _saveContacts();
@@ -729,6 +863,46 @@ class TransactionProvider extends ChangeNotifier {
     } catch (e) {
       // Log the error without using debug print
       return false;
+    }
+  }
+  
+  // Helper method to ensure transactions are loaded for a contact
+  Future<void> _ensureTransactionsLoaded(String contactId) async {
+    // Check if transactions are already loaded
+    if (_contactTransactions.containsKey(contactId)) {
+      return;
+    }
+    
+    try {
+      // Try to load transactions for this contact
+      final prefs = await SharedPreferences.getInstance();
+      final serializedTransactions = prefs.getStringList('transactions_$contactId') ?? [];
+      
+      if (serializedTransactions.isNotEmpty) {
+        _contactTransactions[contactId] = serializedTransactions.map((txString) {
+          final txMap = jsonDecode(txString) as Map<String, dynamic>;
+          
+          // Convert ISO string back to DateTime
+          if (txMap['date'] is String) {
+            txMap['date'] = DateTime.parse(txMap['date']);
+          }
+          
+          return txMap;
+        }).toList();
+        
+        // Sort transactions by date (newest first)
+        _contactTransactions[contactId]!.sort((a, b) {
+          final dateA = a['date'] as DateTime;
+          final dateB = b['date'] as DateTime;
+          return dateB.compareTo(dateA); // Descending order (newest first)
+        });
+      } else {
+        // Initialize with empty list if no transactions found
+        _contactTransactions[contactId] = [];
+      }
+    } catch (e) {
+      // If error loading, initialize with empty list
+      _contactTransactions[contactId] = [];
     }
   }
   
@@ -806,6 +980,9 @@ class TransactionProvider extends ChangeNotifier {
       // Delete associated transactions
       await deleteContactTransactions(contactId);
       
+      // Delete entries from milk diary
+      await _cleanupMilkDiaryEntries(contactId);
+      
       // Save to SharedPreferences
       await _saveContacts();
       
@@ -814,6 +991,48 @@ class TransactionProvider extends ChangeNotifier {
     } catch (e) {
       // Log the error without using debug print
       return false;
+    }
+  }
+  
+  // Clean up milk diary entries for a deleted contact
+  Future<void> _cleanupMilkDiaryEntries(String contactId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Clean up milk sellers
+      final sellersJson = prefs.getString('milk_sellers');
+      if (sellersJson != null) {
+        final sellers = jsonDecode(sellersJson) as List;
+        final updatedSellers = sellers.where((seller) => 
+          seller['id'] != contactId && seller['mobile'] != contactId).toList();
+        
+        // Save updated sellers list
+        await prefs.setString('milk_sellers', jsonEncode(updatedSellers));
+      }
+      
+      // Clean up milk entries
+      final entriesJson = prefs.getString('milk_entries');
+      if (entriesJson != null) {
+        final entries = jsonDecode(entriesJson) as List;
+        final updatedEntries = entries.where((entry) => 
+          entry['sellerId'] != contactId).toList();
+        
+        // Save updated entries list
+        await prefs.setString('milk_entries', jsonEncode(updatedEntries));
+      }
+      
+      // Clean up milk payments
+      final paymentsJson = prefs.getString('milk_payments');
+      if (paymentsJson != null) {
+        final payments = jsonDecode(paymentsJson) as List;
+        final updatedPayments = payments.where((payment) => 
+          payment['sellerId'] != contactId).toList();
+        
+        // Save updated payments list
+        await prefs.setString('milk_payments', jsonEncode(updatedPayments));
+      }
+    } catch (e) {
+      // Silently handle errors
     }
   }
   

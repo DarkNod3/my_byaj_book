@@ -805,6 +805,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   // Empty lists instead of sample data
   final List<Map<String, dynamic>> _withoutInterestContacts = [];
   final List<Map<String, dynamic>> _withInterestContacts = [];
+  bool _isInitialized = false;
 
   @override
   void initState() {
@@ -828,8 +829,20 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     super.dispose();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Sync contacts when dependencies change (like after adding transactions)
+    if (!_isInitialized) {
+      _syncContactsWithTransactions();
+      _isInitialized = true;
+    }
+  }
+
   // New method to update contact amounts based on transaction data
   void _syncContactsWithTransactions() {
+    if (!mounted) return;
+    
     // Get transaction provider
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     
@@ -880,10 +893,16 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       if (phone.isEmpty) continue;
       
       final transactions = transactionProvider.getTransactionsForContact(phone);
+      
+      // Always update these values whether transactions exist or not
+      // This ensures contacts show up consistently
+      double balance = transactionProvider.calculateBalance(phone);
+      
+      // Update the contact's amount and isGet property
+      contact['amount'] = balance.abs();
+      contact['isGet'] = balance >= 0;
+      
       if (transactions.isNotEmpty) {
-        // Update the contact's amount based on transaction balance
-        double balance = transactionProvider.calculateBalance(phone);
-        
         // Update the daysAgo based on the most recent transaction
         final mostRecentTransaction = transactions.first; // Assuming newest first
         if (mostRecentTransaction['date'] is DateTime) {
@@ -894,15 +913,13 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
           // Add or update lastEditedAt timestamp for proper sorting
           contact['lastEditedAt'] = transactionDate;
         }
-        
-        // Update the contact's amount and isGet property
-        contact['amount'] = balance.abs();
-        contact['isGet'] = balance >= 0;
       } else {
         // If no transactions, ensure there's a lastEditedAt value (use current time if not present)
         if (!contact.containsKey('lastEditedAt')) {
           contact['lastEditedAt'] = now;
         }
+        // Set daysAgo to 0 for new contacts with no transactions
+        contact['daysAgo'] = 0;
       }
     }
     
@@ -912,12 +929,18 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       if (phone.isEmpty) continue;
       
       final transactions = transactionProvider.getTransactionsForContact(phone);
+      
+      // Always update these values whether transactions exist or not
+      // This ensures contacts show up consistently
+      double balance = transactionProvider.calculateBalance(phone);
+      
+      // Update the contact's amount and isGet property
+      contact['amount'] = balance.abs();
+      contact['isGet'] = balance >= 0;
+      
       if (transactions.isNotEmpty) {
         // Sort transactions by date (newest first) to find most recent
         transactions.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
-        
-        // Update the contact's amount based on transaction balance
-        double balance = transactionProvider.calculateBalance(phone);
         
         // Update the daysAgo based on the most recent transaction
         final mostRecentTransaction = transactions.first;
@@ -932,14 +955,11 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
           // Ensure the changes are applied in the provider too
           transactionProvider.updateContact(contact);
         }
-        
-        // Update the contact's amount and isGet property
-        contact['amount'] = balance.abs();
-        contact['isGet'] = balance >= 0;
       } else {
         // If no transactions, ensure there's a lastEditedAt value (use current time if not present)
         if (!contact.containsKey('lastEditedAt')) {
           contact['lastEditedAt'] = now;
+          contact['daysAgo'] = 0;
           transactionProvider.updateContact(contact);
         }
       }
@@ -948,8 +968,123 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     // Calculate interest for interest-based contacts
     _calculateInterestValues();
     
-    // Force a rebuild
-    setState(() {});
+    // Apply default sorting by recent first
+    _withoutInterestContacts.sort((a, b) {
+      final DateTime aDate = a['lastEditedAt'] as DateTime? ?? DateTime(2000);
+      final DateTime bDate = b['lastEditedAt'] as DateTime? ?? DateTime(2000);
+      return bDate.compareTo(aDate); // Newest first
+    });
+    
+    _withInterestContacts.sort((a, b) {
+      final DateTime aDate = a['lastEditedAt'] as DateTime? ?? DateTime(2000);
+      final DateTime bDate = b['lastEditedAt'] as DateTime? ?? DateTime(2000);
+      return bDate.compareTo(aDate); // Newest first
+    });
+    
+    // Refresh the UI with all contacts
+    if (mounted) {
+      setState(() {
+        // No filtering or searching here to ensure all contacts are displayed
+      });
+    }
+  }
+  
+  // Add a new helper method to apply search and filtering
+  void _applySearchAndFilter() {
+    // This method would handle search, filter, and sort logic
+    // For now, we'll just handle basic search by name
+    if (_searchQuery.isNotEmpty) {
+      final lowerQuery = _searchQuery.toLowerCase();
+      
+      // Filter withoutInterest contacts
+      _withoutInterestContacts.removeWhere((contact) {
+        final name = (contact['name'] as String?)?.toLowerCase() ?? '';
+        return !name.contains(lowerQuery);
+      });
+      
+      // Filter withInterest contacts
+      _withInterestContacts.removeWhere((contact) {
+        final name = (contact['name'] as String?)?.toLowerCase() ?? '';
+        return !name.contains(lowerQuery);
+      });
+    }
+    
+    // Apply sorting based on sort mode
+    switch (_sortMode) {
+      case 'Recent':
+        // Sort by most recent transaction (lastEditedAt)
+        _withoutInterestContacts.sort((a, b) {
+          final DateTime aDate = a['lastEditedAt'] as DateTime? ?? DateTime(2000);
+          final DateTime bDate = b['lastEditedAt'] as DateTime? ?? DateTime(2000);
+          return bDate.compareTo(aDate); // Newest first
+        });
+        
+        _withInterestContacts.sort((a, b) {
+          final DateTime aDate = a['lastEditedAt'] as DateTime? ?? DateTime(2000);
+          final DateTime bDate = b['lastEditedAt'] as DateTime? ?? DateTime(2000);
+          return bDate.compareTo(aDate); // Newest first
+        });
+        break;
+        
+      case 'High to Low':
+        // Sort by amount (highest first)
+        _withoutInterestContacts.sort((a, b) {
+          final double aAmount = a['amount'] as double? ?? 0.0;
+          final double bAmount = b['amount'] as double? ?? 0.0;
+          return bAmount.compareTo(aAmount);
+        });
+        
+        _withInterestContacts.sort((a, b) {
+          final double aAmount = a['amount'] as double? ?? 0.0;
+          final double bAmount = b['amount'] as double? ?? 0.0;
+          return bAmount.compareTo(aAmount);
+        });
+        break;
+        
+      case 'Low to High':
+        // Sort by amount (lowest first)
+        _withoutInterestContacts.sort((a, b) {
+          final double aAmount = a['amount'] as double? ?? 0.0;
+          final double bAmount = b['amount'] as double? ?? 0.0;
+          return aAmount.compareTo(bAmount);
+        });
+        
+        _withInterestContacts.sort((a, b) {
+          final double aAmount = a['amount'] as double? ?? 0.0;
+          final double bAmount = b['amount'] as double? ?? 0.0;
+          return aAmount.compareTo(bAmount);
+        });
+        break;
+        
+      case 'By Name':
+        // Sort alphabetically by name
+        _withoutInterestContacts.sort((a, b) {
+          final String aName = a['name'] as String? ?? '';
+          final String bName = b['name'] as String? ?? '';
+          return aName.compareTo(bName);
+        });
+        
+        _withInterestContacts.sort((a, b) {
+          final String aName = a['name'] as String? ?? '';
+          final String bName = b['name'] as String? ?? '';
+          return aName.compareTo(bName);
+        });
+        break;
+    }
+    
+    // Apply filter mode if set to something other than 'All'
+    if (_filterMode != 'All') {
+      // For 'You received' filter, show only contacts where isGet is true
+      if (_filterMode == 'You received') {
+        _withoutInterestContacts.removeWhere((contact) => !(contact['isGet'] ?? false));
+        _withInterestContacts.removeWhere((contact) => !(contact['isGet'] ?? false));
+      }
+      // For 'You paid' filter, show only contacts where isGet is false
+      else if (_filterMode == 'You paid') {
+        _withoutInterestContacts.removeWhere((contact) => contact['isGet'] ?? true);
+        _withInterestContacts.removeWhere((contact) => contact['isGet'] ?? true);
+      }
+    }
   }
 
   // Calculate interest values for all with-interest contacts
@@ -1229,13 +1364,6 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     }
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Sync contacts when dependencies change (like after adding transactions)
-    _syncContactsWithTransactions();
-  }
-
   double get _totalToGive {
     if (_isWithInterest) {
       // For interest entries, return principal + interest
@@ -1406,14 +1534,14 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     // Listen to changes in transaction provider to update UI when transactions change
-    Provider.of<TransactionProvider>(context);
+    final transactionProvider = Provider.of<TransactionProvider>(context);
     
     // Ensure contacts are synchronized with transactions
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _syncContactsWithTransactions();
-      }
-    });
+    // This is crucial when the app first starts
+    if (_withoutInterestContacts.isEmpty && _withInterestContacts.isEmpty) {
+      // If no contacts are loaded yet, load them now
+      Future.microtask(() => _syncContactsWithTransactions());
+    }
     
     return Column(
       children: [
@@ -2057,27 +2185,81 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.person_search,
-                      size: 60,
-                      color: Colors.grey.shade300,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'No contacts found',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: AppTheme.secondaryTextColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Try a different search term',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade500,
-                      ),
+                    FutureBuilder(
+                      future: Future.delayed(const Duration(milliseconds: 300)),
+                      builder: (context, snapshot) {
+                        // Check if we need to try syncing contacts again after a short delay
+                        if (snapshot.connectionState == ConnectionState.done && 
+                            _filteredContacts.isEmpty &&
+                            Provider.of<TransactionProvider>(context).contacts.isNotEmpty) {
+                          // If provider has contacts but our list is empty, try syncing again
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) _syncContactsWithTransactions();
+                          });
+                        }
+                        
+                        // If we're still waiting or if we have no contacts after syncing
+                        if (Provider.of<TransactionProvider>(context).contacts.isEmpty) {
+                          // No contacts in the provider
+                          return Column(
+                            children: [
+                              Icon(
+                                Icons.person_add_alt_1_rounded,
+                                size: 60,
+                                color: Colors.grey.shade300,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No contacts added yet',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.secondaryTextColor,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Add your first contact with the button below',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          );
+                        } else {
+                          // We have contacts in the provider but none are showing
+                          return Column(
+                            children: [
+                              Icon(
+                                Icons.person_search,
+                                size: 60,
+                                color: Colors.grey.shade300,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No contacts found',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.secondaryTextColor,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _searchQuery.isNotEmpty
+                                    ? 'Try a different search term'
+                                    : 'Try changing the tab or filter',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -3188,7 +3370,10 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         setState(() {
           _hasPermission = true;
         });
-        _loadContacts();
+        await _loadContacts();
+        
+        // Force refresh of home screen when contacts are loaded
+        _refreshHomeScreen();
         return;
       }
       
@@ -3200,7 +3385,10 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         });
         
         if (result) {
-          _loadContacts();
+          await _loadContacts();
+          
+          // Force refresh of home screen when contacts are loaded
+          _refreshHomeScreen();
         } else {
           setState(() {
             _isLoading = false;
@@ -3220,6 +3408,33 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         _hasPermission = false;
         _isLoading = false;
       });
+    }
+  }
+  
+  // Add a helper method to refresh the home screen
+  void _refreshHomeScreen() {
+    // Find the home screen state to refresh contacts
+    final homeScreenState = context.findAncestorStateOfType<_HomeScreenState>();
+    if (homeScreenState != null) {
+      // Try to find HomeContent state to refresh its contacts
+      final homeContentState = homeScreenState._findHomeContentState(context);
+      if (homeContentState != null) {
+        homeContentState.setState(() {
+          // Force refresh
+          homeContentState._syncContactsWithTransactions();
+        });
+      }
+      
+      // Force a refresh of the home screen itself
+      homeScreenState.setState(() {});
+      
+      // Show a message to confirm contacts are loaded
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Contacts loaded successfully'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
   
@@ -4036,10 +4251,42 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
           ElevatedButton(
             onPressed: () async {
               await openAppSettings();
-              // Check if permission was granted after returning from settings
-              await Future.delayed(const Duration(seconds: 1));
+              
+              // Wait longer for settings to fully update
+              await Future.delayed(const Duration(seconds: 2));
+              
               if (mounted) {
-                _checkAndRequestContactPermission();
+                // Check if permission was granted in settings
+                final permissionStatus = await Permission.contacts.status;
+                
+                if (permissionStatus.isGranted) {
+                  setState(() {
+                    _hasPermission = true;
+                  });
+                  
+                  // Load contacts and refresh home screen
+                  await _loadContacts();
+                  _refreshHomeScreen();
+                  
+                  // Show a success message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Permission granted! Loading contacts...'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                } else {
+                  // Show an error message if permission is still denied
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Permission is still denied. Please grant contacts permission in settings.'),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                  
+                  // Recheck permission
+                  _checkAndRequestContactPermission();
+                }
               }
             },
             style: ElevatedButton.styleFrom(

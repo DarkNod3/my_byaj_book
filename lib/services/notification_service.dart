@@ -64,6 +64,11 @@ class NotificationService {
     _showLocalNotificationFromFCM(message);
   }
 
+  // Public method to show local notification from FCM message
+  Future<void> showLocalNotificationFromFCM(RemoteMessage message) async {
+    await _showLocalNotificationFromFCM(message);
+  }
+
   // Handle messages received in the background
   Future<void> handleBackgroundMessage(RemoteMessage message) async {
     // You could store the message data for later use when app is opened
@@ -191,8 +196,9 @@ class NotificationService {
     markLoanAsPaid(loanId);
   }
   
+  // Schedule notifications for loan due dates
   Future<void> scheduleLoanPaymentNotifications(LoanProvider loanProvider) async {
-    // Cancel all existing notifications first
+    // Cancel all existing loan notifications first
     await cancelAllNotifications();
     
     final activeLoans = loanProvider.activeLoans.where((loan) => loan['status'] != 'Inactive').toList();
@@ -213,88 +219,294 @@ class NotificationService {
             final installmentNumber = installment['installmentNumber'] as int;
             
             if (dueDate.isAfter(DateTime.now())) {
-              // Show notification for upcoming payment
-              await showLoanDueNotification(
-                id: _generateNotificationId(loanId),
+              // Show notification for upcoming payment using multiple reminders:
+              
+              // 1. Show reminder 5 days before due date
+              final fiveDaysBefore = dueDate.subtract(const Duration(days: 5));
+              if (fiveDaysBefore.isAfter(DateTime.now())) {
+                await _scheduleLoanNotification(
+                  id: _generateNotificationId("${loanId}_5days"),
+                  loanId: loanId,
+                  loanName: loanName,
+                  amount: paymentAmount,
+                  dueDate: dueDate,
+                  installmentNumber: installmentNumber,
+                  scheduledDate: fiveDaysBefore,
+                  title: "Loan Payment Reminder",
+                  body: "Your loan payment of ₹$paymentAmount for $loanName is due in 5 days",
+                );
+              }
+              
+              // 2. Show reminder 2 days before due date
+              final twoDaysBefore = dueDate.subtract(const Duration(days: 2));
+              if (twoDaysBefore.isAfter(DateTime.now())) {
+                await _scheduleLoanNotification(
+                  id: _generateNotificationId("${loanId}_2days"),
+                  loanId: loanId,
+                  loanName: loanName,
+                  amount: paymentAmount,
+                  dueDate: dueDate,
+                  installmentNumber: installmentNumber,
+                  scheduledDate: twoDaysBefore,
+                  title: "Loan Payment Due Soon",
+                  body: "Your loan payment of ₹$paymentAmount for $loanName is due in 2 days",
+                );
+              }
+              
+              // 3. Show reminder on the due date
+              await _scheduleLoanNotification(
+                id: _generateNotificationId("${loanId}_dueday"),
                 loanId: loanId,
                 loanName: loanName,
                 amount: paymentAmount,
                 dueDate: dueDate,
                 installmentNumber: installmentNumber,
+                scheduledDate: dueDate,
+                title: "Loan Payment Due Today",
+                body: "Your loan payment of ₹$paymentAmount for $loanName is due today",
               );
+              
               break; // Only show for the next unpaid installment
             }
           }
-        }
-      } else {
-        // If no installments, use the first payment date
-        final firstPaymentDate = loan['firstPaymentDate'] as DateTime;
-        if (firstPaymentDate.isAfter(DateTime.now())) {
-          await showLoanDueNotification(
-            id: _generateNotificationId(loanId),
-            loanId: loanId,
-            loanName: loanName,
-            amount: paymentAmount,
-            dueDate: firstPaymentDate,
-            installmentNumber: 1,
-          );
         }
       }
     }
   }
   
+  // Helper method to schedule loan notification
+  Future<void> _scheduleLoanNotification({
+    required int id,
+    required String loanId,
+    required String loanName,
+    required double amount,
+    required DateTime dueDate,
+    required int installmentNumber,
+    required DateTime scheduledDate,
+    required String title,
+    required String body,
+  }) async {
+    // Store the notification ID mapping
+    _loanNotificationIds[loanId] = id;
+    
+    // Create Android notification details
+    const androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'loan_payment_channel',
+      'Loan Payment Notifications',
+      channelDescription: 'Get notified about your loan payments',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+      styleInformation: BigTextStyleInformation(''),
+      icon: '@mipmap/ic_launcher',
+      playSound: true,
+      enableVibration: true,
+      actions: [
+        AndroidNotificationAction(
+          'mark_as_paid',
+          'Mark as Paid',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ],
+    );
+    
+    // Create iOS notification details
+    const iOSPlatformChannelSpecifics = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      interruptionLevel: InterruptionLevel.active,
+    );
+    
+    // Create platform-specific notification details
+    const platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+      iOS: iOSPlatformChannelSpecifics,
+    );
+    
+    // Create payload for the notification action
+    final payload = jsonEncode({
+      'loanId': loanId,
+      'action': 'loan_payment_due',
+      'installmentNumber': installmentNumber,
+      'dueDate': dueDate.toIso8601String(),
+      'amount': amount,
+    });
+    
+    // Get timezone-aware scheduled date
+    final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
+    
+    // Schedule the notification
+    await _flutterLocalNotificationsPlugin.zonedSchedule(
+      id,
+      title,
+      body,
+      tzScheduledDate,
+      platformChannelSpecifics,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: payload,
+    );
+  }
+  
   // Schedule notifications for card due dates
   Future<void> scheduleCardDueNotifications(CardProvider cardProvider) async {
     // Cancel all existing card notifications first
-    await cancelCardNotifications();
+    await cancelAllNotifications();
     
     final cards = cardProvider.cards;
     
-    for (int i = 0; i < cards.length; i++) {
-      final card = cards[i];
-      final cardId = 'card_$i'; // Create a unique ID based on index
-      final bankName = card['bank'] as String;
+    for (final card in cards) {
+      // Skip cards without due date
+      if (card['dueDate'] == null || card['dueDate'] == 'N/A') continue;
       
-      // Check if the card has a due date
-      if (card['dueDate'] != null && card['dueDate'] != 'N/A') {
-        // Parse the due date
-        try {
-          final String dueDateStr = card['dueDate'] as String;
-          final parts = dueDateStr.split(' ');
-          
-          if (parts.length >= 3) {
-            final int day = int.tryParse(parts[0]) ?? 1;
-            
-            // Create date for this month's due date
-            final now = DateTime.now();
-            DateTime dueDate = DateTime(now.year, now.month, day);
-            
-            // If the day has already passed this month, use next month
-            if (dueDate.isBefore(now)) {
-              dueDate = DateTime(now.year, now.month + 1, day);
-            }
-            
-            // Extract balance as amount due
-            final String balanceStr = card['balance'].toString().replaceAll('₹', '').replaceAll(',', '').trim();
-            final double amountDue = double.tryParse(balanceStr) ?? 0.0;
-            
-            // Show notification for upcoming due date
-            if (amountDue > 0) {
-              await showCardDueNotification(
-                id: _generateCardNotificationId(cardId),
-                cardId: cardId,
-                cardIndex: i,
-                bankName: bankName,
-                amount: amountDue,
-                dueDate: dueDate,
-              );
-            }
-          }
-        } catch (e) {
-          // Error scheduling card notification - silent in release
+      final cardId = card['id'] as String;
+      final bankName = card['bank'] as String;
+      final cardName = card['name'] as String;
+      final cardLabel = "$bankName $cardName";
+      
+      // Parse the balance amount
+      final String balanceStr = card['balance'].toString().replaceAll('₹', '').replaceAll(',', '').trim();
+      final double balance = double.tryParse(balanceStr) ?? 0.0;
+      
+      // Skip cards with zero or negative balance
+      if (balance <= 0) continue;
+      
+      // Parse the due date
+      final dueDateString = card['dueDate'] as String;
+      
+      // Extract the day of the month for due date
+      final dayRegExp = RegExp(r'(\d+)');
+      final matches = dayRegExp.firstMatch(dueDateString);
+      
+      if (matches != null && matches.groupCount >= 1) {
+        final int day = int.parse(matches.group(1)!);
+        
+        // Calculate the due date for the current month
+        final now = DateTime.now();
+        DateTime dueDate = DateTime(now.year, now.month, day);
+        
+        // If the due date has already passed, use next month
+        if (dueDate.isBefore(now)) {
+          dueDate = DateTime(now.year, now.month + 1, day);
         }
+        
+        // 1. Show reminder 5 days before due date
+        final fiveDaysBefore = dueDate.subtract(const Duration(days: 5));
+        if (fiveDaysBefore.isAfter(now)) {
+          await _scheduleCardNotification(
+            id: _generateNotificationId("${cardId}_5days"),
+            cardId: cardId,
+            cardLabel: cardLabel,
+            amount: balance,
+            dueDate: dueDate,
+            scheduledDate: fiveDaysBefore,
+            title: "Card Payment Reminder",
+            body: "Your card payment of ₹$balance for $cardLabel is due in 5 days",
+          );
+        }
+        
+        // 2. Show reminder 2 days before due date
+        final twoDaysBefore = dueDate.subtract(const Duration(days: 2));
+        if (twoDaysBefore.isAfter(now)) {
+          await _scheduleCardNotification(
+            id: _generateNotificationId("${cardId}_2days"),
+            cardId: cardId,
+            cardLabel: cardLabel,
+            amount: balance,
+            dueDate: dueDate,
+            scheduledDate: twoDaysBefore,
+            title: "Card Payment Due Soon",
+            body: "Your card payment of ₹$balance for $cardLabel is due in 2 days",
+          );
+        }
+        
+        // 3. Show reminder on the due date
+        await _scheduleCardNotification(
+          id: _generateNotificationId("${cardId}_dueday"),
+          cardId: cardId,
+          cardLabel: cardLabel,
+          amount: balance,
+          dueDate: dueDate,
+          scheduledDate: dueDate,
+          title: "Card Payment Due Today",
+          body: "Your card payment of ₹$balance for $cardLabel is due today",
+        );
       }
     }
+  }
+  
+  // Helper method to schedule card notification
+  Future<void> _scheduleCardNotification({
+    required int id,
+    required String cardId,
+    required String cardLabel,
+    required double amount,
+    required DateTime dueDate,
+    required DateTime scheduledDate,
+    required String title,
+    required String body,
+  }) async {
+    // Store the notification ID mapping
+    _cardNotificationIds[cardId] = id;
+    
+    // Create Android notification details
+    const androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'card_payment_channel',
+      'Card Payment Notifications',
+      channelDescription: 'Get notified about your card payments',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+      styleInformation: BigTextStyleInformation(''),
+      icon: '@mipmap/ic_launcher',
+      playSound: true,
+      enableVibration: true,
+      actions: [
+        AndroidNotificationAction(
+          'mark_as_paid',
+          'Mark as Paid',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ],
+    );
+    
+    // Create iOS notification details
+    const iOSPlatformChannelSpecifics = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      interruptionLevel: InterruptionLevel.active,
+    );
+    
+    // Create platform-specific notification details
+    const platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+      iOS: iOSPlatformChannelSpecifics,
+    );
+    
+    // Create payload for the notification action
+    final payload = jsonEncode({
+      'cardId': cardId,
+      'action': 'card_payment_due',
+      'dueDate': dueDate.toIso8601String(),
+      'amount': amount,
+    });
+    
+    // Get timezone-aware scheduled date
+    final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
+    
+    // Schedule the notification
+    await _flutterLocalNotificationsPlugin.zonedSchedule(
+      id,
+      title,
+      body,
+      tzScheduledDate,
+      platformChannelSpecifics,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: payload,
+    );
   }
   
   // Schedule notifications for manual reminders
@@ -790,5 +1002,15 @@ class NotificationService {
       scheduledDate: scheduledDate,
       payload: jsonEncode(notification.toJson()),
     );
+  }
+
+  // Method to cancel loan notifications
+  Future<void> cancelLoanNotifications() async {
+    // Cancel all loan notifications
+    for (final id in _loanNotificationIds.values) {
+      await _flutterLocalNotificationsPlugin.cancel(id);
+      await _flutterLocalNotificationsPlugin.cancel(id + 1000); // Cancel scheduled notification too
+    }
+    _loanNotificationIds.clear();
   }
 }
