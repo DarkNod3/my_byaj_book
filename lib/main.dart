@@ -223,6 +223,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     
     // Initialize notifications after build is complete
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Remove the splash screen
+      FlutterNativeSplash.remove();
+      
       _initializeNotifications();
       _setupFCMHandlers();
       _syncAllReminders();

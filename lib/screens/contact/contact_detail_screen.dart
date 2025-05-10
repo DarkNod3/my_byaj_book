@@ -12,15 +12,11 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:my_byaj_book/services/pdf_template_service.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:timezone/timezone.dart' as tz;
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:my_byaj_book/providers/notification_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:my_byaj_book/utils/permission_handler.dart';
 import 'package:my_byaj_book/screens/home/home_screen.dart';
 

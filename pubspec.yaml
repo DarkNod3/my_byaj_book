@@ -87,3 +87,11 @@ flutter_native_splash:
   android: true
   ios: true
   web: false
+
+  # Fix for cropped logo - set splash screen dimensions
+  android_gravity: center
+  ios_content_mode: center
+  fullscreen: true
+  
+  # Set a lower size to prevent cropping
+  image_size: 0.65

@@ -1615,7 +1615,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                     ),
                       const SizedBox(height: 8),
                     // Improved FittedBox with better constraints
-                    Container(
+                    SizedBox(
                       height: 28,
                       child: FittedBox(
                       fit: BoxFit.scaleDown,
@@ -1632,7 +1632,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                     ),
                       if (_isWithInterest) ...[
                         // Add small text below showing interest details
-                        Container(
+                        SizedBox(
                           height: 14,
                           child: FittedBox(
                           fit: BoxFit.scaleDown,
@@ -1688,7 +1688,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                     ),
                       const SizedBox(height: 8),
                     // Improved FittedBox with better constraints
-                    Container(
+                    SizedBox(
                       height: 28,
                       child: FittedBox(
                       fit: BoxFit.scaleDown,
@@ -1705,7 +1705,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                     ),
                       if (_isWithInterest) ...[
                         // Add small text below showing interest details
-                        Container(
+                        SizedBox(
                           height: 14,
                           child: FittedBox(
                           fit: BoxFit.scaleDown,
@@ -2448,7 +2448,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Container(
+                          SizedBox(
                             width: 100, // Fixed width container
                             height: 22, // Fixed height for consistent UI
                             child: FittedBox(
@@ -2583,7 +2583,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                   ),
                 ),
                 // Improved FittedBox with fixed height container
-                Container(
+                SizedBox(
                   height: 14,
                   child: FittedBox(
                   fit: BoxFit.scaleDown,

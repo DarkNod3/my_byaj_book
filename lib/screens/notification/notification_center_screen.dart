@@ -29,7 +29,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
   late TabController _tabController;
   bool _isMarkingAllRead = false;
   late List<AppNotification> _notifications;
-  bool _isLoading = true;
+  final bool _isLoading = true;
 
   @override
   void initState() {
@@ -302,7 +302,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
         color: Colors.red,
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 20),
-        child: Column(
+        child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.delete, color: Colors.white, size: 24),
@@ -328,12 +328,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
               color: Colors.white,
               size: 24,
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
               notification.isPaid 
                 ? 'Hide Today' 
                 : notification.isRead ? 'Read' : 'Mark Read',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
             ),
           ],
         ),
@@ -505,7 +505,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
                           color: AppTheme.primaryColor.withOpacity(0.3),
                           spreadRadius: 1,
                           blurRadius: 2,
-                          offset: Offset(0, 1),
+                          offset: const Offset(0, 1),
                         ),
                       ],
                     ),

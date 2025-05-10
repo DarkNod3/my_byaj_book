@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:timeago/timeago.dart' as timeago;
-import 'dart:math';
 import 'package:flutter/services.dart';
 import '../../constants/app_theme.dart';
 import '../../models/milk_diary/daily_entry.dart';

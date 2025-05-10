@@ -199,7 +199,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                 ],
                               ),
                             ),
-                            padding: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(2),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(100),
                               child: Image.asset(
@@ -250,11 +250,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   FadeTransition(
                     opacity: _fadeInAnimation,
                     child: Text(
-                      'आपके हिसाब-किताब को आसान बनाए',
+                      'सरल हिसाब, स्मार्ट ज़िंदगी',
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white.withAlpha(204),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ),

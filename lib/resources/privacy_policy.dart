@@ -3,74 +3,74 @@ import 'package:flutter/material.dart';
 class PrivacyPolicy {
   static const String appName = 'My Byaj Book';
   static const String supportEmail = 'darknod3@gmail.com';
-  static const String lastUpdated = 'August 15, 2023';
+  static const String lastUpdated = 'May 10, 2025';
   
   static const String policyText = '''
 # Privacy Policy
 
 **Last Updated: $lastUpdated**
 
-## Introduction
-
-Welcome to $appName. We respect your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, and safeguard your information when you use our mobile application.
+Welcome to My Byaj Book. We value your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, and safeguard your information when you use our mobile application.
 
 ## Information We Collect
 
-### Personal Information
-- **Account Information**: When you create an account, we may collect your name and user ID.
-- **Transaction Data**: Details of transactions you enter in the app, including customer information, loan details, and payment records.
-- **Device Information**: We collect information about your device, including device type, operating system, and unique device identifiers.
+### 🔹 Personal Information
+- **Account Details**: Name, mobile number, and UID if created
+- **Transaction Data**: Loan details, interest amounts, payment records, notes, and customer names (if entered by you)
+- **Device Info**: Operating system, device type, and unique identifiers
 
-### Non-Personal Information
-- **Usage Data**: We collect anonymous statistics about how you use the app, including features used and time spent.
-- **App Performance**: Data about app crashes and performance issues to improve our service.
+### 🔹 Non-Personal Information
+- **Usage Statistics**: Features used, session duration, and app interaction logs
+- **Crash Reports**: Technical errors and bugs to improve app performance
 
-## How We Use Your Information
-
-We use your information for the following purposes:
-- To provide and maintain our service
-- To notify you about changes to our service
-- To provide customer support
-- To improve our app based on how you use it
-- To detect and prevent technical issues
+## How We Use Your Data
+We use the information we collect to:
+- Provide and maintain app services
+- Offer reminders and backup features
+- Notify users of critical app updates
+- Improve user experience based on usage
+- Provide technical support and customer care
+- Prevent fraud, misuse, or illegal activity
 
 ## Data Storage
-
-All your data is primarily stored locally on your device. When you use our backup feature, this data is temporarily processed to create the backup file, which you can then choose to share or store as you wish.
+- All your transaction data is stored locally on your device by default
+- When you use our backup feature, your data is temporarily processed to create a backup file (which you may save to Google Drive or email manually)
+- We do not upload your financial data to our servers
 
 ## Data Sharing
-
-We do not sell or rent your personal information to third parties. We may share your information in the following circumstances:
-- With your consent
-- To comply with legal obligations
-- To protect our rights, privacy, safety, or property
-
-## Your Rights
-
-You have the right to:
-- Access the personal information we have about you
-- Correct inaccurate information
-- Delete your data from the app
-- Export your data in a common format
-
-## Security
-
-We implement appropriate technical and organizational measures to protect your personal information from unauthorized access, alteration, disclosure, or destruction.
+We do not sell, rent, or share your personal data with third parties.
+We may share limited information only:
+- With your explicit consent
+- To comply with legal requirements
+- To protect our users or enforce app policies
 
 ## Children's Privacy
+Our app is not intended for use by children under 13 years of age.
+We do not knowingly collect personal information from anyone under 13.
 
-Our app is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13.
+## Your Rights
+As a user, you have the right to:
+- Access your stored data
+- Request correction of inaccurate entries
+- Delete your data from within the app
+- Export your data in a common format (e.g., JSON)
 
-## Changes to This Privacy Policy
+## Security
+We implement appropriate technical measures (such as local encryption and permission-based access) to protect your data from unauthorized access, alteration, or disclosure.
 
-We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date.
+## Changes to This Policy
+We may update this Privacy Policy occasionally. When we do, we'll notify users via app update notes and update the "Last Updated" date above.
 
 ## Contact Us
+If you have any questions about this Privacy Policy or your data:
+- 📧 Email: $supportEmail
+- 📞 Support Hours: Mon–Fri, 10:00 AM – 6:00 PM IST
 
-If you have any questions about this Privacy Policy, please contact us at:
-- Email: $supportEmail
-
-By using the app, you agree to the collection and use of information in accordance with this policy.
+## 📌 Legal Compliance
+This Privacy Policy complies with:
+- Google Play's User Data Policy
+- Indian IT Act (Reasonable Security Practices)
+- GDPR guidelines for basic user rights (where applicable)
 ''';
 
   static Widget buildPrivacyPolicyWidget(BuildContext context) {
@@ -100,15 +100,7 @@ By using the app, you agree to the collection and use of information in accordan
             ),
             const SizedBox(height: 16),
             const Text(
-              'Introduction',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Welcome to $appName. We respect your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, and safeguard your information when you use our mobile application.',
+              'Welcome to My Byaj Book. We value your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, and safeguard your information when you use our mobile application.',
               style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
@@ -120,32 +112,42 @@ By using the app, you agree to the collection and use of information in accordan
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Personal Information:',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+            RichText(
+              text: const TextSpan(
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+                children: [
+                  TextSpan(
+                    text: '🔹 ',
+                    style: TextStyle(color: Colors.blue),
+                  ),
+                  TextSpan(text: 'Personal Information'),
+                ],
               ),
             ),
             const SizedBox(height: 4),
-            _buildBulletPoint('Account Information: When you create an account, we may collect your name and user ID.'),
-            _buildBulletPoint('Transaction Data: Details of transactions you enter in the app, including customer information, loan details, and payment records.'),
-            _buildBulletPoint('Device Information: We collect information about your device, including device type, operating system, and unique device identifiers.'),
+            _buildBulletPoint('Account Details: Name, mobile number, and UID if created'),
+            _buildBulletPoint('Transaction Data: Loan details, interest amounts, payment records, notes, and customer names (if entered by you)'),
+            _buildBulletPoint('Device Info: Operating system, device type, and unique identifiers'),
             const SizedBox(height: 8),
-            const Text(
-              'Non-Personal Information:',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+            RichText(
+              text: const TextSpan(
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+                children: [
+                  TextSpan(
+                    text: '🔹 ',
+                    style: TextStyle(color: Colors.blue),
+                  ),
+                  TextSpan(text: 'Non-Personal Information'),
+                ],
               ),
             ),
             const SizedBox(height: 4),
-            _buildBulletPoint('Usage Data: We collect anonymous statistics about how you use the app, including features used and time spent.'),
-            _buildBulletPoint('App Performance: Data about app crashes and performance issues to improve our service.'),
+            _buildBulletPoint('Usage Statistics: Features used, session duration, and app interaction logs'),
+            _buildBulletPoint('Crash Reports: Technical errors and bugs to improve app performance'),
             
             const SizedBox(height: 16),
             const Text(
-              'How We Use Your Information',
+              'How We Use Your Data',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -153,14 +155,15 @@ By using the app, you agree to the collection and use of information in accordan
             ),
             const SizedBox(height: 8),
             const Text(
-              'We use your information for the following purposes:',
+              'We use the information we collect to:',
               style: TextStyle(fontSize: 14),
             ),
-            _buildBulletPoint('To provide and maintain our service'),
-            _buildBulletPoint('To notify you about changes to our service'),
-            _buildBulletPoint('To provide customer support'),
-            _buildBulletPoint('To improve our app based on how you use it'),
-            _buildBulletPoint('To detect and prevent technical issues'),
+            _buildBulletPoint('Provide and maintain app services'),
+            _buildBulletPoint('Offer reminders and backup features'),
+            _buildBulletPoint('Notify users of critical app updates'),
+            _buildBulletPoint('Improve user experience based on usage'),
+            _buildBulletPoint('Provide technical support and customer care'),
+            _buildBulletPoint('Prevent fraud, misuse, or illegal activity'),
             
             const SizedBox(height: 16),
             const Text(
@@ -171,10 +174,9 @@ By using the app, you agree to the collection and use of information in accordan
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'All your data is primarily stored locally on your device. When you use our backup feature, this data is temporarily processed to create the backup file, which you can then choose to share or store as you wish.',
-              style: TextStyle(fontSize: 14),
-            ),
+            _buildBulletPoint('All your transaction data is stored locally on your device by default'),
+            _buildBulletPoint('When you use our backup feature, your data is temporarily processed to create a backup file (which you may save to Google Drive or email manually)'),
+            _buildBulletPoint('We do not upload your financial data to our servers'),
             
             const SizedBox(height: 16),
             const Text(
@@ -186,44 +188,12 @@ By using the app, you agree to the collection and use of information in accordan
             ),
             const SizedBox(height: 8),
             const Text(
-              'We do not sell or rent your personal information to third parties. We may share your information in the following circumstances:',
+              'We do not sell, rent, or share your personal data with third parties. We may share limited information only:',
               style: TextStyle(fontSize: 14),
             ),
-            _buildBulletPoint('With your consent'),
-            _buildBulletPoint('To comply with legal obligations'),
-            _buildBulletPoint('To protect our rights, privacy, safety, or property'),
-            
-            const SizedBox(height: 16),
-            const Text(
-              'Your Rights',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'You have the right to:',
-              style: TextStyle(fontSize: 14),
-            ),
-            _buildBulletPoint('Access the personal information we have about you'),
-            _buildBulletPoint('Correct inaccurate information'),
-            _buildBulletPoint('Delete your data from the app'),
-            _buildBulletPoint('Export your data in a common format'),
-            
-            const SizedBox(height: 16),
-            const Text(
-              'Security',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'We implement appropriate technical and organizational measures to protect your personal information from unauthorized access, alteration, disclosure, or destruction.',
-              style: TextStyle(fontSize: 14),
-            ),
+            _buildBulletPoint('With your explicit consent'),
+            _buildBulletPoint('To comply with legal requirements'),
+            _buildBulletPoint('To protect our users or enforce app policies'),
             
             const SizedBox(height: 16),
             const Text(
@@ -235,13 +205,13 @@ By using the app, you agree to the collection and use of information in accordan
             ),
             const SizedBox(height: 8),
             const Text(
-              'Our app is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13.',
+              'Our app is not intended for use by children under 13 years of age. We do not knowingly collect personal information from anyone under 13.',
               style: TextStyle(fontSize: 14),
             ),
             
             const SizedBox(height: 16),
             const Text(
-              'Changes to This Privacy Policy',
+              'Your Rights',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -249,7 +219,39 @@ By using the app, you agree to the collection and use of information in accordan
             ),
             const SizedBox(height: 8),
             const Text(
-              'We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date.',
+              'As a user, you have the right to:',
+              style: TextStyle(fontSize: 14),
+            ),
+            _buildBulletPoint('Access your stored data'),
+            _buildBulletPoint('Request correction of inaccurate entries'),
+            _buildBulletPoint('Delete your data from within the app'),
+            _buildBulletPoint('Export your data in a common format (e.g., JSON)'),
+            
+            const SizedBox(height: 16),
+            const Text(
+              'Security',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'We implement appropriate technical measures (such as local encryption and permission-based access) to protect your data from unauthorized access, alteration, or disclosure.',
+              style: TextStyle(fontSize: 14),
+            ),
+            
+            const SizedBox(height: 16),
+            const Text(
+              'Changes to This Policy',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'We may update this Privacy Policy occasionally. When we do, we\'ll notify users via app update notes and update the "Last Updated" date above.',
               style: TextStyle(fontSize: 14),
             ),
             
@@ -263,25 +265,34 @@ By using the app, you agree to the collection and use of information in accordan
             ),
             const SizedBox(height: 8),
             const Text(
-              'If you have any questions about this Privacy Policy, please contact us at:',
+              'If you have any questions about this Privacy Policy or your data:',
               style: TextStyle(fontSize: 14),
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Email: $supportEmail',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            _buildBulletPoint('📧 Email: $supportEmail'),
+            _buildBulletPoint('📞 Support Hours: Mon–Fri, 10:00 AM – 6:00 PM IST'),
+            
             const SizedBox(height: 16),
-            const Text(
-              'By using the app, you agree to the collection and use of information in accordance with this policy.',
-              style: TextStyle(
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
+            RichText(
+              text: const TextSpan(
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                children: [
+                  TextSpan(
+                    text: '📌 ',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  TextSpan(text: 'Legal Compliance'),
+                ],
               ),
             ),
+            const SizedBox(height: 8),
+            const Text(
+              'This Privacy Policy complies with:',
+              style: TextStyle(fontSize: 14),
+            ),
+            _buildBulletPoint('Google Play\'s User Data Policy'),
+            _buildBulletPoint('Indian IT Act (Reasonable Security Practices)'),
+            _buildBulletPoint('GDPR guidelines for basic user rights (where applicable)'),
+            
             const SizedBox(height: 24),
           ],
         ),
@@ -291,16 +302,13 @@ By using the app, you agree to the collection and use of information in accordan
 
   static Widget _buildBulletPoint(String text) {
     return Padding(
-      padding: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
+      padding: const EdgeInsets.only(left: 16, bottom: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('• ', style: TextStyle(fontSize: 14)),
+          Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
           Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 14),
-            ),
+            child: Text(text, style: TextStyle(fontSize: 14)),
           ),
         ],
       ),

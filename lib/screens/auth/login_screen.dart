@@ -446,12 +446,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     ],
                                   ),
                                 ),
-                                padding: const EdgeInsets.all(20),
+                                padding: const EdgeInsets.all(1),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(100),
                                   child: Image.asset(
                                     'assets/my_byaj_book_logo.png',
-                                    fit: BoxFit.contain,
+                                    fit: BoxFit.cover,
                                   ),
                                 ),
                               ),

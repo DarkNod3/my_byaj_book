@@ -369,21 +369,59 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => const AboutDialog(
-        applicationName: 'My Byaj Book',
-        applicationVersion: 'v1.0.0',
-        applicationIcon: FlutterLogo(size: 50),
-        applicationLegalese: '© 2023 My Byaj Book. All rights reserved.',
-        children: [
-          SizedBox(height: 24),
-          Text(
-            'My Byaj Book is a comprehensive loan management app designed to help you keep track of your loans, EMIs, and payments in one place.',
-            style: TextStyle(fontSize: 14),
+      builder: (context) => AlertDialog(
+        title: const Text('About Us'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: double.infinity,
+                alignment: Alignment.center,
+                child: Column(
+                  children: [
+                    const FlutterLogo(size: 70),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'My Byaj Book',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text(
+                      'v1.0.0',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                '© 2025 RJ Innovative Media. All rights reserved.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'My Byaj Book is a smart and simple financial management app built for individuals, shopkeepers, and small business owners to manage their loans, byaj (interest), and daily entries with ease. Track payments, get reminders, and keep your records organized — all in one secure place.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'For support, reach out at: darknod3@gmail.com',
+                style: TextStyle(fontSize: 14),
+              ),
+            ],
           ),
-          SizedBox(height: 16),
-          Text(
-            'For support: support@mybyajbook.com',
-            style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
           ),
         ],
       ),

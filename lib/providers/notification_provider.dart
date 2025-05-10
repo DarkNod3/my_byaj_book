@@ -701,7 +701,7 @@ class NotificationProvider with ChangeNotifier {
             id: id,
             type: 'bill',
             title: 'Bill Reminder',
-            message: 'Reminder for ${bill.title}' + (bill.amount != null ? ' (₹${bill.amount})' : ''),
+            message: 'Reminder for ${bill.title}${bill.amount != null ? ' (₹${bill.amount})' : ''}',
             timestamp: DateTime.now(),
             data: {
               'billId': bill.id,

@@ -1091,7 +1091,7 @@ class NotificationService {
         await _flutterLocalNotificationsPlugin.cancel(id);
       }
     } catch (e) {
-      debugPrint('Error canceling ${type} notifications: $e');
+      debugPrint('Error canceling $type notifications: $e');
     }
   }
   
