@@ -35,6 +35,7 @@ import 'screens/notification/notification_center_screen.dart';
 import 'dart:async';
 import 'package:my_byaj_book/utils/permission_handler.dart';
 import 'screens/settings/notification_settings_screen.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 // Global notification service
 final notificationService = NotificationService.instance;
@@ -55,7 +56,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   // Ensure Flutter is initialized
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  
+  // Keep the splash screen visible while initializing
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   
   // Initialize Firebase with better error handling and timeout
   try {

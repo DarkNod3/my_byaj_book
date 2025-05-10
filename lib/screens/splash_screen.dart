@@ -205,6 +205,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               child: Image.asset(
                                 'assets/my_byaj_book_logo.png',
                                 fit: BoxFit.contain,
+                                width: size.width * 0.35,
+                                height: size.width * 0.35,
                               ),
                             ),
                           ),
