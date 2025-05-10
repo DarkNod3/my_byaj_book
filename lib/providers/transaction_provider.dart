@@ -19,15 +19,55 @@ class TransactionProvider extends ChangeNotifier {
   // New method for sequential initialization
   Future<void> _initializeProvider() async {
     try {
+      // First attempt to load data
+      await _loadData();
+      
+      // Set up a delayed reload to ensure data is fully loaded
+      // This helps when the app is first launched and SharedPreferences might be slow
+      Future.delayed(const Duration(milliseconds: 300), () {
+        // Check if data loaded properly
+        if (_contacts.isEmpty) {
+          _loadData(notifyChanges: true);
+        }
+        
+        // Always recalculate interest values to ensure they're up to date
+        _recalculateInterestValues();
+        
+        // Notify listeners again after everything is loaded
+        notifyListeners();
+      });
+    } catch (e) {
+      print('Error initializing TransactionProvider: $e');
+      
+      // Attempt to reload data after a short delay
+      Future.delayed(const Duration(seconds: 1), () {
+        _loadData(notifyChanges: true);
+      });
+    }
+  }
+  
+  // Helper method to load all data
+  Future<void> _loadData({bool notifyChanges = false}) async {
+    try {
+      // Load data in sequence
       await _loadContacts();
       await _loadTransactions();
       await _loadManualReminders();
       await _ensureContactTransactionSynchronization(notifyChanges: false);
-      // Notify listeners only once after all initialization is complete
-      notifyListeners();
+      await _recalculateInterestValues();
+      
+      // Notify listeners only once if requested
+      if (notifyChanges) {
+        notifyListeners();
+      } else {
+        // Always notify at least once during initial load
+        notifyListeners();
+      }
     } catch (e) {
-      // Handle initialization error silently
-      print('Error initializing TransactionProvider: $e');
+      print('Error loading data: $e');
+      // Still notify listeners even if there was an error
+      // This ensures the UI gets updated with whatever data was loaded
+      notifyListeners();
     }
   }
   
@@ -685,6 +725,19 @@ class TransactionProvider extends ChangeNotifier {
           contact['color'] = Color(contact['color'] as int);
         }
         
+        // Convert lastEditedAt DateTime if it exists
+        if (contact.containsKey('lastEditedAt') && contact['lastEditedAt'] is String) {
+          try {
+            contact['lastEditedAt'] = DateTime.parse(contact['lastEditedAt']);
+          } catch (e) {
+            // If parsing fails, set to current time
+            contact['lastEditedAt'] = DateTime.now();
+          }
+        } else if (!contact.containsKey('lastEditedAt') || contact['lastEditedAt'] == null) {
+          // Ensure lastEditedAt exists
+          contact['lastEditedAt'] = DateTime.now();
+        }
+        
         // Make sure tabType field exists for each contact
         if (!contact.containsKey('tabType')) {
           // Determine tabType based on interest rate or type
@@ -695,13 +748,36 @@ class TransactionProvider extends ChangeNotifier {
           }
         }
         
+        // Ensure interest fields are properly initialized
+        if (contact['tabType'] == 'withInterest') {
+          // Make sure interestRate exists and is a double
+          if (!contact.containsKey('interestRate') || contact['interestRate'] == null) {
+            contact['interestRate'] = 0.0;
+          } else if (contact['interestRate'] is int) {
+            contact['interestRate'] = (contact['interestRate'] as int).toDouble();
+          }
+          
+          // Make sure interestPeriod exists
+          if (!contact.containsKey('interestPeriod') || contact['interestPeriod'] == null) {
+            contact['interestPeriod'] = 'monthly';
+          }
+          
+          // Make sure relationship type exists
+          if (!contact.containsKey('type') || contact['type'] == null) {
+            contact['type'] = 'borrower';
+          }
+          
+          // Initialize interest due for display
+          if (!contact.containsKey('interestDue') || contact['interestDue'] == null) {
+            contact['interestDue'] = 0.0;
+          }
+        }
+        
         return contact;
       }).toList();
-      
-      // Notify listeners
-      notifyListeners();
     } catch (e) {
       // Log the error without using debug print
+      print('Error loading contacts: $e');
     }
   }
   
@@ -720,6 +796,11 @@ class TransactionProvider extends ChangeNotifier {
           final Color color = contactCopy['color'] as Color;
           contactCopy['color'] = color.value; // Store color as int value
         }
+
+        // Ensure lastEditedAt is converted to ISO string
+        if (contactCopy['lastEditedAt'] != null && contactCopy['lastEditedAt'] is DateTime) {
+          contactCopy['lastEditedAt'] = contactCopy['lastEditedAt'].toIso8601String();
+        }
         
         // Ensure tabType is set
         if (!contactCopy.containsKey('tabType')) {
@@ -727,6 +808,24 @@ class TransactionProvider extends ChangeNotifier {
             contactCopy['tabType'] = 'withInterest';
           } else {
             contactCopy['tabType'] = 'withoutInterest';
+          }
+        }
+        
+        // Ensure interest fields are properly serialized
+        if (contactCopy['tabType'] == 'withInterest') {
+          // Make sure interestRate exists and is a number
+          if (!contactCopy.containsKey('interestRate') || contactCopy['interestRate'] == null) {
+            contactCopy['interestRate'] = 0.0;
+          }
+          
+          // Make sure interestPeriod exists
+          if (!contactCopy.containsKey('interestPeriod') || contactCopy['interestPeriod'] == null) {
+            contactCopy['interestPeriod'] = 'monthly';
+          }
+          
+          // Make sure relationship type exists
+          if (!contactCopy.containsKey('type') || contactCopy['type'] == null) {
+            contactCopy['type'] = 'borrower';
           }
         }
         
@@ -741,6 +840,7 @@ class TransactionProvider extends ChangeNotifier {
       await createAutomaticBackup();
     } catch (e) {
       // Log the error without using debug print
+      print('Error saving contacts: $e');
     }
   }
   
@@ -1171,6 +1271,201 @@ class TransactionProvider extends ChangeNotifier {
     } catch (e) {
       // Log the error without using debug print
       return false;
+    }
+  }
+  
+  // Add a method to recalculate interest values
+  Future<void> _recalculateInterestValues() async {
+    try {
+      // Loop through all contacts with interest
+      for (var contact in _contacts) {
+        // Skip non-interest contacts
+        if (contact['tabType'] != 'withInterest') continue;
+        
+        final String contactId = contact['phone'] ?? '';
+        if (contactId.isEmpty) continue;
+        
+        // Get transactions for this contact
+        final transactions = getTransactionsForContact(contactId);
+        if (transactions.isEmpty) continue;
+        
+        // Get contact type and initial values
+        final String contactType = contact['type'] as String? ?? 'borrower';
+        final double interestRate = contact['interestRate'] as double? ?? 12.0;
+        final bool isMonthly = contact['interestPeriod'] == 'monthly';
+        
+        // Sort transactions chronologically for accurate interest calculation
+        transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+        
+        // Calculate interest using the transaction history
+        DateTime? lastInterestDate = transactions.first['date'] as DateTime;
+        double runningPrincipal = 0.0;
+        double accumulatedInterest = 0.0;
+        double interestPaid = 0.0;
+        
+        // Process all transactions
+        for (var tx in transactions) {
+          final txDate = tx['date'] as DateTime;
+          final amount = tx['amount'] as double;
+          final isGave = tx['type'] == 'gave';
+          final isInterestPayment = tx['isInterestPayment'] == true;
+          
+          if (isInterestPayment) {
+            // Handle interest payment
+            if (contactType == 'borrower' && !isGave) {
+              // Borrower paid interest
+              interestPaid += amount;
+            } else if (contactType == 'lender' && isGave) {
+              // User paid interest to lender
+              interestPaid += amount;
+            }
+          } else {
+            // Calculate interest for the period
+            if (lastInterestDate != null && runningPrincipal > 0) {
+              // Calculate interest based on principal and days
+              double interestForPeriod = 0.0;
+
+              if (isMonthly) {
+                // Monthly rate calculation
+                int completeMonths = 0;
+                DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+                
+                while (true) {
+                  DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+                  if (nextMonth.isAfter(txDate)) break;
+                  
+                  completeMonths++;
+                  tempDate = nextMonth;
+                }
+                
+                if (completeMonths > 0) {
+                  interestForPeriod += runningPrincipal * (interestRate / 100) * completeMonths;
+                }
+                
+                final remainingDays = txDate.difference(tempDate).inDays;
+                if (remainingDays > 0) {
+                  final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+                  double monthProportion = remainingDays / daysInMonth;
+                  interestForPeriod += runningPrincipal * (interestRate / 100) * monthProportion;
+                }
+              } else {
+                // Yearly rate converted to monthly
+                double monthlyRate = interestRate / 12;
+                
+                int completeMonths = 0;
+                DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+                
+                while (true) {
+                  DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+                  if (nextMonth.isAfter(txDate)) break;
+                  
+                  completeMonths++;
+                  tempDate = nextMonth;
+                }
+                
+                if (completeMonths > 0) {
+                  interestForPeriod += runningPrincipal * (monthlyRate / 100) * completeMonths;
+                }
+                
+                final remainingDays = txDate.difference(tempDate).inDays;
+                if (remainingDays > 0) {
+                  final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+                  double monthProportion = remainingDays / daysInMonth;
+                  interestForPeriod += runningPrincipal * (monthlyRate / 100) * monthProportion;
+                }
+              }
+              
+              accumulatedInterest += interestForPeriod;
+            }
+            
+            // Adjust principal based on transaction type
+            if (isGave) {
+              if (contactType == 'borrower') {
+                runningPrincipal += amount;
+              } else {
+                runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
+              }
+            } else {
+              if (contactType == 'borrower') {
+                runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
+              } else {
+                runningPrincipal += amount;
+              }
+            }
+            
+            lastInterestDate = txDate;
+          }
+        }
+        
+        // Calculate interest from last transaction to now
+        if (lastInterestDate != null && runningPrincipal > 0) {
+          double interestFromLastTx = 0.0;
+          final now = DateTime.now();
+          
+          if (isMonthly) {
+            int completeMonths = 0;
+            DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+            
+            while (true) {
+              DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+              if (nextMonth.isAfter(now)) break;
+              
+              completeMonths++;
+              tempDate = nextMonth;
+            }
+            
+            if (completeMonths > 0) {
+              interestFromLastTx += runningPrincipal * (interestRate / 100) * completeMonths;
+            }
+            
+            final remainingDays = now.difference(tempDate).inDays;
+            if (remainingDays > 0) {
+              final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+              double monthProportion = remainingDays / daysInMonth;
+              interestFromLastTx += runningPrincipal * (interestRate / 100) * monthProportion;
+            }
+          } else {
+            double monthlyRate = interestRate / 12;
+            
+            int completeMonths = 0;
+            DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+            
+            while (true) {
+              DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+              if (nextMonth.isAfter(now)) break;
+              
+              completeMonths++;
+              tempDate = nextMonth;
+            }
+            
+            if (completeMonths > 0) {
+              interestFromLastTx += runningPrincipal * (monthlyRate / 100) * completeMonths;
+            }
+            
+            final remainingDays = now.difference(tempDate).inDays;
+            if (remainingDays > 0) {
+              final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+              double monthProportion = remainingDays / daysInMonth;
+              interestFromLastTx += runningPrincipal * (monthlyRate / 100) * monthProportion;
+            }
+          }
+          
+          accumulatedInterest += interestFromLastTx;
+        }
+        
+        // Adjust for interest already paid
+        double totalInterestDue = (accumulatedInterest - interestPaid > 0) ? accumulatedInterest - interestPaid : 0;
+        
+        // Update contact with calculated values
+        contact['interestDue'] = totalInterestDue;
+        contact['principal'] = runningPrincipal;
+        contact['displayAmount'] = runningPrincipal + totalInterestDue;
+        
+        // Ensure we save these values
+        _saveContacts();
+      }
+    } catch (e) {
+      print('Error recalculating interest: $e');
     }
   }
 } 

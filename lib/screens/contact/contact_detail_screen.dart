@@ -20,6 +20,9 @@ import 'dart:convert';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:my_byaj_book/providers/notification_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:my_byaj_book/utils/permission_handler.dart';
+import 'package:my_byaj_book/screens/home/home_screen.dart';
 
 class ContactDetailScreen extends StatefulWidget {
   final Map<String, dynamic> contact;
@@ -39,7 +42,7 @@ class ContactDetailScreen extends StatefulWidget {
   _ContactDetailScreenState createState() => _ContactDetailScreenState();
 }
 
-class _ContactDetailScreenState extends State<ContactDetailScreen> {
+class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAware {
   final TextEditingController _searchController = TextEditingController();
   final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: 'Rs. ');
   final dateFormat = DateFormat('dd MMM yyyy, HH:mm');
@@ -79,7 +82,25 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   }
 
   @override
+  void didPopNext() {
+    // This is called when returning to this screen
+    // Refresh data
+    setState(() {
+      _refreshData();
+    });
+    super.didPopNext();
+  }
+
+  @override
   void dispose() {
+    // Force refresh of home screen when returning
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Use the public static method instead of trying to access private class
+      if (mounted) {
+        HomeScreen.refreshHomeContent(context);
+      }
+    });
+    
     _searchController.dispose();
     super.dispose();
   }
@@ -1162,107 +1183,15 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   
   // Add methods to check for camera and gallery permissions
   Future<bool> _checkCameraPermission() async {
-    // Check if permission is already granted
-    var status = await Permission.camera.status;
-    if (status.isGranted) {
-      return true;
-    }
-    
-    // If permission is permanently denied, direct to settings
-    if (status.isPermanentlyDenied) {
-      if (!mounted) return false;
-      
-      final bool shouldOpenSettings = await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Camera Permission Required'),
-          content: const Text(
-            'To take photos, this app needs camera permission. Please enable it in app settings.'
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Open Settings'),
-            ),
-          ],
-        ),
-      ) ?? false;
-      
-      if (shouldOpenSettings) {
-        await openAppSettings();
-      }
-      return false;
-    }
-    
-    // Request permission
-    status = await Permission.camera.request();
-    
-    if (!status.isGranted && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Camera permission is needed to take photos'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-    
-    return status.isGranted;
+    // Use the centralized permission utility
+    final permissionUtils = PermissionUtils();
+    return await permissionUtils.requestCameraPermission(context);
   }
   
   Future<bool> _checkGalleryPermission() async {
-    // Check if permission is already granted
-    var status = await Permission.photos.status;
-    if (status.isGranted) {
-      return true;
-    }
-    
-    // If permission is permanently denied, direct to settings
-    if (status.isPermanentlyDenied) {
-      if (!mounted) return false;
-      
-      final bool shouldOpenSettings = await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Gallery Permission Required'),
-          content: const Text(
-            'To select photos, this app needs gallery permission. Please enable it in app settings.'
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Open Settings'),
-            ),
-          ],
-        ),
-      ) ?? false;
-      
-      if (shouldOpenSettings) {
-        await openAppSettings();
-      }
-      return false;
-    }
-    
-    // Request permission
-    status = await Permission.photos.request();
-    
-    if (!status.isGranted && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Gallery permission is needed to select photos'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-    
-    return status.isGranted;
+    // Use the centralized permission utility
+    final permissionUtils = PermissionUtils();
+    return await permissionUtils.requestGalleryPermission(context);
   }
 
   Widget _buildInterestSummaryCard() {
@@ -1496,7 +1425,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           interestFromLastTx += principal * (interestRate / 100) * monthProportion;
         }
       } else {
-        // For yearly rate: Handle similarly but with yearly rate converted to monthly
+        // For yearly rate: Handle with yearly rate converted to monthly
         double monthlyRate = interestRate / 12;
         
         // Step 1: Calculate complete months between last transaction and today
@@ -1538,6 +1467,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     // Adjust for interest already paid - for both borrowers and lenders
     // Show the net interest (interest due minus payments received)
     interestDue = (interestDue - interestPaid > 0) ? interestDue - interestPaid : 0;
+    
+    // Store the calculated interest for display in other places
+    widget.contact['interestDue'] = interestDue;
     
     // Calculate interest per day based on current principal
     double interestPerDay;
@@ -2155,6 +2087,15 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       return;
     }
     
+    // Check phone call permission first
+    final permissionUtils = PermissionUtils();
+    final hasCallPermission = await permissionUtils.requestCallPhonePermission(context);
+    
+    if (!hasCallPermission) {
+      // Permission denied
+      return;
+    }
+    
     // Format phone number (remove spaces and special characters)
     final formattedPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
     
@@ -2722,6 +2663,15 @@ ${_getAppUserName()} 📱
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No phone number available for this contact')),
       );
+      return;
+    }
+    
+    // Check SMS permission first
+    final permissionUtils = PermissionUtils();
+    final hasSmsPermission = await permissionUtils.requestSmsPermission(context);
+    
+    if (!hasSmsPermission) {
+      // Permission denied
       return;
     }
     
@@ -3614,5 +3564,14 @@ ${_getAppUserName()} 📱
     final now = DateTime.now();
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[now.month - 1]; // Month is 1-based, array is 0-based
+  }
+
+  // Add a method to refresh data
+  void _refreshData() {
+    if (mounted) {
+      _transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      // Reload transactions for this contact
+      _filterTransactions();
+    }
   }
 } 

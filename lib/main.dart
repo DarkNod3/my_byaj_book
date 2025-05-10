@@ -33,6 +33,8 @@ import 'screens/about/special_thanks_screen.dart';
 import 'providers/notification_provider.dart';
 import 'screens/notification/notification_center_screen.dart';
 import 'dart:async';
+import 'package:my_byaj_book/utils/permission_handler.dart';
+import 'screens/settings/notification_settings_screen.dart';
 
 // Global notification service
 final notificationService = NotificationService.instance;
@@ -103,19 +105,25 @@ void main() async {
         // Set the app name for Firebase Auth services
         FirebaseAuth.instance.setLanguageCode('en'); // Set to your preferred language
         
-        // Request notification permissions
-        if (Platform.isIOS || Platform.isMacOS) {
-          // Request permission for iOS and macOS
-          await FirebaseMessaging.instance.requestPermission(
-            alert: true,
-            badge: true,
-            sound: true,
-            provisional: false,
-          );
-        } else if (Platform.isAndroid) {
-          // For Android, permissions are handled in the manifest
-          // We request notification permission in newer Android versions
-          await FirebaseMessaging.instance.requestPermission();
+        // Request notification permissions using centralized utility instead of direct FCM calls
+        // We'll handle FCM token retrieval after permissions are granted
+        final permissionUtils = PermissionUtils();
+        
+        // We need to check context availability since we're in main()
+        if (navigatorKey.currentContext != null) {
+          await permissionUtils.requestNotificationPermission(navigatorKey.currentContext!);
+        } else {
+          // Fallback to direct FCM permission request if context is not available
+          if (Platform.isIOS || Platform.isMacOS) {
+            await FirebaseMessaging.instance.requestPermission(
+              alert: true,
+              badge: true,
+              sound: true,
+              provisional: false,
+            );
+          } else if (Platform.isAndroid) {
+            await FirebaseMessaging.instance.requestPermission();
+          }
         }
         
         // Get FCM token for this device
@@ -244,6 +252,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         navigatorKey.currentContext!,
         listen: false,
       );
+      
+      // Request notification permission using centralized utility
+      final permissionUtils = PermissionUtils();
+      await permissionUtils.requestNotificationPermission(navigatorKey.currentContext!);
       
       final cardProvider = Provider.of<CardProvider>(
         navigatorKey.currentContext!,
@@ -503,6 +515,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             theme: themeProvider.themeData,
             home: const SplashScreen(),
             routes: {
+              // Add route for notification settings screen
+              NotificationSettingsScreen.routeName: (ctx) => const NotificationSettingsScreen(),
               BillDiaryScreen.routeName: (ctx) => const BillDiaryScreen(),
               NavSettingsScreen.routeName: (ctx) => const NavSettingsScreen(),
               TeaDiaryScreen.routeName: (ctx) => const TeaDiaryScreen(showAppBar: true),

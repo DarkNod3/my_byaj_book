@@ -29,6 +29,7 @@ import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
 import 'package:my_byaj_book/widgets/notification_badge.dart';
 import 'package:intl/intl.dart';
+import 'package:my_byaj_book/utils/permission_handler.dart';
 
 // Add dummy MyApp class as requested
 class MyApp extends StatelessWidget {
@@ -45,6 +46,24 @@ class HomeScreen extends StatefulWidget {
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
+  
+  // Add a static method that can be called from other files to refresh the home screen
+  static void refreshHomeContent(BuildContext context) {
+    // Find the home screen state
+    final homeScreenState = context.findAncestorStateOfType<_HomeScreenState>();
+    if (homeScreenState != null) {
+      // Try to find HomeContent state to refresh its contacts
+      final homeContentState = homeScreenState._findHomeContentState(context);
+      if (homeContentState != null) {
+        homeContentState.setState(() {
+          // Force a complete refresh
+          homeContentState._withoutInterestContacts.clear();
+          homeContentState._withInterestContacts.clear();
+          homeContentState._syncContactsWithTransactions();
+        });
+      }
+    }
+  }
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -53,6 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
   
   // Timer for automatic backups
   Timer? _backupTimer;
+  // App lifecycle observer
+  late final AppLifecycleObserver _lifecycleObserver;
 
   @override
   void initState() {
@@ -60,11 +81,41 @@ class _HomeScreenState extends State<HomeScreen> {
     _checkAndCreateAutomaticBackup();
     // Auto backup temporarily disabled
     // _setupAutomaticBackups();
+    
+    // Immediately start loading data to prevent blank screens
+    _loadInitialData();
+    
+    // Add app lifecycle listener to refresh data when app resumes
+    _lifecycleObserver = AppLifecycleObserver(
+      onResume: () {
+        // Find the HomeContent state and refresh its data
+        final homeContentState = _findHomeContentState(context);
+        if (homeContentState != null) {
+          homeContentState.setState(() {
+            homeContentState._withoutInterestContacts.clear();
+            homeContentState._withInterestContacts.clear();
+            homeContentState._syncContactsWithTransactions();
+          });
+        }
+      }
+    );
+  }
+  
+  // New method to explicitly handle data loading at startup
+  void _loadInitialData() {
+    // Find the HomeContent state and refresh its data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final homeContentState = _findHomeContentState(context);
+      if (homeContentState != null) {
+        homeContentState.refresh();
+      }
+    });
   }
   
   @override
   void dispose() {
     _backupTimer?.cancel();
+    _lifecycleObserver.dispose();
     super.dispose();
   }
   
@@ -445,35 +496,35 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Conditionally order the buttons based on relationship type
                 if (showGetFirst) ...[
                   // For lender: Get button first
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _showAmountEntryDialog(context, name, phone, withInterest, true, relationshipType);
-                      },
-                      icon: const Icon(Icons.arrow_downward),
-                      label: const Text('You\'ll Get'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade100,
-                        foregroundColor: Colors.green,
-                      ),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _showAmountEntryDialog(context, name, phone, withInterest, true, relationshipType);
+                    },
+                    icon: const Icon(Icons.arrow_downward),
+                    label: const Text('You\'ll Get'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade100,
+                      foregroundColor: Colors.green,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _showAmountEntryDialog(context, name, phone, withInterest, false, relationshipType);
-                      },
-                      icon: const Icon(Icons.arrow_upward),
-                      label: const Text('You\'ll Give'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade100,
-                        foregroundColor: Colors.red,
-                      ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _showAmountEntryDialog(context, name, phone, withInterest, false, relationshipType);
+                    },
+                    icon: const Icon(Icons.arrow_upward),
+                    label: const Text('You\'ll Give'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade100,
+                      foregroundColor: Colors.red,
                     ),
                   ),
+                ),
                 ] else ...[
                   // For borrower or non-interest: Give button first
                   Expanded(
@@ -848,6 +899,9 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   void refresh() {
     if (mounted) {
       setState(() {
+        // Clear existing contacts to ensure fresh data
+        _withoutInterestContacts.clear();
+        _withInterestContacts.clear();
         _syncContactsWithTransactions();
         // Force rebuild UI
       });
@@ -859,73 +913,45 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      setState(() {
-        _isWithInterest = _tabController.index == 1;
-        // Update cached totals when switching tabs
-        _updateCachedTotals();
-      });
+      if (_tabController.indexIsChanging || _tabController.index != (_isWithInterest ? 1 : 0)) {
+        setState(() {
+          _isWithInterest = _tabController.index == 1;
+          
+          // Clear existing data for the target tab
+          if (_isWithInterest) {
+            _withInterestContacts.clear();
+          } else {
+            _withoutInterestContacts.clear();
+          }
+          
+          // Force data reload immediately after tab change
+          _syncContactsWithTransactions();
+          
+          // Update cached totals after data is loaded
+          _updateCachedTotals();
+        });
+      }
     });
     
     // Delay to ensure the provider is available
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Clear any existing data first
+      _withoutInterestContacts.clear();
+      _withInterestContacts.clear();
+      
+      // Load fresh data
       _syncContactsWithTransactions();
+      
+      // Set up a second delayed load to ensure data is properly loaded
+      // This helps when SharedPreferences is slow to initialize
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && (_isWithInterest ? _withInterestContacts.isEmpty : _withoutInterestContacts.isEmpty)) {
+          setState(() {
+            _syncContactsWithTransactions();
+          });
+        }
+      });
     });
-  }
-
-  // Update cached total values
-  void _updateCachedTotals() {
-    if (_isWithInterest) {
-      // For interest entries, use the pre-calculated values
-      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-      
-      // Reset the values before recalculating
-      _principalToPay = 0.0;
-      _principalToReceive = 0.0;
-      _interestToPay = 0.0;
-      _interestToReceive = 0.0;
-      
-      // Recalculate for each contact to get fresh values
-      for (var contact in _withInterestContacts) {
-        final contactType = contact['type'] as String? ?? 'borrower';
-        final balance = contact['amount'] as double? ?? 0.0;
-        final interestDue = contact['interestDue'] as double? ?? 0.0;
-        
-        if (contactType == 'borrower') {
-          // We will receive from borrowers
-          _principalToReceive += balance;
-          _interestToReceive += interestDue;
-        } else if (contactType == 'lender') {
-          // We will pay to lenders
-          _principalToPay += balance;
-          _interestToPay += interestDue;
-        }
-      }
-      
-      // Set the final totals
-      _cachedTotalToGive = _principalToPay + _interestToPay;
-      _cachedTotalToGet = _principalToReceive + _interestToReceive;
-    } else {
-      // For standard entries, calculate the totals
-      _cachedTotalToGive = 0.0;
-      _cachedTotalToGet = 0.0;
-      
-      // Use direct balance calculation for each contact
-      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-      
-      for (var contact in _withoutInterestContacts) {
-        final phone = contact['phone'] ?? '';
-        if (phone.isEmpty) continue;
-
-        // Get transaction-based balance directly from provider
-        final balance = transactionProvider.calculateBalance(phone);
-        
-        if (balance < 0) {
-          _cachedTotalToGive += balance.abs();
-        } else if (balance > 0) {
-          _cachedTotalToGet += balance;
-        }
-      }
-    }
   }
 
   @override
@@ -933,8 +959,22 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     super.didChangeDependencies();
     // Sync contacts when dependencies change (like after adding transactions)
     if (!_isInitialized) {
+      // Clear any existing data first
+      _withoutInterestContacts.clear();
+      _withInterestContacts.clear();
+      
+      // Load fresh data
       _syncContactsWithTransactions();
       _isInitialized = true;
+      
+      // Set up a delayed second load if needed
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && (_withoutInterestContacts.isEmpty && _withInterestContacts.isEmpty)) {
+          setState(() {
+            _syncContactsWithTransactions();
+          });
+        }
+      });
     }
     
     // Set up a transaction provider listener to specifically update cached totals
@@ -951,8 +991,20 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   // Method called when transaction provider changes
   void _updateOnTransactionChange() {
     if (mounted) {
+      // Reset all accumulated values before recalculating to prevent doubling
+      _principalToPay = 0.0;
+      _principalToReceive = 0.0;
+      _interestToPay = 0.0;
+      _interestToReceive = 0.0;
+      _cachedTotalToGive = 0.0;
+      _cachedTotalToGet = 0.0;
+      
+      // Clear existing contacts to ensure fresh data
+      _withoutInterestContacts.clear();
+      _withInterestContacts.clear();
+      
+      // Restart from scratch with a clean slate
       _syncContactsWithTransactions();
-      // This will also call _updateCachedTotals
     }
   }
   
@@ -982,149 +1034,81 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     
     // Get all contacts from the provider
     final allContacts = transactionProvider.contacts;
-    
-    // Clear existing contact lists to rebuild them properly
-    _withoutInterestContacts.clear();
-    _withInterestContacts.clear();
-    
-    // Process each contact from provider to ensure it's in our local lists
-    for (var providerContact in allContacts) {
-      final phone = providerContact['phone'] ?? '';
-      if (phone.isEmpty) continue;
-      
-      // Determine if this is a "with interest" contact
-      final isWithInterest = providerContact['type'] != null || providerContact['interestRate'] != null;
-      
-      // Make a copy of the contact to work with
-      final contactCopy = Map<String, dynamic>.from(providerContact);
-      
-      // Ensure the contact has a tabType field that marks which tab it belongs to
-      if (!contactCopy.containsKey('tabType')) {
-        contactCopy['tabType'] = isWithInterest ? 'withInterest' : 'withoutInterest';
-        
-        // Update the contact in the provider to persist this change
-        transactionProvider.updateContact(contactCopy);
-      }
-      
-      // Only add contacts to their respective tabs based on tabType
-      final String tabType = contactCopy['tabType'] ?? (isWithInterest ? 'withInterest' : 'withoutInterest');
-      
-      if (tabType == 'withInterest') {
-        // Add to with-interest list only
-        _withInterestContacts.add(contactCopy);
-      } else if (tabType == 'withoutInterest') {
-        // Add to without-interest list only
-        _withoutInterestContacts.add(contactCopy);
-      }
+    if (allContacts.isEmpty) {
+      // If there are no contacts in the provider, retry after a short delay
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          setState(() {
+            _syncContactsWithTransactions();
+          });
+        }
+      });
+      return;
     }
     
-    // Update timestamp and amount info for all contacts (both types)
-    final DateTime now = DateTime.now();
-    
-    // Reset calculation variables before calculating everything
+    // Reset totals before processing any contacts to prevent accumulation
     _principalToPay = 0.0;
     _principalToReceive = 0.0;
     _interestToPay = 0.0;
     _interestToReceive = 0.0;
+    _cachedTotalToGive = 0.0;
+    _cachedTotalToGet = 0.0;
     
-    // Update amounts for non-interest contacts
-    for (var contact in _withoutInterestContacts) {
+    // Process all contacts - for both tabs to ensure data is available
+    for (final contact in allContacts) {
       final phone = contact['phone'] ?? '';
       if (phone.isEmpty) continue;
       
+      // Get transactions for this contact
       final transactions = transactionProvider.getTransactionsForContact(phone);
       
-      // Always update these values whether transactions exist or not
-      // This ensures contacts show up consistently
-      double balance = transactionProvider.calculateBalance(phone);
+      // Calculate balance - this is real money exchange recorded in transactions
+      final balance = transactionProvider.calculateBalance(phone);
       
-      // Update the contact's amount and isGet property
+      // Update contact with calculated amount
       contact['amount'] = balance.abs();
       contact['isGet'] = balance >= 0;
       
-      if (transactions.isNotEmpty) {
-        // Update the daysAgo based on the most recent transaction
-        final mostRecentTransaction = transactions.first; // Assuming newest first
-        if (mostRecentTransaction['date'] is DateTime) {
-          final transactionDate = mostRecentTransaction['date'] as DateTime;
-          final difference = now.difference(transactionDate).inDays;
-          contact['daysAgo'] = difference;
-          
-          // Add or update lastEditedAt timestamp for proper sorting
-          contact['lastEditedAt'] = transactionDate;
+      // Add to appropriate list based on interest setting
+      if (contact['type'] != null && (contact['type'] == 'borrower' || contact['type'] == 'lender')) {
+        // With interest contacts
+        if (!_withInterestContacts.contains(contact)) {
+          _withInterestContacts.add(contact);
         }
       } else {
-        // If no transactions, ensure there's a lastEditedAt value (use current time if not present)
-        if (!contact.containsKey('lastEditedAt')) {
-          contact['lastEditedAt'] = now;
-        }
-        contact['daysAgo'] = 0;
-      }
-    }
-    
-    // Update amounts for with-interest contacts
-    for (var contact in _withInterestContacts) {
-      final phone = contact['phone'] ?? '';
-      if (phone.isEmpty) continue;
-      
-      final transactions = transactionProvider.getTransactionsForContact(phone);
-      
-      // Always update these values whether transactions exist or not
-      // This ensures contacts show up consistently
-      double balance = transactionProvider.calculateBalance(phone);
-      
-      // Update the contact's amount and isGet property
-      contact['amount'] = balance.abs();
-      contact['isGet'] = balance >= 0;
-      
-      if (transactions.isNotEmpty) {
-        // Sort transactions by date (newest first) to find most recent
-        transactions.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
-        
-        // Update the daysAgo based on the most recent transaction
-        final mostRecentTransaction = transactions.first;
-        if (mostRecentTransaction['date'] is DateTime) {
-          final transactionDate = mostRecentTransaction['date'] as DateTime;
-          final difference = now.difference(transactionDate).inDays;
-          contact['daysAgo'] = difference;
-          
-          // Make sure to explicitly update the lastEditedAt timestamp
-          contact['lastEditedAt'] = transactionDate;
-        }
-      } else {
-        // If no transactions, ensure there's a lastEditedAt value (use current time if not present)
-        if (!contact.containsKey('lastEditedAt')) {
-          contact['lastEditedAt'] = now;
-          contact['daysAgo'] = 0;
+        // Without interest contacts
+        if (!_withoutInterestContacts.contains(contact)) {
+          _withoutInterestContacts.add(contact);
         }
       }
     }
     
-    // Calculate interest for interest-based contacts
-    _calculateInterestValues();
-    
-    // Update cached totals once after all calculations are complete
-    _updateCachedTotals();
-    
-    // Apply default sorting by recent first
+    // Sort contacts by lastEditedAt (newest first)
     _withoutInterestContacts.sort((a, b) {
-      final DateTime aDate = a['lastEditedAt'] as DateTime? ?? DateTime(2000);
-      final DateTime bDate = b['lastEditedAt'] as DateTime? ?? DateTime(2000);
-      return bDate.compareTo(aDate); // Newest first
+      final aTime = a['lastEditedAt'] as DateTime?;
+      final bTime = b['lastEditedAt'] as DateTime?;
+      if (aTime == null || bTime == null) {
+        return 0;
+      }
+      return bTime.compareTo(aTime);
     });
     
     _withInterestContacts.sort((a, b) {
-      final DateTime aDate = a['lastEditedAt'] as DateTime? ?? DateTime(2000);
-      final DateTime bDate = b['lastEditedAt'] as DateTime? ?? DateTime(2000);
-      return bDate.compareTo(aDate); // Newest first
+      final aTime = a['lastEditedAt'] as DateTime?;
+      final bTime = b['lastEditedAt'] as DateTime?;
+      if (aTime == null || bTime == null) {
+        return 0;
+      }
+      return bTime.compareTo(aTime);
     });
     
-    // Refresh the UI with all contacts only if mounted
-    if (mounted) {
-      setState(() {
-        // No filtering or searching here to ensure all contacts are displayed
-      });
+    // For with-interest mode, calculate interest for all contacts
+    if (_withInterestContacts.isNotEmpty) {
+      _calculateInterestValues();
     }
+    
+    // Update cached totals based on current display mode
+    _updateCachedTotals();
   }
   
   // Add a new helper method to apply search and filtering
@@ -1235,18 +1219,18 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     _principalToPay = 0.0;
     _principalToReceive = 0.0;
     
-    for (var contact in _withInterestContacts) {
+    for (int i = 0; i < _withInterestContacts.length; i++) {
+      final contact = _withInterestContacts[i];
       final phone = contact['phone'] ?? '';
       if (phone.isEmpty) continue;
       
-      // Get contact type and initial values
+      // Get contact type and transaction info
       final String contactType = contact['type'] as String? ?? 'borrower';
-      double totalInterestDue = 0.0;
-      double principalAmount = 0.0;
+      final double interestRate = contact['interestRate'] as double? ?? 12.0;
+      final bool isMonthly = contact['interestPeriod'] == 'monthly';
       
-      // Get the transactions for this contact
       final transactions = transactionProvider.getTransactionsForContact(phone);
-      
+        
       // If there are no transactions, skip interest calculation
       if (transactions.isEmpty) {
         // Reset interest values for this contact
@@ -1254,239 +1238,27 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         contact['displayAmount'] = contact['amount'];
         continue;
       }
-      
-      // Get interest rate from contact
-      final double interestRate = contact['interestRate'] as double? ?? 12.0;
-      final bool isMonthly = contact['interestPeriod'] == 'monthly';
-      
-      // Sort transactions chronologically for accurate interest calculation
-      transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
-      
-      // Calculate interest using the transaction history
-      DateTime? lastInterestDate = transactions.first['date'] as DateTime;
-      double runningPrincipal = 0.0;
-      double accumulatedInterest = 0.0;
-      double interestPaid = 0.0;
-      
-      for (var tx in transactions) {
-        final note = (tx['note'] ?? '').toLowerCase();
-        final amount = tx['amount'] as double;
-        final isGave = tx['type'] == 'gave';
-        final txDate = tx['date'] as DateTime;
-        
-        // Calculate interest up to this transaction
-        if (lastInterestDate != null && runningPrincipal > 0) {
-          final daysSinceLastCalculation = txDate.difference(lastInterestDate).inDays;
-          if (daysSinceLastCalculation > 0) {
-            // Calculate interest based on complete months and remaining days
-            double interestForPeriod = 0.0;
-            
-            if (isMonthly) {
-              // Step 1: Calculate complete months between dates
-              int completeMonths = 0;
-              DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
               
-              while (true) {
-                // Try to add one month
-                DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
-                
-                // If adding one month exceeds the transaction date, break
-                if (nextMonth.isAfter(txDate)) {
-                  break;
-                }
-                
-                // Count this month and move to next
-                completeMonths++;
-                tempDate = nextMonth;
-              }
-              
-              // Apply full monthly interest for complete months
-              if (completeMonths > 0) {
-                interestForPeriod += runningPrincipal * (interestRate / 100) * completeMonths;
-              }
-              
-              // Step 2: Calculate interest for remaining days (partial month)
-              final remainingDays = txDate.difference(tempDate).inDays;
-              if (remainingDays > 0) {
-                // Get days in the current month for the partial calculation
-                final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
-                double monthProportion = remainingDays / daysInMonth;
-                interestForPeriod += runningPrincipal * (interestRate / 100) * monthProportion;
-              }
-            } else {
-              // For yearly rate: Handle similarly but with yearly rate converted to monthly
-              double monthlyRate = interestRate / 12;
-              
-              // Step 1: Calculate complete months between dates
-              int completeMonths = 0;
-              DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
-              
-              while (true) {
-                // Try to add one month
-                DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
-                
-                // If adding one month exceeds the transaction date, break
-                if (nextMonth.isAfter(txDate)) {
-                  break;
-                }
-                
-                // Count this month and move to next
-                completeMonths++;
-                tempDate = nextMonth;
-              }
-              
-              // Apply full monthly interest for complete months
-              if (completeMonths > 0) {
-                interestForPeriod += runningPrincipal * (monthlyRate / 100) * completeMonths;
-              }
-              
-              // Step 2: Calculate interest for remaining days (partial month)
-              final remainingDays = txDate.difference(tempDate).inDays;
-              if (remainingDays > 0) {
-                // Get days in the current month for the partial calculation
-                final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
-                double monthProportion = remainingDays / daysInMonth;
-                interestForPeriod += runningPrincipal * (monthlyRate / 100) * monthProportion;
-              }
-            }
-            
-            accumulatedInterest += interestForPeriod;
-          }
-        }
+      // Calculate principal (use amount from contact which is already set)
+      double principalAmount = contact['amount'] as double? ?? 0.0;
       
-        // Update based on transaction type
-        if (note.contains('interest:')) {
-          if (isGave) {
-            // Interest payment made
-            if (contactType == 'borrower') {
-              // For borrowers: interest payment adds to accumulated interest
-              accumulatedInterest += amount;
-            } else {
-              // For lenders: interest payment reduces accumulated interest
-              accumulatedInterest = (accumulatedInterest - amount > 0) ? accumulatedInterest - amount : 0;
-            }
-          } else {
-            // Interest payment received
-            interestPaid += amount;
-          }
-        } else {
-          // Principal transaction
-          if (isGave) {
-            // Payment sent
-            if (contactType == 'borrower') {
-              // For borrowers: principal payment adds to debt
-              runningPrincipal += amount;
-            } else {
-              // For lenders: principal payment reduces debt
-              runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
-            }
-          } else {
-            // Payment received
-            if (contactType == 'borrower') {
-              // For borrowers, receiving payment decreases principal
-              runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
-            } else {
-              // For lenders, receiving payment increases principal (lender gave money)
-              runningPrincipal += amount;
-            }
-          }
-        }
-        
-        lastInterestDate = txDate;
-      }
+      // Calculate interest directly using helper method
+      double totalInterestDue = _calculateInterestForContact(
+        contact,
+        transactions,
+        interestRate,
+        isMonthly,
+        contactType
+      );
       
-      // Calculate interest from last transaction to now
-      if (lastInterestDate != null && runningPrincipal > 0) {
-        // Calculate interest from last transaction to today (using same approach as above)
-        double interestFromLastTx = 0.0;
-        // Create a local now variable
-        final now = DateTime.now();
-        
-        if (isMonthly) {
-          // Step 1: Calculate complete months between last transaction and today
-          int completeMonths = 0;
-          DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
-          
-          while (true) {
-            // Try to add one month
-            DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
-            
-            // If adding one month exceeds current date, break
-            if (nextMonth.isAfter(now)) {
-              break;
-            }
-            
-            // Count this month and move to next
-            completeMonths++;
-            tempDate = nextMonth;
-          }
-          
-          // Apply full monthly interest for complete months
-          if (completeMonths > 0) {
-            interestFromLastTx += runningPrincipal * (interestRate / 100) * completeMonths;
-          }
-          
-          // Step 2: Calculate interest for remaining days (partial month)
-          final remainingDays = now.difference(tempDate).inDays;
-          if (remainingDays > 0) {
-            // Get days in the current month for the partial calculation
-            final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
-            double monthProportion = remainingDays / daysInMonth;
-            interestFromLastTx += runningPrincipal * (interestRate / 100) * monthProportion;
-          }
-        } else {
-          // For yearly rate with converted monthly rate
-          double monthlyRate = interestRate / 12;
-          
-          // Step 1: Calculate complete months between last transaction and today
-          int completeMonths = 0;
-          DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
-          
-          while (true) {
-            // Try to add one month
-            DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
-            
-            // If adding one month exceeds current date, break
-            if (nextMonth.isAfter(now)) {
-              break;
-            }
-            
-            // Count this month and move to next
-            completeMonths++;
-            tempDate = nextMonth;
-          }
-          
-          // Apply full monthly interest for complete months
-          if (completeMonths > 0) {
-            interestFromLastTx += runningPrincipal * (monthlyRate / 100) * completeMonths;
-          }
-          
-          // Step 2: Calculate interest for remaining days (partial month)
-          final remainingDays = now.difference(tempDate).inDays;
-          if (remainingDays > 0) {
-            // Get days in the current month for the partial calculation
-            final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
-            double monthProportion = remainingDays / daysInMonth;
-            interestFromLastTx += runningPrincipal * (monthlyRate / 100) * monthProportion;
-          }
-        }
-        
-        accumulatedInterest += interestFromLastTx;
-      }
+      // Store the calculated interest value in the contact
+      contact['interestDue'] = totalInterestDue;
       
-      // Adjust for interest already paid - show net interest due
-      totalInterestDue = (accumulatedInterest - interestPaid > 0) ? accumulatedInterest - interestPaid : 0;
+      // Update the display amount to include interest
+      contact['displayAmount'] = principalAmount + totalInterestDue;
       
-      // Update values
-      principalAmount = runningPrincipal;
-      
-      // We don't need these variables for interest calculation since they're unused
-      
-      // Update the display amount to include interest if appropriate
-      if (contactType == 'lender' || contactType == 'borrower') {
-        // Set the total amount (principal + interest) for display
-        contact['displayAmount'] = principalAmount + totalInterestDue;
-      }
+      // Make sure we update the contact in the list
+      _withInterestContacts[i] = contact;
       
       // Add to totals based on relationship type
       if (contactType == 'borrower') {
@@ -1498,11 +1270,10 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         _principalToPay += principalAmount;
         _interestToPay += totalInterestDue;
       }
-      
-      // Update overall totals - removed since variables were removed
-      // _totalPrincipal += principalAmount;
-      // _totalInterestDue += totalInterestDue;
     }
+    
+    // Always update cached totals after calculating interest
+    _updateCachedTotals();
   }
 
   double get _totalToGive => _cachedTotalToGive;
@@ -1623,9 +1394,17 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     
     // Ensure contacts are synchronized with transactions
     // This is crucial when the app first starts
-    if (_withoutInterestContacts.isEmpty && _withInterestContacts.isEmpty) {
+    if ((_isWithInterest && _withInterestContacts.isEmpty) || 
+        (!_isWithInterest && _withoutInterestContacts.isEmpty)) {
       // If no contacts are loaded yet, load them now
-      Future.microtask(() => _syncContactsWithTransactions());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            // Trigger a full refresh
+            _syncContactsWithTransactions();
+          });
+        }
+      });
     }
     
     return Column(
@@ -1650,13 +1429,13 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
             },
             child: Column(
               children: [
-        _buildBalanceSummary(),
-        if (_isWithInterest) 
-          // Remove the interest type selector for With Interest tab
-          Container(),
-        _buildSearchBar(),
-        Expanded(
-          child: _buildContactsList(),
+                _buildBalanceSummary(),
+                if (_isWithInterest) 
+                  // Remove the interest type selector for With Interest tab
+                  Container(),
+                _buildSearchBar(),
+                Expanded(
+                  child: _buildContactsList(),
                 ),
               ],
             ),
@@ -1708,6 +1487,22 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                   ),
                 ],
               ),
+              onTap: (index) {
+                // Force a refresh when tab is tapped (not just when animation completes)
+                setState(() {
+                  _isWithInterest = index == 1;
+                  
+                  // Clear existing data for the target tab to guarantee fresh data
+                  if (_isWithInterest) {
+                    _withInterestContacts.clear();
+                  } else {
+                    _withoutInterestContacts.clear();
+                  }
+                  
+                  // Force immediate data reload
+                  _syncContactsWithTransactions();
+                });
+              },
               indicatorColor: Colors.transparent,
               indicatorWeight: 0,
               dividerColor: Colors.transparent,
@@ -1823,14 +1618,14 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                     Container(
                       height: 28,
                       child: FittedBox(
-                        fit: BoxFit.scaleDown,
+                      fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
-                        child: Text(
+                      child: Text(
                           _formatCompactCurrency(_cachedTotalToGive),
                           style: TextStyle(
-                            fontSize: _cachedTotalToGive >= 1000000 ? 18 : 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            fontSize: _getAdaptiveFontSize(_cachedTotalToGive),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                           ),
                         ),
                       ),
@@ -1840,14 +1635,14 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                         Container(
                           height: 14,
                           child: FittedBox(
-                            fit: BoxFit.scaleDown,
+                          fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
-                            child: Text(
-                              'P: ${_formatCompactCurrency(_principalToPay)} + I: ${_formatCompactCurrency(_interestToPay)}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.white.withOpacity(0.8),
-                                fontWeight: FontWeight.w500,
+                          child: Text(
+                            'P: ${_formatCompactCurrency(_principalToPay)} + I: ${_formatCompactCurrency(_interestToPay)}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.white.withOpacity(0.8),
+                              fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
@@ -1896,14 +1691,14 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                     Container(
                       height: 28,
                       child: FittedBox(
-                        fit: BoxFit.scaleDown,
+                      fit: BoxFit.scaleDown,
                         alignment: Alignment.centerRight,
-                        child: Text(
+                      child: Text(
                           _formatCompactCurrency(_cachedTotalToGet),
                           style: TextStyle(
-                            fontSize: _cachedTotalToGet >= 1000000 ? 18 : 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            fontSize: _getAdaptiveFontSize(_cachedTotalToGet),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                           ),
                         ),
                       ),
@@ -1913,14 +1708,14 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                         Container(
                           height: 14,
                           child: FittedBox(
-                            fit: BoxFit.scaleDown,
+                          fit: BoxFit.scaleDown,
                             alignment: Alignment.centerRight,
-                            child: Text(
-                              'P: ${_formatCompactCurrency(_principalToReceive)} + I: ${_formatCompactCurrency(_interestToReceive)}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.white.withOpacity(0.8),
-                                fontWeight: FontWeight.w500,
+                          child: Text(
+                            'P: ${_formatCompactCurrency(_principalToReceive)} + I: ${_formatCompactCurrency(_interestToReceive)}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.white.withOpacity(0.8),
+                              fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
@@ -1935,6 +1730,19 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               ),
       ),
     );
+  }
+  
+  // Helper method to determine font size based on amount
+  double _getAdaptiveFontSize(double amount) {
+    if (amount >= 10000000) { // ≥ 1 crore
+      return 16;
+    } else if (amount >= 1000000) { // ≥ 10 lakh
+      return 18;
+    } else if (amount >= 100000) { // ≥ 1 lakh
+      return 20;
+    } else {
+      return 22;
+    }
   }
   
   Widget _buildSearchBar() {
@@ -2446,7 +2254,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       contact['isGet'] = showYouWillGet;
       
       // Update the local variable too
-      showYouWillGet = isGet;
+      // showYouWillGet = isGet;  // This line is incorrect - comment it out
     }
     
     // Calculate interest details if this is an interest-based contact
@@ -2454,34 +2262,31 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     double principalAmount = displayAmount;
     
     if (_isWithInterest && transactionProvider.getTransactionsForContact(phone).isNotEmpty) {
-      // Interest calculation code remains the same
-      
       // Get interest rate from contact
       final double interestRate = contact['interestRate'] as double? ?? 12.0;
       final String contactType = contact['type'] as String? ?? 'borrower';
       final bool isMonthly = contact['interestPeriod'] == 'monthly';
       
-      // Calculate interest...
+      // Get interest due from contact or calculate it if missing
+      totalInterestDue = contact['interestDue'] as double? ?? 0.0;
       
-      // Update values - fix the reference to undefined variable
-      // Just use displayAmount which is already calculated
-      
-      // Update the display amount to include interest if appropriate
-      if (contactType == 'lender' || contactType == 'borrower') {
-        // Set the total amount (principal + interest) for display
-        contact['displayAmount'] = principalAmount + totalInterestDue;
+      // If interest due is missing, calculate it
+      if (totalInterestDue <= 0) {
+        // Call calculateInterestForContact to get accurate interest
+        totalInterestDue = _calculateInterestForContact(
+          contact,
+          transactionProvider.getTransactionsForContact(phone),
+          interestRate,
+          isMonthly,
+          contactType
+        );
+        
+        // Store it in the contact for future use
+        contact['interestDue'] = totalInterestDue;
       }
       
-      // Add to totals based on relationship type
-      if (contactType == 'borrower') {
-        // For borrowers, we get the money
-        _principalToReceive += principalAmount;
-        _interestToReceive += totalInterestDue;
-      } else if (contactType == 'lender') {
-        // For lenders, we pay the money
-        _principalToPay += principalAmount;
-        _interestToPay += totalInterestDue;
-      }
+      // Update the display amount to include interest
+      contact['displayAmount'] = principalAmount + totalInterestDue;
     }
     
     // Format amount for display with compact notation for large values
@@ -2531,7 +2336,12 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                   ),
                 ),
               ).then((_) {
-                setState(() {});
+                setState(() {
+                  // Force a full refresh when returning
+                  _withoutInterestContacts.clear();
+                  _withInterestContacts.clear();
+                  _syncContactsWithTransactions();
+                });
               });
             },
             child: Padding(
@@ -2642,14 +2452,14 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                             width: 100, // Fixed width container
                             height: 22, // Fixed height for consistent UI
                             child: FittedBox(
-                              fit: BoxFit.scaleDown,
+                            fit: BoxFit.scaleDown,
                               alignment: Alignment.centerRight,
-                              child: Text(
-                                amountText,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
+                            child: Text(
+                              amountText,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
                                   fontSize: fontSize,
-                                  color: isGet ? Colors.green.shade700 : Colors.red.shade700,
+                                color: isGet ? Colors.green.shade700 : Colors.red.shade700,
                                 ),
                               ),
                             ),
@@ -2776,14 +2586,14 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                 Container(
                   height: 14,
                   child: FittedBox(
-                    fit: BoxFit.scaleDown,
+                  fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
-                    child: Text(
-                      _formatCompactCurrency(amount),
-                      style: TextStyle(
+                  child: Text(
+                    _formatCompactCurrency(amount),
+                    style: TextStyle(
                         fontSize: amount >= 100000 ? 8 : 10,
-                        fontWeight: FontWeight.bold,
-                        color: color,
+                      fontWeight: FontWeight.bold,
+                      color: color,
                       ),
                     ),
                   ),
@@ -3257,6 +3067,203 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[now.month - 1]; // Month is 1-based, array is 0-based
   }
+
+  // Helper method to calculate interest for an individual contact
+  double _calculateInterestForContact(
+    Map<String, dynamic> contact,
+    List<Map<String, dynamic>> transactions,
+    double interestRate,
+    bool isMonthly,
+    String contactType
+  ) {
+    // If there are no transactions, return 0
+    if (transactions.isEmpty) {
+      return 0.0;
+    }
+    
+    // Sort transactions chronologically
+    transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+    
+    // Calculate interest using the transaction history
+    DateTime? lastInterestDate = transactions.first['date'] as DateTime;
+    double runningPrincipal = 0.0;
+    double accumulatedInterest = 0.0;
+    double interestPaid = 0.0;
+    
+    for (var tx in transactions) {
+      final note = (tx['note'] ?? '').toLowerCase();
+      final amount = tx['amount'] as double;
+      final isGave = tx['type'] == 'gave';
+      final txDate = tx['date'] as DateTime;
+      
+      // Calculate interest up to this transaction
+      if (lastInterestDate != null && runningPrincipal > 0) {
+        final daysSinceLastCalculation = txDate.difference(lastInterestDate).inDays;
+        if (daysSinceLastCalculation > 0) {
+          // Calculate interest based on complete months and remaining days
+          double interestForPeriod = 0.0;
+          
+          if (isMonthly) {
+            // Monthly interest calculation logic
+            int completeMonths = 0;
+            DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+            
+            while (true) {
+              // Try to add one month
+              DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+              
+              // If adding one month exceeds the transaction date, break
+              if (nextMonth.isAfter(txDate)) {
+                break;
+              }
+              
+              // Count this month and move to next
+              completeMonths++;
+              tempDate = nextMonth;
+            }
+            
+            // Apply full monthly interest for complete months
+            if (completeMonths > 0) {
+              interestForPeriod += runningPrincipal * (interestRate / 100) * completeMonths;
+            }
+            
+            // Add remaining days as fraction of a month
+            final remainingDays = txDate.difference(tempDate).inDays;
+            if (remainingDays > 0) {
+              final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+              double monthProportion = remainingDays / daysInMonth;
+              interestForPeriod += runningPrincipal * (interestRate / 100) * monthProportion;
+            }
+          } else {
+            // Yearly interest calculation converted to daily rate
+            final dailyRate = interestRate / 365;
+            interestForPeriod += runningPrincipal * (dailyRate / 100) * daysSinceLastCalculation;
+          }
+          
+          accumulatedInterest += interestForPeriod;
+        }
+      }
+      
+      // Update based on transaction type
+      if (note.contains('interest:')) {
+        if (isGave) {
+          // Interest payment made
+          if (contactType == 'borrower') {
+            // For borrowers: interest payment adds to accumulated interest
+            accumulatedInterest += amount;
+          } else {
+            // For lenders: interest payment reduces accumulated interest
+            accumulatedInterest = (accumulatedInterest - amount > 0) ? accumulatedInterest - amount : 0;
+          }
+        } else {
+          // Interest payment received
+          interestPaid += amount;
+        }
+      } else {
+        // Principal transaction
+        if (isGave) {
+          // Payment sent
+          if (contactType == 'borrower') {
+            // For borrowers: principal payment adds to debt
+            runningPrincipal += amount;
+          } else {
+            // For lenders: principal payment reduces debt
+            runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
+          }
+        } else {
+          // Payment received
+          if (contactType == 'borrower') {
+            // For borrowers, receiving payment decreases principal
+            runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
+          } else {
+            // For lenders, receiving payment increases principal (lender gave money)
+            runningPrincipal += amount;
+          }
+        }
+      }
+      
+      lastInterestDate = txDate;
+    }
+    
+    // Calculate interest from last transaction to now
+    if (lastInterestDate != null && runningPrincipal > 0) {
+      // Calculate interest from last transaction to today
+      double interestFromLastTx = 0.0;
+      final now = DateTime.now();
+      
+      if (isMonthly) {
+        // Monthly interest calculation logic for current period
+        int completeMonths = 0;
+        DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
+        
+        while (true) {
+          DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
+          if (nextMonth.isAfter(now)) {
+            break;
+          }
+          completeMonths++;
+          tempDate = nextMonth;
+        }
+        
+        if (completeMonths > 0) {
+          interestFromLastTx += runningPrincipal * (interestRate / 100) * completeMonths;
+        }
+        
+        final remainingDays = now.difference(tempDate).inDays;
+        if (remainingDays > 0) {
+          final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
+          double monthProportion = remainingDays / daysInMonth;
+          interestFromLastTx += runningPrincipal * (interestRate / 100) * monthProportion;
+        }
+      } else {
+        // Yearly interest calculation for current period
+        final daysSinceLastTx = now.difference(lastInterestDate).inDays;
+        final dailyRate = interestRate / 365;
+        interestFromLastTx += runningPrincipal * (dailyRate / 100) * daysSinceLastTx;
+      }
+      
+      accumulatedInterest += interestFromLastTx;
+    }
+    
+    // Adjust for interest already paid - show net interest due
+    double totalInterestDue = (accumulatedInterest - interestPaid > 0) ? accumulatedInterest - interestPaid : 0;
+    
+    return totalInterestDue;
+  }
+
+  // Update cached total values
+  void _updateCachedTotals() {
+    if (_isWithInterest) {
+      // For interest entries, use the pre-calculated values
+      // The _principalToPay, _principalToReceive, _interestToPay, and _interestToReceive 
+      // values should already be calculated in _calculateInterestValues
+      
+      // Simply set the final totals 
+      _cachedTotalToGive = _principalToPay + _interestToPay;
+      _cachedTotalToGet = _principalToReceive + _interestToReceive;
+    } else {
+      // For standard entries, reset and calculate the totals fresh each time
+      _cachedTotalToGive = 0.0;
+      _cachedTotalToGet = 0.0;
+      
+      // Use direct balance calculation for each contact
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+
+      for (var contact in _withoutInterestContacts) {
+        final phone = contact['phone'] ?? '';
+        if (phone.isEmpty) continue;
+
+        // Get transaction-based balance directly from provider
+        final balance = transactionProvider.calculateBalance(phone);
+        
+        if (balance < 0) {
+          _cachedTotalToGive += balance.abs();
+        } else if (balance > 0) {
+          _cachedTotalToGet += balance;
+        }
+      }
+    }
+  }
 }
 
 class SelectContactScreen extends StatefulWidget {
@@ -3306,31 +3313,16 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     });
     
     try {
-      // First check if we already have permission
-      final permissionStatus = await Permission.contacts.status;
+      // Use the centralized permission utility
+      final permissionUtils = PermissionUtils();
+      final hasPermission = await permissionUtils.requestContactsPermission(context);
       
-      if (permissionStatus.isGranted) {
-        // Permission already granted, load contacts
         setState(() {
-          _hasPermission = true;
-        });
-        await _loadContacts();
-        
-        // Force refresh of home screen when contacts are loaded
-        _refreshHomeScreen();
-        return;
-      }
+        _hasPermission = hasPermission;
+      });
       
-      // If permission is denied but not permanently, request it
-      if (permissionStatus.isDenied) {
-        final result = await FlutterContacts.requestPermission();
-        setState(() {
-          _hasPermission = result;
-        });
-        
-        if (result) {
+      if (hasPermission) {
           await _loadContacts();
-          
           // Force refresh of home screen when contacts are loaded
           _refreshHomeScreen();
         } else {
@@ -3338,16 +3330,8 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
             _isLoading = false;
           });
         }
-        return;
-      }
-      
-      // If permission is permanently denied, we can only ask user to open settings
-      setState(() {
-        _hasPermission = false;
-        _isLoading = false;
-      });
     } catch (e) {
-      // Removed debug print
+      // Error handling
       setState(() {
         _hasPermission = false;
         _isLoading = false;
@@ -4044,37 +4028,37 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                     : phoneNumber;
                 
                 // Get transaction provider
-                final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+                  final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
                 
                 // Check if contact with this ID already exists
                 final existingContact = transactionProvider.getContactById(contactId);
                 
                 if (existingContact != null) {
-                  // Contact already exists in the same tab we're trying to add to,
-                  // just update the existing contact
+                      // Contact already exists in the same tab we're trying to add to,
+                      // just update the existing contact
+                      Navigator.pop(context);
+                      
+                        final contactData = Map<String, dynamic>.from(existingContact);
+                        contactData['name'] = name;
+                        contactData['lastEditedAt'] = DateTime.now();
+                        
+                        transactionProvider.updateContact(contactData);
+                        _refreshHomeScreenAndNavigateToDetail(context, contactData);
+                      return;
+                  }
+                  
                   Navigator.pop(context);
                   
-                  final contactData = Map<String, dynamic>.from(existingContact);
-                  contactData['name'] = name;
-                  contactData['lastEditedAt'] = DateTime.now();
-                  
-                  transactionProvider.updateContact(contactData);
-                  _refreshHomeScreenAndNavigateToDetail(context, contactData);
-                  return;
-                }
-                
-                Navigator.pop(context);
-                
                 // Create new contact data
-                final contactData = {
-                  'name': name,
-                  'phone': contactId,
+                    final contactData = {
+                      'name': name,
+                      'phone': contactId,
                   'displayPhone': phoneNumber.isEmpty ? 'No Phone' : phoneNumber,
-                  'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
-                  'color': Colors.primaries[name.length % Colors.primaries.length],
-                  'amount': 0.0,
-                  'isGet': true,
-                  'daysAgo': 0,
+                      'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
+                      'color': Colors.primaries[name.length % Colors.primaries.length],
+                      'amount': 0.0,
+                      'isGet': true,
+                      'daysAgo': 0,
                   'lastEditedAt': DateTime.now(),
                   'tabType': widget.isWithInterest ? 'withInterest' : 'withoutInterest',
                 };
@@ -4086,10 +4070,10 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                 }
                 
                 // Add the contact
-                transactionProvider.addContactIfNotExists(contactData);
-                
+                    transactionProvider.addContactIfNotExists(contactData);
+                    
                 // Navigate to contact detail screen
-                _refreshHomeScreenAndNavigateToDetail(context, contactData);
+                    _refreshHomeScreenAndNavigateToDetail(context, contactData);
               },
               child: const Text('Next'),
             ),
@@ -4102,14 +4086,14 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
   void _refreshHomeScreenAndNavigateToDetail(BuildContext context, Map<String, dynamic> contact) {
     // Find the home content state to refresh contacts
     final homeContentState = _findHomeContentState(context);
-    if (homeContentState != null) {
+      if (homeContentState != null) {
       // Update the contact list
       homeContentState.refresh();
     }
     
     // Navigate to the contact detail screen
     Navigator.push(
-      context, 
+      context,
       MaterialPageRoute(
         builder: (context) => ContactDetailScreen(
           contact: contact,
@@ -4200,5 +4184,46 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         ],
       ),
     );
+  }
+}
+
+// Helper class to handle app lifecycle events
+class AppLifecycleObserver with WidgetsBindingObserver {
+  final VoidCallback? onResume;
+  final VoidCallback? onPause;
+  final VoidCallback? onInactive;
+  final VoidCallback? onDetached;
+  
+  AppLifecycleObserver({
+    this.onResume,
+    this.onPause,
+    this.onInactive,
+    this.onDetached,
+  }) {
+    WidgetsBinding.instance.addObserver(this);
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        onResume?.call();
+        break;
+      case AppLifecycleState.paused:
+        onPause?.call();
+        break;
+      case AppLifecycleState.inactive:
+        onInactive?.call();
+        break;
+      case AppLifecycleState.detached:
+        onDetached?.call();
+        break;
+      default: 
+        break;
+    }
+  }
+  
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
   }
 }

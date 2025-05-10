@@ -43,3 +43,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Keystore files
+*.jks
+*.keystore
+*.p12
+
+# Key properties
+**/android/key.properties
+**/ios/Flutter/secrets.xcconfig

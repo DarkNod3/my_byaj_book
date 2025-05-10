@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../constants/app_theme.dart';
 import '../../models/app_notification.dart';
 import '../../providers/notification_provider.dart';
@@ -12,6 +13,8 @@ import '../../screens/loan/loan_details_screen.dart';
 import '../../screens/card/card_screen.dart';
 import '../../screens/contact/contact_detail_screen.dart';
 import '../../screens/reminder/reminder_screen.dart';
+import '../../utils/permission_handler.dart';
+import '../settings/notification_settings_screen.dart';
 
 class NotificationCenterScreen extends StatefulWidget {
   static const routeName = '/notification-center';
@@ -25,11 +28,21 @@ class NotificationCenterScreen extends StatefulWidget {
 class _NotificationCenterScreenState extends State<NotificationCenterScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isMarkingAllRead = false;
+  late List<AppNotification> _notifications;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    // Load notifications
+    _loadNotifications();
+    
+    // Check notification permission
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkNotificationPermission();
+    });
   }
 
   @override
@@ -48,6 +61,13 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
             title: 'Notifications',
             showBackButton: true,
             actions: [
+              IconButton(
+                icon: const Icon(Icons.settings, color: Colors.white),
+                onPressed: () {
+                  Navigator.of(context).pushNamed(NotificationSettingsScreen.routeName);
+                },
+                tooltip: 'Notification Settings',
+              ),
               IconButton(
                 icon: const Icon(Icons.refresh, color: Colors.white),
                 onPressed: _refreshNotifications,
@@ -823,5 +843,39 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
         duration: Duration(seconds: 1),
       ),
     );
+  }
+
+  // Add method to check notification permission
+  Future<void> _checkNotificationPermission() async {
+    final permissionUtils = PermissionUtils();
+    final hasPermission = await permissionUtils.requestNotificationPermission(context);
+    
+    if (!hasPermission && mounted) {
+      // Show a persistent banner at the top
+      ScaffoldMessenger.of(context).showMaterialBanner(
+        MaterialBanner(
+          content: const Text(
+            'Notification permission is needed for payment reminders and alerts',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => ScaffoldMessenger.of(context).hideCurrentMaterialBanner(),
+              child: const Text('DISMISS'),
+            ),
+            TextButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+                openAppSettings();
+              },
+              child: const Text('SETTINGS'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _loadNotifications() {
+    // ... existing code ...
   }
 } 
