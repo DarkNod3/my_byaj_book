@@ -844,6 +844,16 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   final List<Map<String, dynamic>> _withInterestContacts = [];
   bool _isInitialized = false;
 
+  // Method to refresh contacts and totals
+  void refresh() {
+    if (mounted) {
+      setState(() {
+        _syncContactsWithTransactions();
+        // Force rebuild UI
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -3264,6 +3274,24 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
   bool _isLoading = true;
   bool _hasPermission = false;
 
+  // Helper method to find HomeContent state - added to fix the error
+  _HomeContentState? _findHomeContentState(BuildContext context) {
+    _HomeContentState? result;
+    
+    void visitor(Element element) {
+      if (element.widget is HomeContent) {
+        final state = (element as StatefulElement).state;
+        if (state is _HomeContentState) {
+          result = state;
+        }
+      }
+      element.visitChildren(visitor);
+    }
+    
+    context.visitChildElements(visitor);
+    return result;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -3985,8 +4013,8 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                 TextField(
                   controller: phoneController,
                   decoration: const InputDecoration(
-                    labelText: 'Mobile Number',
-                    hintText: 'Enter mobile number',
+                    labelText: 'Mobile Number (Optional)',
+                    hintText: 'Enter mobile number (optional)',
                     prefixIcon: Icon(Icons.phone),
                   ),
                   keyboardType: TextInputType.phone,
@@ -4001,78 +4029,68 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                if (nameController.text.isNotEmpty && phoneController.text.isNotEmpty) {
-                  // Check if phone number exists in the other tab
-                  final phone = phoneController.text;
-                  final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-                  final existingContact = transactionProvider.getContactById(phone);
-                  
-                  // Generate a unique ID if the contact already exists in the other tab
-                  String contactId = phone;
-                  if (existingContact != null) {
-                    // Check if the contact is in a different tab than we're trying to add to
-                    final existingTabType = existingContact['tabType'] ?? 
-                        (existingContact['type'] != null ? 'withInterest' : 'withoutInterest');
-                    final newTabType = widget.isWithInterest ? 'withInterest' : 'withoutInterest';
-                    
-                    if (existingTabType != newTabType) {
-                      // Create a unique ID for this contact in the other tab
-                      contactId = "${phone}_$newTabType";
-                    } else {
-                      // Contact already exists in the same tab we're trying to add to,
-                      // just update the existing contact
-                      Navigator.pop(context);
-                      
-                      final name = nameController.text;
-                      
-                      if (widget.isWithInterest) {
-                        // For with interest contacts, show the relationship type dialog
-                        _showRelationshipTypeDialog(context, name, phone);
-                      } else {
-                        // For without interest contacts, directly update the contact
-                        final contactData = Map<String, dynamic>.from(existingContact);
-                        contactData['name'] = name;
-                        contactData['lastEditedAt'] = DateTime.now();
-                        
-                        transactionProvider.updateContact(contactData);
-                        _refreshHomeScreenAndNavigateToDetail(context, contactData);
-                      }
-                      return;
-                    }
-                  }
-                  
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a name')),
+                  );
+                  return;
+                }
+                
+                final phoneNumber = phoneController.text.trim();
+                // Generate a unique ID for this contact using UUID if phone is empty
+                final String contactId = phoneNumber.isEmpty 
+                    ? 'contact_${DateTime.now().millisecondsSinceEpoch}'
+                    : phoneNumber;
+                
+                // Get transaction provider
+                final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+                
+                // Check if contact with this ID already exists
+                final existingContact = transactionProvider.getContactById(contactId);
+                
+                if (existingContact != null) {
+                  // Contact already exists in the same tab we're trying to add to,
+                  // just update the existing contact
                   Navigator.pop(context);
                   
-                  final name = nameController.text;
+                  final contactData = Map<String, dynamic>.from(existingContact);
+                  contactData['name'] = name;
+                  contactData['lastEditedAt'] = DateTime.now();
                   
-                  if (widget.isWithInterest) {
-                    // For with interest contacts, show the relationship type dialog
-                    _showRelationshipTypeDialog(context, name, contactId);
-                  } else {
-                    // For without interest contacts, create contact directly
-                    final contactData = {
-                      'name': name,
-                      'phone': contactId,
-                      'displayPhone': phone, // Store original phone if it's a dual-tab contact
-                      'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
-                      'color': Colors.primaries[name.length % Colors.primaries.length],
-                      'amount': 0.0,
-                      'isGet': true,
-                      'daysAgo': 0,
-                      'tabType': 'withoutInterest', // Explicitly mark this contact for the without interest tab
-                    };
-                    
-                    // Get transaction provider to add this contact if it doesn't exist
-                    transactionProvider.addContactIfNotExists(contactData);
-                    
-                    // Refresh home screen and navigate to detail
-                    _refreshHomeScreenAndNavigateToDetail(context, contactData);
-                  }
+                  transactionProvider.updateContact(contactData);
+                  _refreshHomeScreenAndNavigateToDetail(context, contactData);
+                  return;
                 }
+                
+                Navigator.pop(context);
+                
+                // Create new contact data
+                final contactData = {
+                  'name': name,
+                  'phone': contactId,
+                  'displayPhone': phoneNumber.isEmpty ? 'No Phone' : phoneNumber,
+                  'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
+                  'color': Colors.primaries[name.length % Colors.primaries.length],
+                  'amount': 0.0,
+                  'isGet': true,
+                  'daysAgo': 0,
+                  'lastEditedAt': DateTime.now(),
+                  'tabType': widget.isWithInterest ? 'withInterest' : 'withoutInterest',
+                };
+                
+                // Add interest-related fields if applicable
+                if (widget.isWithInterest) {
+                  contactData['interestRate'] = 12.0; // Default interest rate
+                  contactData['type'] = 'borrower'; // Default to borrower
+                }
+                
+                // Add the contact
+                transactionProvider.addContactIfNotExists(contactData);
+                
+                // Navigate to contact detail screen
+                _refreshHomeScreenAndNavigateToDetail(context, contactData);
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-              ),
               child: const Text('Next'),
             ),
           ],
@@ -4081,53 +4099,22 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     );
   }
   
-  void _refreshHomeScreenAndNavigateToDetail(BuildContext context, Map<String, dynamic> contactData) {
-    // Check if contact with this phone number already exists in the other tab
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    final existingContact = transactionProvider.getContactById(contactData['phone']);
-    
-    if (existingContact != null) {
-      // Check if the contact is in a different tab than we're trying to add to
-      final existingTabType = existingContact['tabType'] ?? 
-          (existingContact['type'] != null ? 'withInterest' : 'withoutInterest');
-      final newTabType = contactData['tabType'] ?? 
-          (contactData['type'] != null ? 'withInterest' : 'withoutInterest');
-      
-      // We now allow the same contact to exist in both tabs, so we no longer show an error
-      // Instead, create a unique ID for the new tab entry
-      if (existingTabType != newTabType) {
-        // Create a unique ID for this cross-tab entry
-        final String uniqueId = "${contactData['phone']}_$newTabType";
-        contactData['phone'] = uniqueId;
-        contactData['displayPhone'] = existingContact['phone']; // Save original phone number
-      }
+  void _refreshHomeScreenAndNavigateToDetail(BuildContext context, Map<String, dynamic> contact) {
+    // Find the home content state to refresh contacts
+    final homeContentState = _findHomeContentState(context);
+    if (homeContentState != null) {
+      // Update the contact list
+      homeContentState.refresh();
     }
     
-    // Find the home screen state to refresh contacts
-    final homeScreenState = context.findAncestorStateOfType<_HomeScreenState>();
-    if (homeScreenState != null) {
-      // Try to find HomeContent state to refresh its contacts
-      final homeContentState = homeScreenState._findHomeContentState(context);
-      if (homeContentState != null) {
-        homeContentState.setState(() {
-          // Force refresh
-          homeContentState._syncContactsWithTransactions();
-          
-          // If this is a with-interest contact, switch to with-interest tab
-          if (contactData['tabType'] == 'withInterest') {
-            homeContentState._tabController.animateTo(1); // Index 1 is With Interest tab
-          } else {
-            homeContentState._tabController.animateTo(0); // Index 0 is Without Interest tab
-          }
-        });
-      }
-    }
-    
-    // Navigate to contact detail screen
+    // Navigate to the contact detail screen
     Navigator.push(
-      context,
+      context, 
       MaterialPageRoute(
-        builder: (context) => ContactDetailScreen(contact: contactData),
+        builder: (context) => ContactDetailScreen(
+          contact: contact,
+          showSetupPrompt: false, // Skip setup prompt for all contacts
+        ),
       ),
     );
   }

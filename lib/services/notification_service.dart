@@ -739,19 +739,48 @@ class NotificationService {
       );
     }
     
-    // Schedule a time-based notification for the actual due date at 9 AM
-    await _scheduleTimedNotification(
-      id: id + 3000, // Use a different ID for the scheduled notification
-      title: 'Reminder: $title',
-      body: 'Your reminder for ₹${amount.toStringAsFixed(0)} is due TODAY',
-      scheduledDate: DateTime(
-        scheduledDate.year, 
-        scheduledDate.month, 
-        scheduledDate.day, 
-        9, 0, 0 // 9:00 AM
-      ),
-      payload: payload,
-    );
+    // If due today, schedule multiple reminders throughout the day
+    if (daysRemaining == 0) {
+      final now = DateTime.now();
+      
+      // Only schedule future reminders at set times of the day (morning, afternoon, evening)
+      final reminders = [
+        DateTime(scheduledDate.year, scheduledDate.month, scheduledDate.day, 9, 0), // 9 AM
+        DateTime(scheduledDate.year, scheduledDate.month, scheduledDate.day, 12, 0), // 12 PM
+        DateTime(scheduledDate.year, scheduledDate.month, scheduledDate.day, 17, 0), // 5 PM
+      ].where((time) => time.isAfter(now)).toList();
+      
+      // Schedule up to 3 additional reminders
+      for (int i = 0; i < reminders.length && i < 3; i++) {
+        final reminderText = i == 0 
+            ? "REMINDER: Your reminder for ₹${amount.toStringAsFixed(0)} is due TODAY" 
+            : i == 1 
+                ? "IMPORTANT: Your reminder for ₹${amount.toStringAsFixed(0)} is due TODAY" 
+                : "FINAL REMINDER: Your reminder for ₹${amount.toStringAsFixed(0)} is due TODAY";
+        
+        await _scheduleTimedNotification(
+          id: id + 3000 + i, // Use different IDs for each reminder
+          title: 'Reminder: $title',
+          body: reminderText,
+          scheduledDate: reminders[i],
+          payload: payload,
+        );
+      }
+    } else {
+      // For future dates, schedule one reminder at 9 AM
+      await _scheduleTimedNotification(
+        id: id + 3000, // Use a different ID for the scheduled notification
+        title: 'Reminder: $title',
+        body: 'Your reminder for ₹${amount.toStringAsFixed(0)} is due TODAY',
+        scheduledDate: DateTime(
+          scheduledDate.year, 
+          scheduledDate.month, 
+          scheduledDate.day, 
+          9, 0, 0 // 9:00 AM
+        ),
+        payload: payload,
+      );
+    }
   }
   
   // Schedule a notification at a specific date and time
@@ -1040,5 +1069,40 @@ class NotificationService {
       await _flutterLocalNotificationsPlugin.cancel(id + 1000); // Cancel scheduled notification too
     }
     _loanNotificationIds.clear();
+  }
+
+  // Cancel all notifications for a specific type
+  Future<void> cancelNotificationsByType(String type) async {
+    try {
+      // Get all notification IDs for this type
+      final List<int> idsToCancel = [];
+      
+      // Add relevant IDs based on type
+      if (type == 'fcm') {
+        // For FCM, we don't have specific tracking, so we can't cancel selectively
+      } else if (type == 'reminder') {
+        idsToCancel.addAll(_reminderNotificationIds.values);
+      } else if (type == 'contact') {
+        // We don't have specific tracking for contact notifications
+      }
+      
+      // Cancel each notification ID
+      for (final id in idsToCancel) {
+        await _flutterLocalNotificationsPlugin.cancel(id);
+      }
+    } catch (e) {
+      debugPrint('Error canceling ${type} notifications: $e');
+    }
+  }
+  
+  // Cancel specific notification by its app notification ID
+  Future<void> cancelNotificationById(String notificationId) async {
+    try {
+      // Convert string notification ID to int hash for plugin
+      final int id = notificationId.hashCode & 0x3FFFFFFF;
+      await _flutterLocalNotificationsPlugin.cancel(id);
+    } catch (e) {
+      debugPrint('Error canceling notification: $e');
+    }
   }
 }

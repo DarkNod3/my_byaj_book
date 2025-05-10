@@ -2434,7 +2434,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               Text('You already have a reminder set for ${widget.contact['name']} on:'),
               const SizedBox(height: 8),
               Text(
-                DateFormat('MMM d, yyyy - h:mm a').format(existingReminder['scheduledDate']),
+                DateFormat('dd MMM yyyy').format(existingReminder['scheduledDate']),
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ],
@@ -2529,51 +2529,42 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     );
 
     if (selectedDate != null && mounted) {
-      final TimeOfDay? selectedTime = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.now(),
+      // Create a DateTime with just the date component (set time to start of day)
+      final scheduledDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
       );
 
-      if (selectedTime != null && mounted) {
-        // Create a DateTime with both date and time components
-        final scheduledDate = DateTime(
-          selectedDate.year,
-          selectedDate.month,
-          selectedDate.day,
-          selectedTime.hour,
-          selectedTime.minute,
+      // Create a unique ID for this notification based on contact and time
+      final int notificationId = DateTime.now().millisecondsSinceEpoch % 100000;
+
+      // Generate reminder text
+      final balance = _calculateBalance();
+      final isCredit = balance >= 0;
+      final String reminderText = isCredit
+          ? "Reminder to collect ${currencyFormat.format(balance.abs())} from ${widget.contact['name']}"
+          : "Reminder to pay ${currencyFormat.format(balance.abs())} to ${widget.contact['name']}";
+
+      // Schedule the notification
+      await _scheduleNotification(
+        id: notificationId,
+        title: "Payment Reminder",
+        body: reminderText,
+        scheduledDate: scheduledDate,
+      );
+      
+      // Store reminder details in shared preferences
+      await _saveReminderDetails(notificationId, scheduledDate, reminderText);
+
+      // Show confirmation to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Reminder set for ${DateFormat('dd MMM yyyy').format(scheduledDate)}'),
+            duration: const Duration(seconds: 2),
+          ),
         );
-
-        // Create a unique ID for this notification based on contact and time
-        final int notificationId = DateTime.now().millisecondsSinceEpoch % 100000;
-
-        // Generate reminder text
-        final balance = _calculateBalance();
-        final isCredit = balance >= 0;
-        final String reminderText = isCredit
-            ? "Reminder to collect ${currencyFormat.format(balance.abs())} from ${widget.contact['name']}"
-            : "Reminder to pay ${currencyFormat.format(balance.abs())} to ${widget.contact['name']}";
-
-        // Schedule the notification
-        await _scheduleNotification(
-          id: notificationId,
-          title: "Payment Reminder",
-          body: reminderText,
-          scheduledDate: scheduledDate,
-        );
-        
-        // Store reminder details in shared preferences
-        await _saveReminderDetails(notificationId, scheduledDate, reminderText);
-
-        // Show confirmation to user
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Reminder set for ${DateFormat('MMM d, yyyy').format(scheduledDate)} at ${selectedTime.format(context)}'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
       }
     }
   }
@@ -2646,7 +2637,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     await flutterLocalNotificationsPlugin.show(
       id + 1000, // Use different ID for confirmation notification
       "Reminder Scheduled",
-      "Payment reminder set for ${DateFormat('MMM d, yyyy - h:mm a').format(scheduledDate)}",
+      "Payment reminder set for ${DateFormat('dd MMM yyyy').format(scheduledDate)}",
       notificationDetails,
     );
     

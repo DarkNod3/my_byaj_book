@@ -4,7 +4,14 @@ import 'package:provider/provider.dart';
 import '../../constants/app_theme.dart';
 import '../../models/app_notification.dart';
 import '../../providers/notification_provider.dart';
+import '../../providers/loan_provider.dart';
+import '../../providers/card_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../widgets/header/app_header.dart';
+import '../../screens/loan/loan_details_screen.dart';
+import '../../screens/card/card_screen.dart';
+import '../../screens/contact/contact_detail_screen.dart';
+import '../../screens/reminder/reminder_screen.dart';
 
 class NotificationCenterScreen extends StatefulWidget {
   static const routeName = '/notification-center';
@@ -50,6 +57,11 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
                 icon: const Icon(Icons.done_all, color: Colors.white),
                 onPressed: _markAllAsRead,
                 tooltip: 'Mark all as read',
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_sweep, color: Colors.white),
+                onPressed: _showClearAllConfirmation,
+                tooltip: 'Clear notifications',
               ),
             ],
           ),
@@ -176,30 +188,87 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
     IconData icon;
     Color iconColor;
     
+    // Extract amount and name information for different notification types
+    String displayTitle = notification.title;
+    String displayAmount = "";
+    
+    if (notification.data != null) {
+      // Extract amount if available
+      if (notification.data!.containsKey('amount')) {
+        try {
+          final amount = notification.data!['amount'];
+          if (amount != null) {
+            if (amount is double || amount is int) {
+              displayAmount = "₹${NumberFormat('#,##,##0.00').format(amount)}";
+            } else {
+              // Try to parse string to double
+              final parsedAmount = double.tryParse(amount.toString());
+              if (parsedAmount != null) {
+                displayAmount = "₹${NumberFormat('#,##,##0.00').format(parsedAmount)}";
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore errors in amount formatting
+        }
+      }
+      
+      // Set specific title and icons based on notification type
+      switch (notification.type) {
+        case 'loan':
+          if (notification.data!.containsKey('loanName')) {
+            displayTitle = notification.data!['loanName'] ?? 'Loan Payment';
+          }
+          break;
+        case 'card':
+          if (notification.data!.containsKey('cardName')) {
+            displayTitle = notification.data!['cardName'] ?? 'Card Payment';
+          }
+          break;
+        case 'bill':
+          if (notification.data!.containsKey('title')) {
+            displayTitle = notification.data!['title'] ?? 'Bill Payment';
+          }
+          break;
+      }
+    }
+    
     switch (notification.type) {
-      case 'loan':
-        icon = Icons.account_balance;
-        iconColor = Colors.blue;
-        break;
-      case 'bill':
-        icon = Icons.receipt_long;
-        iconColor = Colors.orange;
-        break;
-      case 'card':
-        icon = Icons.credit_card;
-        iconColor = Colors.green;
-        break;
-      case 'contact':
-        icon = Icons.person;
-        iconColor = Colors.purple;
-        break;
       case 'reminder':
         icon = Icons.notifications_active;
         iconColor = Colors.red;
         break;
       case 'fcm':
         icon = Icons.notifications;
-        iconColor = Colors.red;
+        iconColor = Colors.purple;
+        break;
+      case 'loan':
+        icon = Icons.account_balance;
+        iconColor = Colors.blue;
+        break;
+      case 'card':
+        icon = Icons.credit_card;
+        iconColor = Colors.orange;
+        break;
+      case 'bill':
+        icon = Icons.receipt;
+        iconColor = Colors.green;
+        break;
+      case 'contact':
+        // For contact with due date (Payment to Collect/Make)
+        if (notification.data != null && notification.data!.containsKey('paymentType')) {
+          final paymentType = notification.data!['paymentType'];
+          if (paymentType == 'collect') {
+            icon = Icons.arrow_downward;
+            iconColor = Colors.green;
+          } else {
+            icon = Icons.arrow_upward;
+            iconColor = Colors.orange;
+          }
+        } else {
+          icon = Icons.person;
+          iconColor = Colors.purple;
+        }
         break;
       default:
         icon = Icons.notifications;
@@ -213,30 +282,78 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
         color: Colors.red,
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 20),
-        child: const Icon(Icons.delete, color: Colors.white),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete, color: Colors.white, size: 24),
+            SizedBox(height: 4),
+            Text(
+              'Delete',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ],
+        ),
       ),
       secondaryBackground: Container(
-        color: Colors.blue,
+        color: notification.isPaid ? Colors.orange : Colors.blue,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: notification.isPaid 
-            ? const Icon(Icons.check_circle, color: Colors.white)
-            : const Icon(Icons.mark_email_read, color: Colors.white),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              notification.isPaid 
+                ? Icons.visibility_off
+                : notification.isRead ? Icons.done_all : Icons.visibility,
+              color: Colors.white,
+              size: 24,
+            ),
+            SizedBox(height: 4),
+            Text(
+              notification.isPaid 
+                ? 'Hide Today' 
+                : notification.isRead ? 'Read' : 'Mark Read',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ],
+        ),
       ),
+      onDismissed: (direction) {
+        if (direction == DismissDirection.startToEnd) {
+          // Left swipe - delete
+          final provider = Provider.of<NotificationProvider>(context, listen: false);
+          provider.deleteNotification(notification.id);
+          
+          // Show confirmation
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Notification deleted'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      },
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           // Left swipe - delete
-          return await _confirmDeletion(notification);
+          final shouldDelete = await _confirmDeletion(notification);
+          if (shouldDelete) {
+            // Also mark as completed for today to ensure it doesn't reappear
+            final provider = Provider.of<NotificationProvider>(context, listen: false);
+            provider.markAsCompletedToday(notification.id);
+          }
+          return shouldDelete;
         } else {
-          // Right swipe - mark as read/paid
-          if (!notification.isRead) {
+          // Right swipe - mark as read or hide today
+          if (notification.isPaid) {
+            // If already paid, just hide for today
+            _markAsCompletedToday(notification.id);
+            return false; // Don't dismiss
+          } else if (!notification.isRead) {
             _markAsRead(notification.id);
             return false; // Don't dismiss, just mark as read
-          } else if (!notification.isPaid && _canBePaid(notification)) {
-            _markAsPaid(notification.id);
-            return false; // Don't dismiss, just mark as paid
           }
-          return false; // Don't dismiss for other cases
+          return false; // Don't dismiss
         }
       },
       child: Card(
@@ -252,114 +369,129 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () => _handleNotificationTap(notification),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: iconColor.withAlpha(30),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    icon,
-                    color: iconColor,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: iconColor.withAlpha(40),
+                        shape: BoxShape.circle,
+                        border: !notification.isRead 
+                            ? Border.all(color: iconColor, width: 2)
+                            : null,
+                      ),
+                      child: Icon(
+                        icon,
+                        color: iconColor,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              notification.title,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: notification.isRead ? Colors.black87 : AppTheme.primaryColor,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  displayTitle,
+                                  style: TextStyle(
+                                    fontWeight: notification.isRead ? FontWeight.w500 : FontWeight.bold,
+                                    fontSize: 15,
+                                    color: notification.isRead ? Colors.black87 : AppTheme.primaryColor,
+                                  ),
+                                ),
                               ),
+                              if (displayAmount.isNotEmpty)
+                                Text(
+                                  displayAmount,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: iconColor,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            notification.message,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.black87,
+                              fontWeight: notification.isRead ? FontWeight.normal : FontWeight.w500,
                             ),
                           ),
-                          if (!notification.isRead)
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppTheme.primaryColor,
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                size: 12,
+                                color: Colors.grey.shade600,
                               ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        notification.message,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Show due date if available
-                          if (formattedDueDate != null)
-                            Row(
-                              children: [
+                              const SizedBox(width: 4),
+                              Text(
+                                formattedDate,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              if (formattedDueDate != null) ...[
+                                const SizedBox(width: 8),
                                 Icon(
-                                  isDueToday ? Icons.today : Icons.event, 
-                                  size: 12, 
-                                  color: isDueToday ? Colors.red[600] : Colors.grey[600],
+                                  Icons.event,
+                                  size: 12,
+                                  color: isDueToday ? Colors.red : Colors.grey.shade600,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  isDueToday ? 'Due today' : 'Due: $formattedDueDate',
+                                  'Due: $formattedDueDate',
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: isDueToday ? FontWeight.bold : FontWeight.normal,
-                                    color: isDueToday ? Colors.red[600] : Colors.grey[600],
+                                    color: isDueToday ? Colors.red : Colors.grey.shade600,
                                   ),
                                 ),
                               ],
-                            )
-                          else
-                            Text(
-                              formattedDate,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          if (notification.isPaid)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'PAID',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            ),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+              if (!notification.isRead)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppTheme.primaryColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withOpacity(0.3),
+                          spreadRadius: 1,
+                          blurRadius: 2,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
@@ -472,9 +604,22 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
       switch (notification.type) {
         case 'loan':
           if (notification.data!.containsKey('loanId')) {
-            // Navigate to loan details screen
-            if (mounted) {
-              // Navigator.of(context).pushNamed('/loan-details', arguments: notification.data!['loanId']);
+            // Get the loan data from provider
+            final loanId = notification.data!['loanId'];
+            final loanProvider = Provider.of<LoanProvider>(context, listen: false);
+            final loan = loanProvider.activeLoans.firstWhere(
+              (loan) => loan['id'] == loanId,
+              orElse: () => <String, dynamic>{},
+            );
+            
+            if (mounted && loan.isNotEmpty) {
+              // Navigate to loan details screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => LoanDetailsScreen(loanData: loan),
+                ),
+              );
             }
           }
           break;
@@ -482,30 +627,72 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
           if (notification.data!.containsKey('billId')) {
             // Navigate to bill details screen
             if (mounted) {
-              // Navigator.of(context).pushNamed('/bill-details', arguments: notification.data!['billId']);
+              // Use the standard method defined in your app for bill navigation
+              Navigator.pushNamed(context, '/bill-details', arguments: notification.data!['billId']);
             }
           }
           break;
         case 'card':
-          if (notification.data!.containsKey('cardId')) {
-            // Navigate to card details screen
+          if (notification.data!.containsKey('cardId') || notification.data!.containsKey('cardIndex')) {
+            // For card, we need to set the selected card index
+            final cardProvider = Provider.of<CardProvider>(context, listen: false);
+            
+            // Try to get cardIndex or find it by cardId
+            int? cardIndex;
+            if (notification.data!.containsKey('cardIndex')) {
+              cardIndex = notification.data!['cardIndex'] as int?;
+            } else if (notification.data!.containsKey('cardId')) {
+              final cardId = notification.data!['cardId'];
+              // Find the index of the card with this ID
+              for (int i = 0; i < cardProvider.cards.length; i++) {
+                if (cardProvider.cards[i]['id'] == cardId) {
+                  cardIndex = i;
+                  break;
+                }
+              }
+            }
+            
+            // Set the selected card index if found
+            if (cardIndex != null) {
+              cardProvider.setSelectedCardIndex(cardIndex);
+            }
+            
+            // Navigate to the card screen
             if (mounted) {
-              // Navigator.of(context).pushNamed('/card-details', arguments: notification.data!['cardId']);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CardScreen(showAppBar: true),
+                ),
+              );
             }
           }
           break;
         case 'contact':
           if (notification.data!.containsKey('contactId')) {
-            // Navigate to contact details screen
-            if (mounted) {
-              // Navigator.of(context).pushNamed('/contact-details', arguments: notification.data!['contactId']);
+            // Get contact data from transaction provider
+            final contactId = notification.data!['contactId'];
+            final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+            final contact = transactionProvider.contacts.firstWhere(
+              (contact) => contact['phone'] == contactId,
+              orElse: () => <String, dynamic>{},
+            );
+            
+            if (mounted && contact.isNotEmpty) {
+              // Navigate to contact details screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ContactDetailScreen(contact: contact),
+                ),
+              );
             }
           }
           break;
         case 'reminder':
           // Navigate to reminders screen
           if (mounted) {
-            Navigator.of(context).pushNamed('/reminder');
+            Navigator.pushNamed(context, ReminderScreen.routeName);
           }
           break;
       }
@@ -567,5 +754,74 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
         });
       }
     }
+  }
+
+  // Show confirmation dialog for clearing all notifications
+  Future<void> _showClearAllConfirmation() async {
+    final bool confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear All Notifications'),
+        content: Text(
+          'Are you sure you want to clear all ${_tabController.index == 0 ? 'today\'s' : 'upcoming'} notifications?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Clear All', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    ) ?? false;
+    
+    if (confirm) {
+      setState(() {
+        _isMarkingAllRead = true; // Use the same loading indicator
+      });
+      
+      final provider = Provider.of<NotificationProvider>(context, listen: false);
+      
+      if (_tabController.index == 0) {
+        // Clear today's notifications
+        for (final notification in provider.todayNotifications) {
+          await provider.deleteNotification(notification.id);
+        }
+      } else {
+        // Clear upcoming notifications
+        for (final notification in provider.upcomingNotifications) {
+          await provider.deleteNotification(notification.id);
+        }
+      }
+      
+      setState(() {
+        _isMarkingAllRead = false;
+      });
+      
+      // Show confirmation
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Notifications cleared'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  // Mark as completed for today (hide from today's list)
+  void _markAsCompletedToday(String id) {
+    final provider = Provider.of<NotificationProvider>(context, listen: false);
+    provider.markAsCompletedToday(id);
+    
+    // Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Marked as completed for today'),
+        duration: Duration(seconds: 1),
+      ),
+    );
   }
 } 

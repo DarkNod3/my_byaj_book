@@ -13,9 +13,11 @@ import '../services/notification_service.dart';
 class NotificationProvider with ChangeNotifier {
   static const String _notificationsKey = 'app_notifications';
   static const String _deletedNotificationsKey = 'deleted_notifications';
+  static const String _completedTodayNotificationsKey = 'completed_today_notifications';
   
   List<AppNotification> _notifications = [];
   Set<String> _deletedNotificationIds = {};
+  Set<String> _completedTodayNotificationIds = {}; // Track notifications completed today
   bool _isLoading = false;
   final int _maxFcmNotifications = 100;
   final NotificationService _notificationService = NotificationService.instance;
@@ -44,6 +46,16 @@ class NotificationProvider with ChangeNotifier {
     final tomorrow = today.add(const Duration(days: 1));
     
     return _notifications.where((notification) {
+      // Filter only FCM messages, reminders, and due dates
+      if (!_isAllowedNotificationType(notification)) {
+        return false;
+      }
+      
+      // Skip notifications that have been completed today
+      if (_completedTodayNotificationIds.contains(notification.id)) {
+        return false;
+      }
+      
       // Check if due date is in data
       if (notification.data != null && notification.data!.containsKey('dueDate')) {
         try {
@@ -72,6 +84,11 @@ class NotificationProvider with ChangeNotifier {
     final nextMonth = DateTime(now.year, now.month + 1, 1);
     
     return _notifications.where((notification) {
+      // Filter only FCM messages, reminders, and due dates
+      if (!_isAllowedNotificationType(notification)) {
+        return false;
+      }
+      
       // Check if due date is in data
       if (notification.data != null && notification.data!.containsKey('dueDate')) {
         try {
@@ -97,6 +114,8 @@ class NotificationProvider with ChangeNotifier {
   // Constructor
   NotificationProvider() {
     _loadNotifications();
+    _loadCompletedTodayNotifications();
+    _cleanupExpiredCompletedNotifications(); // Cleanup completed notifications from previous days
   }
 
   // Load notifications from SharedPreferences
@@ -131,6 +150,56 @@ class NotificationProvider with ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  // Load completed today notifications from SharedPreferences
+  Future<void> _loadCompletedTodayNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final completedTodayJson = prefs.getStringList(_completedTodayNotificationsKey) ?? [];
+      _completedTodayNotificationIds = Set.from(completedTodayJson);
+    } catch (e) {
+      debugPrint('Error loading completed today notifications: $e');
+      _completedTodayNotificationIds = {};
+    }
+  }
+
+  // Save completed today notifications to SharedPreferences
+  Future<void> _saveCompletedTodayNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_completedTodayNotificationsKey, _completedTodayNotificationIds.toList());
+    } catch (e) {
+      debugPrint('Error saving completed today notifications: $e');
+    }
+  }
+
+  // Clean up expired completed notifications (from previous days)
+  Future<void> _cleanupExpiredCompletedNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastCleanupTimeStr = prefs.getString('last_notification_cleanup_time');
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    DateTime lastCleanupTime;
+    if (lastCleanupTimeStr != null) {
+      try {
+        lastCleanupTime = DateTime.parse(lastCleanupTimeStr);
+      } catch (e) {
+        lastCleanupTime = DateTime(1970);
+      }
+    } else {
+      lastCleanupTime = DateTime(1970);
+    }
+    
+    // If the last cleanup was not today, reset completed today notifications
+    if (lastCleanupTime.year != today.year || 
+        lastCleanupTime.month != today.month || 
+        lastCleanupTime.day != today.day) {
+      _completedTodayNotificationIds.clear();
+      await _saveCompletedTodayNotifications();
+      await prefs.setString('last_notification_cleanup_time', today.toIso8601String());
+    }
   }
 
   // Helper to determine if a notification should be filtered out
@@ -233,9 +302,21 @@ class NotificationProvider with ChangeNotifier {
     final index = _notifications.indexWhere((n) => n.id == id);
     if (index >= 0) {
       _notifications[index].isPaid = true;
+      
+      // Add to completed today list to prevent reshowing today
+      _completedTodayNotificationIds.add(id);
+      await _saveCompletedTodayNotifications();
+      
       await _saveNotifications();
       notifyListeners();
     }
+  }
+  
+  // Mark notification as completed for today
+  Future<void> markAsCompletedToday(String id) async {
+    _completedTodayNotificationIds.add(id);
+    await _saveCompletedTodayNotifications();
+    notifyListeners();
   }
   
   // Mark all notifications as read
@@ -258,6 +339,10 @@ class NotificationProvider with ChangeNotifier {
       
       // Add to deleted notifications list to prevent regeneration
       _deletedNotificationIds.add(notification.id);
+      
+      // Also add to completed today list to prevent reshowing today
+      _completedTodayNotificationIds.add(notification.id);
+      await _saveCompletedTodayNotifications();
       
       // Also track the entity ID to prevent similar notifications
       if (notification.data != null) {
@@ -362,13 +447,14 @@ class NotificationProvider with ChangeNotifier {
     }
   }
 
-  // Generate notifications from loans, bills, cards, and contacts
+  // Override the generateDueNotifications method to also create duplicates
   Future<void> generateDueNotifications({
     LoanProvider? loanProvider,
     CardProvider? cardProvider,
     TransactionProvider? transactionProvider,
     BillNoteProvider? billNoteProvider,
   }) async {
+    // First generate standard notifications
     // Generate loan notifications
     if (loanProvider != null) {
       _generateLoanNotifications(loanProvider);
@@ -390,241 +476,85 @@ class NotificationProvider with ChangeNotifier {
     }
     
     await _saveNotifications();
+    
+    // Then duplicate important ones for today
+    await duplicateImportantNotifications();
+    
     notifyListeners();
   }
 
-  // Generate loan notifications
-  void _generateLoanNotifications(LoanProvider loanProvider) {
-    for (final loan in loanProvider.activeLoans) {
-      // Skip if this loan's notifications have been deleted
-      final loanId = loan['id'] as String;
-      if (_deletedNotificationIds.contains('loan_$loanId')) continue;
-      
-      // Check if loan has upcoming or overdue installments
-      final installments = loan['installments'] as List<dynamic>?;
-      if (installments == null || installments.isEmpty) continue;
-      
-      for (final installment in installments) {
-        // Skip paid installments
-        if (installment['isPaid'] == true) continue;
-        
-        // Check if installment has a due date
-        final dueDate = installment['dueDate'] as DateTime?;
-        if (dueDate == null) continue;
-        
-        // Skip if this specific installment notification was deleted
-        final installmentNumber = installment['installmentNumber'] as int? ?? 0;
-        if (_deletedNotificationIds.contains('loan_${loanId}_$installmentNumber')) continue;
-        
-        // Calculate days until due
-        final daysUntilDue = dueDate.difference(DateTime.now()).inDays;
-        
-        // Create notification for installment due within 5 days or overdue
-        if (daysUntilDue <= 5) {
-          String title;
-          String message;
+  // Duplicate important notifications to show them multiple times
+  Future<void> duplicateImportantNotifications() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final List<AppNotification> importantNotifications = [];
+    
+    // Find important notifications that should be duplicated
+    for (final notification in _notifications) {
+      // Only duplicate due date notifications due today
+      if (notification.data != null && 
+          notification.data!.containsKey('dueDate') &&
+          !_completedTodayNotificationIds.contains(notification.id)) {
+        try {
+          final dueDate = DateTime.parse(notification.data!['dueDate']);
+          final dueDateDay = DateTime(dueDate.year, dueDate.month, dueDate.day);
           
-          if (daysUntilDue < 0) {
-            // Overdue
-            title = 'Loan Payment Overdue';
-            message = '${loan['loanName']} payment of ${installment['totalAmount']} is overdue by ${-daysUntilDue} days';
-          } else if (daysUntilDue == 0) {
-            // Due today
-            title = 'Loan Payment Due Today';
-            message = '${loan['loanName']} payment of ${installment['totalAmount']} is due today';
-          } else {
-            // Due soon
-            title = 'Loan Payment Due Soon';
-            message = '${loan['loanName']} payment of ${installment['totalAmount']} is due in $daysUntilDue days';
+          // If due today and it's a payment or reminder
+          if (dueDateDay.isAtSameMomentAs(today) && 
+              (notification.type == 'loan' || 
+               notification.type == 'card' || 
+               notification.type == 'bill' ||
+               notification.type == 'reminder')) {
+            
+            // Create up to 3 duplicate notifications with slightly different messages
+            for (int i = 1; i <= 3; i++) {
+              // Create a new ID that's unique but deterministic
+              final newId = "${notification.id}_duplicate_$i";
+              
+              // Skip if this duplicate already exists
+              if (_notifications.any((n) => n.id == newId) ||
+                  _completedTodayNotificationIds.contains(newId)) {
+                continue;
+              }
+              
+              // Create a duplicate with slightly different message
+              String message = notification.message;
+              if (i == 1) {
+                message = "REMINDER: ${notification.message}";
+              } else if (i == 2) {
+                message = "IMPORTANT: ${notification.message}";
+              } else {
+                message = "FINAL REMINDER: ${notification.message}";
+              }
+              
+              final duplicate = AppNotification(
+                id: newId,
+                type: notification.type,
+                title: notification.title,
+                message: message,
+                timestamp: DateTime.now().add(Duration(hours: i)), // Space them out
+                data: notification.data,
+                isRead: false,
+              );
+              
+              importantNotifications.add(duplicate);
+            }
           }
-          
-          // Create notification
-          final notification = AppNotification(
-            id: 'loan_${loan['id']}_${installment['installmentNumber']}',
-            type: 'loan',
-            title: title,
-            message: message,
-            timestamp: DateTime.now(),
-            data: {
-              'loanId': loan['id'],
-              'installmentNumber': installment['installmentNumber'],
-              'dueDate': dueDate.toIso8601String(),
-              'amount': installment['totalAmount'],
-            },
-          );
-          
-          // Add notification to list (automatically handles duplicates)
-          _notifications.removeWhere((n) => n.id == notification.id);
-          _notifications.add(notification);
+        } catch (e) {
+          // Skip if date can't be parsed
         }
       }
     }
-  }
-
-  // Generate card notifications
-  void _generateCardNotifications(CardProvider cardProvider) {
-    for (final card in cardProvider.cards) {
-      // Skip if this card's notifications have been deleted
-      final cardId = card['id'] as String;
-      if (_deletedNotificationIds.contains('card_$cardId')) continue;
+    
+    // Add the duplicates to the notifications list
+    if (importantNotifications.isNotEmpty) {
+      _notifications.addAll(importantNotifications);
       
-      // Check if card has payment due date
-      final dueDate = card['paymentDate'] as DateTime?;
-      if (dueDate == null) continue;
+      // Sort by timestamp (newest first)
+      _notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       
-      // Calculate days until due
-      final daysUntilDue = dueDate.difference(DateTime.now()).inDays;
-      
-      // Create notification for card payment due within 5 days or overdue
-      if (daysUntilDue <= 5) {
-        String title;
-        String message;
-        
-        if (daysUntilDue < 0) {
-          // Overdue
-          title = 'Card Payment Overdue';
-          message = '${card['cardName']} payment is overdue by ${-daysUntilDue} days';
-        } else if (daysUntilDue == 0) {
-          // Due today
-          title = 'Card Payment Due Today';
-          message = '${card['cardName']} payment is due today';
-        } else {
-          // Due soon
-          title = 'Card Payment Due Soon';
-          message = '${card['cardName']} payment is due in $daysUntilDue days';
-        }
-        
-        // Create notification
-        final notification = AppNotification(
-          id: 'card_${card['id']}_${dueDate.month}_${dueDate.year}',
-          type: 'card',
-          title: title,
-          message: message,
-          timestamp: DateTime.now(),
-          data: {
-            'cardId': card['id'],
-            'dueDate': dueDate.toIso8601String(),
-          },
-        );
-        
-        // Add notification to list (automatically handles duplicates)
-        _notifications.removeWhere((n) => n.id == notification.id);
-        _notifications.add(notification);
-      }
-    }
-  }
-
-  // Generate contact notifications
-  void _generateContactNotifications(TransactionProvider transactionProvider) {
-    // Get contacts with balances
-    for (final contact in transactionProvider.contacts) {
-      final contactId = contact['phone'] as String;
-      
-      // Skip if this contact notification was previously deleted
-      if (_deletedNotificationIds.contains('contact_$contactId')) {
-        continue;
-      }
-      
-      // Calculate balance
-      final balance = transactionProvider.calculateBalance(contactId);
-      
-      // Skip contacts with zero balance
-      if (balance == 0) continue;
-      
-      // Create notification
-      final isPositive = balance > 0;
-      
-      // Create a unique ID that's consistent for this contact
-      final notificationId = 'contact_$contactId';
-      
-      // Format the balance amount properly with commas
-      final formattedAmount = NumberFormat.currency(
-        symbol: '',
-        locale: 'en_IN',
-        decimalDigits: 1
-      ).format(balance.abs());
-      
-      final notification = AppNotification(
-        id: notificationId,
-        type: 'contact',
-        title: isPositive ? 'Payment to Collect' : 'Payment to Make',
-        message: isPositive 
-          ? 'You need to collect $formattedAmount from ${contact['name']}'
-          : 'You need to pay $formattedAmount to ${contact['name']}',
-        timestamp: DateTime.now(),
-        data: {
-          'contactId': contactId,
-          'contactName': contact['name'],
-          'amount': balance.abs(),
-          // Add due date as today to ensure it appears in today's list
-          'dueDate': DateTime.now().toIso8601String(),
-        },
-      );
-      
-      // Add notification to list (automatically handles duplicates)
-      _notifications.removeWhere((n) => n.id == notification.id);
-      _notifications.add(notification);
-    }
-  }
-
-  // Generate bill notifications
-  void _generateBillNotifications(BillNoteProvider billNoteProvider) {
-    for (final bill in billNoteProvider.notes) {
-      // Skip if this bill's notifications have been deleted
-      if (_deletedNotificationIds.contains('bill_${bill.id}')) continue;
-      
-      // Check if bill has reminder date (equivalent to due date)
-      final dueDate = bill.reminderDate;
-      if (dueDate == null) continue;
-      
-      // Skip completed bills (equivalent to paid)
-      if (bill.isCompleted) continue;
-      
-      // Calculate days until due
-      final daysUntilDue = dueDate.difference(DateTime.now()).inDays;
-      
-      // Create notification for bill due within 5 days or overdue
-      if (daysUntilDue <= 5) {
-        String title;
-        String message;
-        
-        // Format amount with proper formatting
-        final formattedAmount = bill.amount != null 
-            ? NumberFormat.currency(symbol: '₹', locale: 'en_IN', decimalDigits: 0).format(bill.amount)
-            : '';
-        
-        if (daysUntilDue < 0) {
-          // Overdue
-          title = 'Bill Payment Overdue';
-          message = '${bill.title} payment${formattedAmount.isNotEmpty ? ' of $formattedAmount' : ''} is overdue by ${-daysUntilDue} days';
-        } else if (daysUntilDue == 0) {
-          // Due today
-          title = 'Bill Payment Due Today';
-          message = '${bill.title} payment${formattedAmount.isNotEmpty ? ' of $formattedAmount' : ''} is due today';
-        } else {
-          // Due soon
-          title = 'Bill Payment Due Soon';
-          message = '${bill.title} payment${formattedAmount.isNotEmpty ? ' of $formattedAmount' : ''} is due in $daysUntilDue days';
-        }
-        
-        // Create notification
-        final notification = AppNotification(
-          id: 'bill_${bill.id}',
-          type: 'bill',
-          title: title,
-          message: message,
-          timestamp: DateTime.now(),
-          data: {
-            'billId': bill.id,
-            'dueDate': dueDate.toIso8601String(),
-            'amount': bill.amount,
-          },
-        );
-        
-        // Add notification to list (automatically handles duplicates)
-        _notifications.removeWhere((n) => n.id == notification.id);
-        _notifications.add(notification);
-      }
+      await _saveNotifications();
+      notifyListeners();
     }
   }
 
@@ -1094,5 +1024,272 @@ class NotificationProvider with ChangeNotifier {
     };
     
     return months[monthName.toLowerCase()] ?? DateTime.now().month;
+  }
+
+  // Helper method to check if a notification is of allowed type (FCM, due date, or reminder)
+  bool _isAllowedNotificationType(AppNotification notification) {
+    // Always allow FCM notifications
+    if (notification.type == 'fcm') {
+      return true;
+    }
+    
+    // Allow reminders
+    if (notification.type == 'reminder') {
+      return true;
+    }
+    
+    // Allow due date notifications (loan, card, bill)
+    if ((notification.type == 'loan' || 
+         notification.type == 'card' || 
+         notification.type == 'bill') && 
+        notification.data != null && 
+        notification.data!.containsKey('dueDate')) {
+      return true;
+    }
+    
+    // Allow contact notifications with due dates
+    if (notification.type == 'contact' && 
+        notification.data != null && 
+        notification.data!.containsKey('dueDate')) {
+      return true;
+    }
+    
+    // Filter out other notification types
+    return false;
+  }
+
+  // Generate loan notifications
+  void _generateLoanNotifications(LoanProvider loanProvider) {
+    for (final loan in loanProvider.activeLoans) {
+      // Skip if this loan's notifications have been deleted
+      final loanId = loan['id'] as String;
+      if (_deletedNotificationIds.contains('loan_$loanId')) continue;
+      
+      // Check if loan has upcoming or overdue installments
+      final installments = loan['installments'] as List<dynamic>?;
+      if (installments == null || installments.isEmpty) continue;
+      
+      for (final installment in installments) {
+        // Skip paid installments
+        if (installment['isPaid'] == true) continue;
+        
+        // Check if installment has a due date
+        final dueDate = installment['dueDate'] as DateTime?;
+        if (dueDate == null) continue;
+        
+        // Skip if this specific installment notification was deleted
+        final installmentNumber = installment['installmentNumber'] as int? ?? 0;
+        if (_deletedNotificationIds.contains('loan_${loanId}_$installmentNumber')) continue;
+        
+        // Calculate days until due
+        final daysUntilDue = dueDate.difference(DateTime.now()).inDays;
+        
+        // Create notification for installment due within 5 days or overdue
+        if (daysUntilDue <= 5) {
+          String title;
+          String message;
+          
+          if (daysUntilDue < 0) {
+            // Overdue
+            title = 'Loan Payment Overdue';
+            message = '${loan['loanName']} payment of ${installment['totalAmount']} is overdue by ${-daysUntilDue} days';
+          } else if (daysUntilDue == 0) {
+            // Due today
+            title = 'Loan Payment Due Today';
+            message = '${loan['loanName']} payment of ${installment['totalAmount']} is due today';
+          } else {
+            // Due soon
+            title = 'Loan Payment Due Soon';
+            message = '${loan['loanName']} payment of ${installment['totalAmount']} is due in $daysUntilDue days';
+          }
+          
+          // Create notification
+          final notification = AppNotification(
+            id: 'loan_${loan['id']}_${installment['installmentNumber']}',
+            type: 'loan',
+            title: title,
+            message: message,
+            timestamp: DateTime.now(),
+            data: {
+              'loanId': loan['id'],
+              'installmentNumber': installment['installmentNumber'],
+              'dueDate': dueDate.toIso8601String(),
+              'amount': installment['totalAmount'],
+            },
+          );
+          
+          // Add notification to list (automatically handles duplicates)
+          _notifications.removeWhere((n) => n.id == notification.id);
+          _notifications.add(notification);
+        }
+      }
+    }
+  }
+
+  // Generate card notifications
+  void _generateCardNotifications(CardProvider cardProvider) {
+    for (final card in cardProvider.cards) {
+      // Skip if this card's notifications have been deleted
+      final cardId = card['id'] as String;
+      if (_deletedNotificationIds.contains('card_$cardId')) continue;
+      
+      // Check if card has payment due date
+      final dueDate = card['paymentDate'] as DateTime?;
+      if (dueDate == null) continue;
+      
+      // Calculate days until due
+      final daysUntilDue = dueDate.difference(DateTime.now()).inDays;
+      
+      // Create notification for card payment due within 5 days or overdue
+      if (daysUntilDue <= 5) {
+        String title;
+        String message;
+        
+        if (daysUntilDue < 0) {
+          // Overdue
+          title = 'Card Payment Overdue';
+          message = '${card['cardName']} payment is overdue by ${-daysUntilDue} days';
+        } else if (daysUntilDue == 0) {
+          // Due today
+          title = 'Card Payment Due Today';
+          message = '${card['cardName']} payment is due today';
+        } else {
+          // Due soon
+          title = 'Card Payment Due Soon';
+          message = '${card['cardName']} payment is due in $daysUntilDue days';
+        }
+        
+        // Create notification
+        final notification = AppNotification(
+          id: 'card_${card['id']}_${dueDate.month}_${dueDate.year}',
+          type: 'card',
+          title: title,
+          message: message,
+          timestamp: DateTime.now(),
+          data: {
+            'cardId': card['id'],
+            'dueDate': dueDate.toIso8601String(),
+          },
+        );
+        
+        // Add notification to list (automatically handles duplicates)
+        _notifications.removeWhere((n) => n.id == notification.id);
+        _notifications.add(notification);
+      }
+    }
+  }
+
+  // Generate contact notifications
+  void _generateContactNotifications(TransactionProvider transactionProvider) {
+    // Get contacts with balances
+    for (final contact in transactionProvider.contacts) {
+      final contactId = contact['phone'] as String;
+      
+      // Skip if this contact notification was previously deleted
+      if (_deletedNotificationIds.contains('contact_$contactId')) {
+        continue;
+      }
+      
+      // Calculate balance
+      final balance = transactionProvider.calculateBalance(contactId);
+      
+      // Skip contacts with zero balance
+      if (balance == 0) continue;
+      
+      // Create notification
+      final isPositive = balance > 0;
+      
+      // Create a unique ID that's consistent for this contact
+      final notificationId = 'contact_$contactId';
+      
+      // Format the balance amount properly with commas
+      final formattedAmount = NumberFormat.currency(
+        symbol: '',
+        locale: 'en_IN',
+        decimalDigits: 1
+      ).format(balance.abs());
+      
+      final notification = AppNotification(
+        id: notificationId,
+        type: 'contact',
+        title: isPositive ? 'Payment to Collect' : 'Payment to Make',
+        message: isPositive 
+          ? 'You need to collect $formattedAmount from ${contact['name']}'
+          : 'You need to pay $formattedAmount to ${contact['name']}',
+        timestamp: DateTime.now(),
+        data: {
+          'contactId': contactId,
+          'contactName': contact['name'],
+          'amount': balance.abs(),
+          // Add due date as today to ensure it appears in today's list
+          'dueDate': DateTime.now().toIso8601String(),
+        },
+      );
+      
+      // Add notification to list (automatically handles duplicates)
+      _notifications.removeWhere((n) => n.id == notification.id);
+      _notifications.add(notification);
+    }
+  }
+
+  // Generate bill notifications
+  void _generateBillNotifications(BillNoteProvider billNoteProvider) {
+    for (final bill in billNoteProvider.notes) {
+      // Skip if this bill's notifications have been deleted
+      if (_deletedNotificationIds.contains('bill_${bill.id}')) continue;
+      
+      // Check if bill has reminder date (equivalent to due date)
+      final dueDate = bill.reminderDate;
+      if (dueDate == null) continue;
+      
+      // Skip completed bills (equivalent to paid)
+      if (bill.isCompleted) continue;
+      
+      // Calculate days until due
+      final daysUntilDue = dueDate.difference(DateTime.now()).inDays;
+      
+      // Create notification for bill due within 5 days or overdue
+      if (daysUntilDue <= 5) {
+        String title;
+        String message;
+        
+        // Format amount with proper formatting
+        final formattedAmount = bill.amount != null 
+            ? NumberFormat.currency(symbol: '₹', locale: 'en_IN', decimalDigits: 0).format(bill.amount)
+            : '';
+        
+        if (daysUntilDue < 0) {
+          // Overdue
+          title = 'Bill Payment Overdue';
+          message = '${bill.title} payment${formattedAmount.isNotEmpty ? ' of $formattedAmount' : ''} is overdue by ${-daysUntilDue} days';
+        } else if (daysUntilDue == 0) {
+          // Due today
+          title = 'Bill Payment Due Today';
+          message = '${bill.title} payment${formattedAmount.isNotEmpty ? ' of $formattedAmount' : ''} is due today';
+        } else {
+          // Due soon
+          title = 'Bill Payment Due Soon';
+          message = '${bill.title} payment${formattedAmount.isNotEmpty ? ' of $formattedAmount' : ''} is due in $daysUntilDue days';
+        }
+        
+        // Create notification
+        final notification = AppNotification(
+          id: 'bill_${bill.id}',
+          type: 'bill',
+          title: title,
+          message: message,
+          timestamp: DateTime.now(),
+          data: {
+            'billId': bill.id,
+            'dueDate': dueDate.toIso8601String(),
+            'amount': bill.amount,
+          },
+        );
+        
+        // Add notification to list (automatically handles duplicates)
+        _notifications.removeWhere((n) => n.id == notification.id);
+        _notifications.add(notification);
+      }
+    }
   }
 } 
