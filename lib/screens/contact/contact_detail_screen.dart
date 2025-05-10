@@ -15,6 +15,11 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:my_byaj_book/providers/notification_provider.dart';
 
 class ContactDetailScreen extends StatefulWidget {
   final Map<String, dynamic> contact;
@@ -1797,6 +1802,11 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     required IconData icon,
     String? subtitle,
   }) {
+    // Format large numbers in a compact way
+    String formattedAmount = amount >= 100000 
+        ? _formatCompactCurrency(amount) 
+        : currencyFormat.format(amount);
+        
     return Column(
       children: [
         Container(
@@ -1830,15 +1840,55 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
             ),
           ),
         const SizedBox(height: 4),
-        Text(
-          currencyFormat.format(amount),
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        // Use FittedBox to ensure text fits in its container
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Text(
+              formattedAmount,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              maxLines: 1,
+            ),
           ),
         ),
       ],
+    );
+  }
+  
+  // Helper method to format large currency values in a compact way
+  String _formatCompactCurrency(double amount) {
+    if (amount >= 10000000) { // 1 crore or more
+      return 'Rs. ${(amount / 10000000).toStringAsFixed(2)} Cr';
+    } else {
+      // For values less than 1 crore, show the full number with commas
+      return currencyFormat.format(amount);
+    }
+  }
+  
+  // Helper method to format currency text with overflow protection
+  Widget _formatCurrencyText(double amount, {double fontSize = 14, FontWeight fontWeight = FontWeight.bold, Color? color}) {
+    // Format large numbers in a compact way
+    String formattedAmount = amount >= 100000 
+        ? _formatCompactCurrency(amount) 
+        : currencyFormat.format(amount);
+    
+    // Use FittedBox to ensure text fits in its container
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        formattedAmount,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          color: color ?? Colors.black,
+        ),
+        maxLines: 1,
+      ),
     );
   }
 
@@ -2368,6 +2418,109 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   }
 
   void _setReminder() async {
+    // Check if there's already an active reminder for this contact
+    final existingReminder = await _checkForExistingReminder();
+    
+    if (existingReminder != null) {
+      // Show dialog with options to view, cancel or create new reminder
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Reminder Already Exists'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('You already have a reminder set for ${widget.contact['name']} on:'),
+              const SizedBox(height: 8),
+              Text(
+                DateFormat('MMM d, yyyy - h:mm a').format(existingReminder['scheduledDate']),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _cancelReminder(existingReminder['id']);
+              },
+              child: const Text('Cancel Reminder'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Keep It'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showDateTimePickerForReminder();
+              },
+              child: const Text('Set New Reminder'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    
+    // No existing reminder, show date picker directly
+    _showDateTimePickerForReminder();
+  }
+  
+  Future<Map<String, dynamic>?> _checkForExistingReminder() async {
+    final prefs = await SharedPreferences.getInstance();
+    final remindersJson = prefs.getStringList('contact_reminders') ?? [];
+    
+    for (final reminderJson in remindersJson) {
+      try {
+        final reminder = jsonDecode(reminderJson);
+        if (reminder['contactId'] == widget.contact['phone']) {
+          final scheduledDate = DateTime.parse(reminder['scheduledDate']);
+          // Only return if the reminder is in the future
+          if (scheduledDate.isAfter(DateTime.now())) {
+            return reminder;
+          }
+        }
+      } catch (e) {
+        print('Error parsing reminder: $e');
+      }
+    }
+    return null;
+  }
+  
+  Future<void> _cancelReminder(int id) async {
+    // Cancel the notification
+    final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+    await flutterLocalNotificationsPlugin.cancel(id);
+    
+    // Remove from shared preferences
+    final prefs = await SharedPreferences.getInstance();
+    final remindersJson = prefs.getStringList('contact_reminders') ?? [];
+    
+    final updatedReminders = remindersJson.where((reminderJson) {
+      try {
+        final reminder = jsonDecode(reminderJson);
+        return reminder['id'] != id;
+      } catch (e) {
+        return true; // Keep entries that can't be parsed
+      }
+    }).toList();
+    
+    await prefs.setStringList('contact_reminders', updatedReminders);
+    
+    // Show confirmation
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reminder cancelled'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+  
+  void _showDateTimePickerForReminder() async {
     final DateTime? selectedDate = await showDatePicker(
       context: context,
       initialDate: DateTime.now().add(const Duration(days: 1)),
@@ -2375,13 +2528,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
 
-    if (selectedDate != null) {
+    if (selectedDate != null && mounted) {
       final TimeOfDay? selectedTime = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.now(),
       );
 
-      if (selectedTime != null) {
+      if (selectedTime != null && mounted) {
         // Create a DateTime with both date and time components
         final scheduledDate = DateTime(
           selectedDate.year,
@@ -2408,6 +2561,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           body: reminderText,
           scheduledDate: scheduledDate,
         );
+        
+        // Store reminder details in shared preferences
+        await _saveReminderDetails(notificationId, scheduledDate, reminderText);
 
         // Show confirmation to user
         if (mounted) {
@@ -2422,16 +2578,50 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     }
   }
   
+  Future<void> _saveReminderDetails(
+    int id, 
+    DateTime scheduledDate, 
+    String message
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final remindersJson = prefs.getStringList('contact_reminders') ?? [];
+    
+    // Create reminder object
+    final reminder = {
+      'id': id,
+      'contactId': widget.contact['phone'],
+      'contactName': widget.contact['name'],
+      'scheduledDate': scheduledDate.toIso8601String(),
+      'message': message,
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+    
+    // Add to list
+    remindersJson.add(jsonEncode(reminder));
+    
+    // Save updated list
+    await prefs.setStringList('contact_reminders', remindersJson);
+    
+    // Also notify the NotificationProvider to update UI
+    if (mounted) {
+      // Add to notification center
+      final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+      notificationProvider.addContactReminderNotification(
+        contactId: widget.contact['phone'],
+        contactName: widget.contact['name'],
+        amount: _calculateBalance().abs(),
+        dueDate: scheduledDate,
+        paymentType: _calculateBalance() >= 0 ? 'collect' : 'pay',
+      );
+    }
+  }
+  
   Future<void> _scheduleNotification({
     required int id,
     required String title,
     required String body,
     required DateTime scheduledDate,
   }) async {
-    // For now, show an immediate notification with details about the scheduled reminder
-    // This is a simpler approach than dealing with the scheduled notifications which
-    // require more complex setup
-    
     // Access the global notification plugin
     final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
     
@@ -2452,16 +2642,20 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       iOS: iosDetails,
     );
     
-    // Format the scheduled date/time for display
-    final formattedDateTime = DateFormat('MMM d, yyyy - h:mm a').format(scheduledDate);
-    
-    // Show a notification immediately with information about the scheduled reminder
+    // Show an immediate notification as confirmation
     await flutterLocalNotificationsPlugin.show(
-      id,
-      title,
-      'Reminder set for $formattedDateTime: $body',
+      id + 1000, // Use different ID for confirmation notification
+      "Reminder Scheduled",
+      "Payment reminder set for ${DateFormat('MMM d, yyyy - h:mm a').format(scheduledDate)}",
       notificationDetails,
     );
+    
+    // For actual scheduled notifications, we'll just store the information
+    // and rely on the immediate notification for now as a simplification
+    // This avoids timezone and scheduling complexities
+    
+    // Show a message to the user about the scheduled reminder
+    print('Notification scheduled for: ${scheduledDate.toString()}');
   }
 
   void _handleSmsButton() async {
@@ -2593,8 +2787,15 @@ ${_getAppUserName()} 📱
 
   // Method to show the add transaction dialog
   void _showAddTransactionDialog() {
-    // Default to "gave" type for the first transaction
-    _addTransaction('gave');
+    // Get the relationship type to determine default transaction type
+    final String relationshipType = widget.contact['type'] as String? ?? '';
+    
+    // For lender contacts, default to "got" (receive) transaction type
+    // For borrowers or non-interest contacts, default to "gave" (pay) transaction type
+    final String defaultType = relationshipType == 'lender' ? 'got' : 'gave';
+    
+    // Add the transaction with the appropriate type
+    _addTransaction(defaultType);
   }
 
   // void _showContactTypeSelectionDialog(BuildContext context, String name, String phone) {

@@ -1226,105 +1226,32 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildBreakdownItem(
-                        title: 'Principal Amount',
-                        value: _currencyFormat.format(principal),
-                        color: Colors.blue,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildBreakdownItem(
-                        title: 'Total Interest',
-                        value: _currencyFormat.format(_totalInterest),
-                        color: Colors.orange,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildBreakdownItem(
-                        title: 'Total Amount',
-                        value: _currencyFormat.format(_totalAmount),
-                        color: Colors.green,
-                        isBold: true,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildBreakdownItem(
-                        title: 'Interest to Principal Ratio',
-                        value: '${(_totalInterest / principal * 100).toStringAsFixed(2)}%',
-                        color: Colors.purple,
-                      ),
-                    ],
-                  ),
-                ),
-                
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 14,
-                            height: 14,
-                            color: Colors.blue,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${(principalRatio * 100).toStringAsFixed(0)}%',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 14,
-                            height: 14,
-                            color: Colors.orange,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${(interestRatio * 100).toStringAsFixed(0)}%',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
             Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildLegendItem(
-                      color: Colors.blue,
-                      label: 'Principal',
-                      percentage: '${(principalRatio * 100).toStringAsFixed(0)}%',
-                    ),
-                    _buildLegendItem(
-                      color: Colors.orange,
-                      label: 'Interest',
-                      percentage: '${(interestRatio * 100).toStringAsFixed(0)}%',
-                    ),
-                  ],
+                _buildBreakdownItem(
+                  title: 'Principal Amount',
+                  value: _currencyFormat.format(principal),
+                  color: Colors.blue,
+                ),
+                const SizedBox(height: 12),
+                _buildBreakdownItem(
+                  title: 'Total Interest',
+                  value: _currencyFormat.format(_totalInterest),
+                  color: Colors.orange,
+                ),
+                const SizedBox(height: 12),
+                _buildBreakdownItem(
+                  title: 'Total Amount',
+                  value: _currencyFormat.format(_totalAmount),
+                  color: Colors.green,
+                  isBold: true,
+                ),
+                const SizedBox(height: 12),
+                _buildBreakdownItem(
+                  title: 'Interest to Principal Ratio',
+                  value: '${(_totalInterest / principal * 100).toStringAsFixed(2)}%',
+                  color: Colors.purple,
                 ),
               ],
             ),
@@ -1358,30 +1285,6 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
             color: color,
             fontSize: isBold ? 16 : 14,
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLegendItem({
-    required Color color,
-    required String label,
-    required String percentage,
-  }) {
-    return Row(
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '$label ($percentage)',
-          style: const TextStyle(fontSize: 12),
         ),
       ],
     );

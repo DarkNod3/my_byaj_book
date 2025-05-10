@@ -12,22 +12,28 @@ class TransactionProvider extends ChangeNotifier {
   
   // Constructor
   TransactionProvider() {
-    _loadContacts().then((_) {
-      _loadTransactions().then((_) {
-        _loadManualReminders().then((_) {
-          // Ensure proper initialization is complete by synchronizing data
-          _ensureContactTransactionSynchronization();
-        });
-      });
-    });
+    // Changed to sequentially await each operation with single notification at the end
+    _initializeProvider();
+  }
+  
+  // New method for sequential initialization
+  Future<void> _initializeProvider() async {
+    try {
+      await _loadContacts();
+      await _loadTransactions();
+      await _loadManualReminders();
+      await _ensureContactTransactionSynchronization(notifyChanges: false);
+      // Notify listeners only once after all initialization is complete
+      notifyListeners();
+    } catch (e) {
+      // Handle initialization error silently
+      print('Error initializing TransactionProvider: $e');
+    }
   }
   
   // Ensure contact transactions are synchronized
-  Future<void> _ensureContactTransactionSynchronization() async {
+  Future<void> _ensureContactTransactionSynchronization({bool notifyChanges = true}) async {
     try {
-      // Wait a short moment to ensure contacts and transactions are loaded
-      await Future.delayed(const Duration(milliseconds: 100));
-      
       // Get list of contacts and check if their transactions are loaded
       final prefs = await SharedPreferences.getInstance();
       final contactIds = prefs.getStringList('transaction_contacts') ?? [];
@@ -105,8 +111,8 @@ class TransactionProvider extends ChangeNotifier {
         }
       }
       
-      // Notify listeners if data changed
-      if (dataChanged) {
+      // Notify listeners if data changed and notifyChanges is true
+      if (dataChanged && notifyChanges) {
         notifyListeners();
       }
     } catch (e) {
@@ -631,8 +637,7 @@ class TransactionProvider extends ChangeNotifier {
         });
       }
       
-      // Notify listeners
-      notifyListeners();
+      // Removed notifyListeners() call from here to prevent multiple notifications
     } catch (e) {
       // Log the error without using debug print
     }

@@ -218,6 +218,7 @@ class NotificationService {
             final dueDate = installment['dueDate'] as DateTime;
             final installmentNumber = installment['installmentNumber'] as int;
             
+            // Only schedule notifications for future dates
             if (dueDate.isAfter(DateTime.now())) {
               // Show notification for upcoming payment using multiple reminders:
               
@@ -528,13 +529,16 @@ class NotificationService {
       final title = reminder['title'] as String;
       final amount = reminder['amount'] as double? ?? 0.0;
       
-      await scheduleTimeBasedReminder(
-        id: _generateReminderNotificationId(reminderId),
-        reminderId: reminderId,
-        title: title,
-        amount: amount,
-        scheduledDate: dueDate,
-      );
+      // Only schedule if the reminder is in the future
+      if (dueDate.isAfter(DateTime.now())) {
+        await scheduleTimeBasedReminder(
+          id: _generateReminderNotificationId(reminderId),
+          reminderId: reminderId,
+          title: title,
+          amount: amount,
+          scheduledDate: dueDate,
+        );
+      }
     }
   }
   
@@ -800,55 +804,79 @@ class NotificationService {
     }
   }
   
+  // Cancel all notifications
   Future<void> cancelAllNotifications() async {
-    await _flutterLocalNotificationsPlugin.cancelAll();
-    _loanNotificationIds.clear();
-    _cardNotificationIds.clear();
-    _reminderNotificationIds.clear();
-  }
-  
-  Future<void> cancelCardNotifications() async {
-    // Cancel all card notifications
-    for (final id in _cardNotificationIds.values) {
-      await _flutterLocalNotificationsPlugin.cancel(id);
-      await _flutterLocalNotificationsPlugin.cancel(id + 2000); // Cancel scheduled notification too
+    try {
+      await _flutterLocalNotificationsPlugin.cancelAll();
+      _loanNotificationIds.clear();
+      _cardNotificationIds.clear();
+      _reminderNotificationIds.clear();
+    } catch (e) {
+      debugPrint('Error canceling notifications: $e');
     }
-    _cardNotificationIds.clear();
   }
   
+  // Cancel manual reminder notifications
   Future<void> cancelManualReminderNotifications() async {
-    // Cancel all manual reminder notifications
-    for (final id in _reminderNotificationIds.values) {
-      await _flutterLocalNotificationsPlugin.cancel(id);
-      await _flutterLocalNotificationsPlugin.cancel(id + 3000); // Cancel scheduled notification too
+    try {
+      // Cancel all reminder notifications
+      for (final id in _reminderNotificationIds.values) {
+        await _flutterLocalNotificationsPlugin.cancel(id);
+        await _flutterLocalNotificationsPlugin.cancel(id + 3000); // Cancel scheduled notification too
+      }
+      _reminderNotificationIds.clear();
+    } catch (e) {
+      debugPrint('Error canceling manual reminder notifications: $e');
     }
-    _reminderNotificationIds.clear();
   }
   
+  // Cancel notification for a specific loan
   Future<void> cancelNotificationForLoan(String loanId) async {
-    final notificationId = _loanNotificationIds[loanId];
-    if (notificationId != null) {
-      await _flutterLocalNotificationsPlugin.cancel(notificationId);
-      await _flutterLocalNotificationsPlugin.cancel(notificationId + 1000); // Cancel scheduled notification too
-      _loanNotificationIds.remove(loanId);
+    try {
+      final notificationId = _loanNotificationIds[loanId];
+      if (notificationId != null) {
+        // Cancel all related notifications (5 days, 2 days, and due day)
+        await _flutterLocalNotificationsPlugin.cancel(notificationId);
+        await _flutterLocalNotificationsPlugin.cancel(notificationId + 1000);
+        await _flutterLocalNotificationsPlugin.cancel(_generateNotificationId("${loanId}_5days"));
+        await _flutterLocalNotificationsPlugin.cancel(_generateNotificationId("${loanId}_2days"));
+        await _flutterLocalNotificationsPlugin.cancel(_generateNotificationId("${loanId}_dueday"));
+        _loanNotificationIds.remove(loanId);
+      }
+    } catch (e) {
+      debugPrint('Error canceling loan notification: $e');
     }
   }
   
+  // Cancel notification for a specific card
   Future<void> cancelNotificationForCard(String cardId) async {
-    final notificationId = _cardNotificationIds[cardId];
-    if (notificationId != null) {
-      await _flutterLocalNotificationsPlugin.cancel(notificationId);
-      await _flutterLocalNotificationsPlugin.cancel(notificationId + 2000); // Cancel scheduled notification too
-      _cardNotificationIds.remove(cardId);
+    try {
+      final notificationId = _cardNotificationIds[cardId];
+      if (notificationId != null) {
+        // Cancel all related notifications (5 days, 2 days, and due day)
+        await _flutterLocalNotificationsPlugin.cancel(notificationId);
+        await _flutterLocalNotificationsPlugin.cancel(notificationId + 2000);
+        await _flutterLocalNotificationsPlugin.cancel(_generateNotificationId("${cardId}_5days"));
+        await _flutterLocalNotificationsPlugin.cancel(_generateNotificationId("${cardId}_2days"));
+        await _flutterLocalNotificationsPlugin.cancel(_generateNotificationId("${cardId}_dueday"));
+        _cardNotificationIds.remove(cardId);
+      }
+    } catch (e) {
+      debugPrint('Error canceling card notification: $e');
     }
   }
   
+  // Cancel notification for a specific reminder
   Future<void> cancelNotificationForReminder(String reminderId) async {
-    final notificationId = _reminderNotificationIds[reminderId];
-    if (notificationId != null) {
-      await _flutterLocalNotificationsPlugin.cancel(notificationId);
-      await _flutterLocalNotificationsPlugin.cancel(notificationId + 3000); // Cancel scheduled notification too
-      _reminderNotificationIds.remove(reminderId);
+    try {
+      final notificationId = _reminderNotificationIds[reminderId];
+      if (notificationId != null) {
+        await _flutterLocalNotificationsPlugin.cancel(notificationId);
+        await _flutterLocalNotificationsPlugin.cancel(notificationId + 3000);
+        _reminderNotificationIds.remove(reminderId);
+      }
+    } catch (e) {
+      debugPrint('Error canceling reminder notification: $e');
     }
   }
   

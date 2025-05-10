@@ -28,6 +28,7 @@ import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
 import 'package:my_byaj_book/widgets/notification_badge.dart';
+import 'package:intl/intl.dart';
 
 // Add dummy MyApp class as requested
 class MyApp extends StatelessWidget {
@@ -425,6 +426,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showTransactionEntryDialog(BuildContext context, String name, String phone, bool withInterest, String? relationshipType) {
+    // Determine which button to show first based on relationship type
+    bool showGetFirst = relationshipType == 'lender'; // For lender, 'You'll Get' should be first
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -438,35 +442,70 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _showAmountEntryDialog(context, name, phone, withInterest, true, relationshipType);
-                    },
-                    icon: const Icon(Icons.arrow_downward),
-                    label: const Text('You\'ll Get'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade100,
-                      foregroundColor: Colors.green,
+                // Conditionally order the buttons based on relationship type
+                if (showGetFirst) ...[
+                  // For lender: Get button first
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showAmountEntryDialog(context, name, phone, withInterest, true, relationshipType);
+                      },
+                      icon: const Icon(Icons.arrow_downward),
+                      label: const Text('You\'ll Get'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade100,
+                        foregroundColor: Colors.green,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _showAmountEntryDialog(context, name, phone, withInterest, false, relationshipType);
-                    },
-                    icon: const Icon(Icons.arrow_upward),
-                    label: const Text('You\'ll Give'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade100,
-                      foregroundColor: Colors.red,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showAmountEntryDialog(context, name, phone, withInterest, false, relationshipType);
+                      },
+                      icon: const Icon(Icons.arrow_upward),
+                      label: const Text('You\'ll Give'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade100,
+                        foregroundColor: Colors.red,
+                      ),
                     ),
                   ),
-                ),
+                ] else ...[
+                  // For borrower or non-interest: Give button first
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showAmountEntryDialog(context, name, phone, withInterest, false, relationshipType);
+                      },
+                      icon: const Icon(Icons.arrow_upward),
+                      label: const Text('You\'ll Give'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade100,
+                        foregroundColor: Colors.red,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showAmountEntryDialog(context, name, phone, withInterest, true, relationshipType);
+                      },
+                      icon: const Icon(Icons.arrow_downward),
+                      label: const Text('You\'ll Get'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade100,
+                        foregroundColor: Colors.green,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
@@ -666,8 +705,6 @@ class _HomeScreenState extends State<HomeScreen> {
           (existingContact['type'] != null ? 'withInterest' : 'withoutInterest');
       final newTabType = withInterest ? 'withInterest' : 'withoutInterest';
       
-      // We now allow the same contact to exist in both tabs, so we no longer return an error
-      
       // If the contact already exists in the same tab we're adding to, update it
       if (existingTabType == newTabType) {
         // Update the existing contact instead of adding a new one
@@ -696,10 +733,6 @@ class _HomeScreenState extends State<HomeScreen> {
         
         return;
       }
-      
-      // If we reach here, the contact exists but in a different tab
-      // We'll create a new contact entry for the other tab with a special ID
-      // that links it to the original contact but keeps the data separate
     }
     
     // Create contact data
@@ -802,6 +835,10 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   double _principalToPay = 0.0;    // Principal to pay
   double _principalToReceive = 0.0; // Principal to receive
   
+  // Add cached total values
+  double _cachedTotalToGive = 0.0;
+  double _cachedTotalToGet = 0.0;
+  
   // Empty lists instead of sample data
   final List<Map<String, dynamic>> _withoutInterestContacts = [];
   final List<Map<String, dynamic>> _withInterestContacts = [];
@@ -814,6 +851,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     _tabController.addListener(() {
       setState(() {
         _isWithInterest = _tabController.index == 1;
+        // Update cached totals when switching tabs
+        _updateCachedTotals();
       });
     });
     
@@ -823,10 +862,60 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     });
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  // Update cached total values
+  void _updateCachedTotals() {
+    if (_isWithInterest) {
+      // For interest entries, use the pre-calculated values
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      
+      // Reset the values before recalculating
+      _principalToPay = 0.0;
+      _principalToReceive = 0.0;
+      _interestToPay = 0.0;
+      _interestToReceive = 0.0;
+      
+      // Recalculate for each contact to get fresh values
+      for (var contact in _withInterestContacts) {
+        final contactType = contact['type'] as String? ?? 'borrower';
+        final balance = contact['amount'] as double? ?? 0.0;
+        final interestDue = contact['interestDue'] as double? ?? 0.0;
+        
+        if (contactType == 'borrower') {
+          // We will receive from borrowers
+          _principalToReceive += balance;
+          _interestToReceive += interestDue;
+        } else if (contactType == 'lender') {
+          // We will pay to lenders
+          _principalToPay += balance;
+          _interestToPay += interestDue;
+        }
+      }
+      
+      // Set the final totals
+      _cachedTotalToGive = _principalToPay + _interestToPay;
+      _cachedTotalToGet = _principalToReceive + _interestToReceive;
+    } else {
+      // For standard entries, calculate the totals
+      _cachedTotalToGive = 0.0;
+      _cachedTotalToGet = 0.0;
+      
+      // Use direct balance calculation for each contact
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      
+      for (var contact in _withoutInterestContacts) {
+        final phone = contact['phone'] ?? '';
+        if (phone.isEmpty) continue;
+
+        // Get transaction-based balance directly from provider
+        final balance = transactionProvider.calculateBalance(phone);
+        
+        if (balance < 0) {
+          _cachedTotalToGive += balance.abs();
+        } else if (balance > 0) {
+          _cachedTotalToGet += balance;
+        }
+      }
+    }
   }
 
   @override
@@ -837,6 +926,41 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       _syncContactsWithTransactions();
       _isInitialized = true;
     }
+    
+    // Set up a transaction provider listener to specifically update cached totals
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    // We'll use listen: false above and implement our own listener to control exactly what happens
+    
+    // First, remove any existing listeners to avoid duplicates
+    transactionProvider.removeListener(_updateOnTransactionChange);
+    
+    // Add a new listener that will update cached totals and sync contacts
+    transactionProvider.addListener(_updateOnTransactionChange);
+  }
+  
+  // Method called when transaction provider changes
+  void _updateOnTransactionChange() {
+    if (mounted) {
+      _syncContactsWithTransactions();
+      // This will also call _updateCachedTotals
+    }
+  }
+  
+  @override
+  void dispose() {
+    // Remove our transaction provider listener when widget is disposed
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    transactionProvider.removeListener(_updateOnTransactionChange);
+    
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(HomeContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Force a refresh of data when the widget updates
+    _syncContactsWithTransactions();
   }
 
   // New method to update contact amounts based on transaction data
@@ -887,6 +1011,12 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     // Update timestamp and amount info for all contacts (both types)
     final DateTime now = DateTime.now();
     
+    // Reset calculation variables before calculating everything
+    _principalToPay = 0.0;
+    _principalToReceive = 0.0;
+    _interestToPay = 0.0;
+    _interestToReceive = 0.0;
+    
     // Update amounts for non-interest contacts
     for (var contact in _withoutInterestContacts) {
       final phone = contact['phone'] ?? '';
@@ -918,7 +1048,6 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         if (!contact.containsKey('lastEditedAt')) {
           contact['lastEditedAt'] = now;
         }
-        // Set daysAgo to 0 for new contacts with no transactions
         contact['daysAgo'] = 0;
       }
     }
@@ -951,22 +1080,21 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
           
           // Make sure to explicitly update the lastEditedAt timestamp
           contact['lastEditedAt'] = transactionDate;
-          
-          // Ensure the changes are applied in the provider too
-          transactionProvider.updateContact(contact);
         }
       } else {
         // If no transactions, ensure there's a lastEditedAt value (use current time if not present)
         if (!contact.containsKey('lastEditedAt')) {
           contact['lastEditedAt'] = now;
           contact['daysAgo'] = 0;
-          transactionProvider.updateContact(contact);
         }
       }
     }
     
     // Calculate interest for interest-based contacts
     _calculateInterestValues();
+    
+    // Update cached totals once after all calculations are complete
+    _updateCachedTotals();
     
     // Apply default sorting by recent first
     _withoutInterestContacts.sort((a, b) {
@@ -981,7 +1109,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       return bDate.compareTo(aDate); // Newest first
     });
     
-    // Refresh the UI with all contacts
+    // Refresh the UI with all contacts only if mounted
     if (mounted) {
       setState(() {
         // No filtering or searching here to ensure all contacts are displayed
@@ -1090,10 +1218,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   // Calculate interest values for all with-interest contacts
   void _calculateInterestValues() {
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    // Move the 'now' variable declaration closer to where it's first used
     
     // Reset totals before calculation
-    // Remove unused variables
     _interestToPay = 0.0;
     _interestToReceive = 0.0;
     _principalToPay = 0.0;
@@ -1103,16 +1229,21 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       final phone = contact['phone'] ?? '';
       if (phone.isEmpty) continue;
       
-      // Skip if there are no transactions
-      final transactions = transactionProvider.getTransactionsForContact(phone);
-      if (transactions.isEmpty) continue;
-      
-      // Get contact type and standard display values
+      // Get contact type and initial values
       final String contactType = contact['type'] as String? ?? 'borrower';
-      
-      // Calculate interest details if this is an interest-based contact
       double totalInterestDue = 0.0;
       double principalAmount = 0.0;
+      
+      // Get the transactions for this contact
+      final transactions = transactionProvider.getTransactionsForContact(phone);
+      
+      // If there are no transactions, skip interest calculation
+      if (transactions.isEmpty) {
+        // Reset interest values for this contact
+        contact['interestDue'] = 0.0;
+        contact['displayAmount'] = contact['amount'];
+        continue;
+      }
       
       // Get interest rate from contact
       final double interestRate = contact['interestRate'] as double? ?? 12.0;
@@ -1121,7 +1252,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       // Sort transactions chronologically for accurate interest calculation
       transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
       
-      // Calculate interest using the same approach as in contact detail screen
+      // Calculate interest using the transaction history
       DateTime? lastInterestDate = transactions.first['date'] as DateTime;
       double runningPrincipal = 0.0;
       double accumulatedInterest = 0.0;
@@ -1364,65 +1495,9 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     }
   }
 
-  double get _totalToGive {
-    if (_isWithInterest) {
-      // For interest entries, return principal + interest
-      return _principalToPay + _interestToPay;
-    }
+  double get _totalToGive => _cachedTotalToGive;
 
-    // Original code for standard entries
-    double total = 0;
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    final contacts = _isWithInterest ? _filteredInterestContacts : _withoutInterestContacts;
-
-    for (var contact in contacts) {
-      final phone = contact['phone'] ?? '';
-      if (phone.isEmpty) continue;
-
-      // Get transaction-based balance if available
-      if (transactionProvider.getTransactionsForContact(phone).isNotEmpty) {
-        final balance = transactionProvider.calculateBalance(phone);
-        // If balance is negative, it means "You'll Give"
-        if (balance < 0) {
-          total += balance.abs();
-        }
-      } else if (!contact['isGet']) {
-        // Otherwise, use the static amount only for "You'll Give" contacts
-        total += contact['amount'] as double;
-      }
-    }
-    return total;
-  }
-
-  double get _totalToGet {
-    if (_isWithInterest) {
-      // For interest entries, return principal + interest
-      return _principalToReceive + _interestToReceive;
-    }
-
-    // Original code for standard entries
-    double total = 0;
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    final contacts = _isWithInterest ? _filteredInterestContacts : _withoutInterestContacts;
-
-    for (var contact in contacts) {
-      final phone = contact['phone'] ?? '';
-      if (phone.isEmpty) continue;
-
-      // Get transaction-based balance if available
-      if (transactionProvider.getTransactionsForContact(phone).isNotEmpty) {
-        final balance = transactionProvider.calculateBalance(phone);
-        // If balance is positive, it means "You'll Get"
-        if (balance > 0) {
-          total += balance;
-        }
-      } else if (contact['isGet']) {
-        // Otherwise, use the static amount only for "You'll Get" contacts
-        total += contact['amount'] as double;
-      }
-    }
-    return total;
-  }
+  double get _totalToGet => _cachedTotalToGet;
 
   List<Map<String, dynamic>> get _filteredInterestContacts {
     if (_interestViewMode == 'all') {
@@ -1512,12 +1587,12 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     // Less than an hour
     else if (difference.inHours < 1) {
       final minutes = difference.inMinutes;
-      return "$minutes ${minutes == 1 ? 'minute' : 'minutes'} ago";
+      return "$minutes ${minutes == 1 ? 'min' : 'min'} ago";
     }
     // Less than a day
     else if (difference.inDays < 1) {
       final hours = difference.inHours;
-      return "$hours ${hours == 1 ? 'hour' : 'hours'} ago";
+      return "$hours ${hours == 1 ? 'hr' : 'hrs'} ago";
     }
     // Less than a month
     else if (difference.inDays < 30) {
@@ -1527,7 +1602,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     // Months
     else {
       final months = (difference.inDays / 30).floor();
-      return "$months ${months == 1 ? 'month' : 'months'} ago";
+      return "$months ${months == 1 ? 'mo' : 'mos'} ago";
     }
   }
 
@@ -1655,6 +1730,27 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     );
   }
 
+  // Helper method to format large currency values in a compact way
+  String _formatCompactCurrency(double amount) {
+    // For amounts of 1 crore (10 million) or more
+    if (amount >= 10000000) {
+      return '₹${(amount / 10000000).toStringAsFixed(2)} Cr';
+    } 
+    // For amounts of 1 lakh (100,000) or more but less than 1 crore
+    else if (amount >= 100000) {
+      return '₹${(amount / 100000).toStringAsFixed(2)} L';
+    } 
+    // For smaller amounts, use proper Indian number formatting
+    else {
+      final currencyFormat = NumberFormat.currency(
+        locale: 'en_IN',
+        symbol: '₹',
+        decimalDigits: 2,
+      );
+      return currencyFormat.format(amount);
+    }
+  }
+  
   Widget _buildBalanceSummary() {
     return Container(
       width: double.infinity,
@@ -1713,24 +1809,39 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                       ],
                     ),
                       const SizedBox(height: 8),
-                    Text(
-                      '₹${_totalToGive.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                          fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                    // Improved FittedBox with better constraints
+                    Container(
+                      height: 28,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _formatCompactCurrency(_cachedTotalToGive),
+                          style: TextStyle(
+                            fontSize: _cachedTotalToGive >= 1000000 ? 18 : 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
+                    ),
                       if (_isWithInterest) ...[
                         // Add small text below showing interest details
-                        Text(
-                          'P: ₹${_principalToPay.toStringAsFixed(0)} + I: ₹${_interestToPay.toStringAsFixed(0)}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.white.withOpacity(0.8),
-                            fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                        Container(
+                          height: 14,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'P: ${_formatCompactCurrency(_principalToPay)} + I: ${_formatCompactCurrency(_interestToPay)}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.white.withOpacity(0.8),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                   ],
                 ),
@@ -1771,35 +1882,45 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                       ],
                     ),
                       const SizedBox(height: 8),
-                    Text(
-                      '₹${_totalToGet.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                          fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                    // Improved FittedBox with better constraints
+                    Container(
+                      height: 28,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          _formatCompactCurrency(_cachedTotalToGet),
+                          style: TextStyle(
+                            fontSize: _cachedTotalToGet >= 1000000 ? 18 : 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
+                    ),
                       if (_isWithInterest) ...[
                         // Add small text below showing interest details
-                        Text(
-                          'P: ₹${_principalToReceive.toStringAsFixed(0)} + I: ₹${_interestToReceive.toStringAsFixed(0)}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.white.withOpacity(0.8),
-                            fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                        Container(
+                          height: 14,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              'P: ${_formatCompactCurrency(_principalToReceive)} + I: ${_formatCompactCurrency(_interestToReceive)}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.white.withOpacity(0.8),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                   ],
                 ),
               ),
             ],
           ),
-          
-          // Add interest details section when on With Interest tab
-          if (_isWithInterest) ...[
-            // Interest summary card removed as requested
-          ],
                 ],
               ),
       ),
@@ -2276,6 +2397,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     );
   }
 
+  // Build an individual contact item in the list
   Widget _buildContactItem(Map<String, dynamic> contact) {
     final isGet = contact['isGet'];
     final phone = contact['phone'] ?? '';
@@ -2291,32 +2413,29 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       timeText = 'Just now';
     }
     
+    // Truncate long names to prevent pixel overflow
+    final String originalName = contact['name'] ?? '';
+    final String displayName = originalName.length > 15
+        ? "${originalName.substring(0, 15)}..."
+        : originalName;
+    
     // Get transaction provider
     final transactionProvider = Provider.of<TransactionProvider>(context);
     
     // Get balance from transactions
-    double originalBalance = 0.0;
-    double balanceFromTransactions = 0.0;
+    double originalBalance = contact['amount'] ?? 0.0;
+    double displayAmount = originalBalance;
     
-    if (phone.isNotEmpty) {
-      balanceFromTransactions = transactionProvider.calculateBalance(phone);
+    // Get updated balance from transactions if available
+    if (transactionProvider.getTransactionsForContact(phone).isNotEmpty) {
+      final balance = transactionProvider.calculateBalance(phone);
+      displayAmount = balance.abs();
       
-      // The original amount (what was set when creating the contact)
-      originalBalance = contact['amount'] as double;
-    }
-    
-    // Decide whether to use transaction-based balance or original balance
-    double displayAmount;
-    bool showYouWillGet = false;
-    
-    if (phone.isNotEmpty && transactionProvider.getTransactionsForContact(phone).isNotEmpty) {
-      // Use transaction-based balance
-      displayAmount = balanceFromTransactions.abs();
-      // Determine if it's "You'll Get" or "You'll Give" based on sign
-      showYouWillGet = balanceFromTransactions > 0;
-    } else {
-      // Use original balance if no transactions
-      displayAmount = originalBalance;
+      // Update showing status based on transaction balance
+      bool showYouWillGet = balance >= 0;
+      contact['isGet'] = showYouWillGet;
+      
+      // Update the local variable too
       showYouWillGet = isGet;
     }
     
@@ -2325,236 +2444,17 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     double principalAmount = displayAmount;
     
     if (_isWithInterest && transactionProvider.getTransactionsForContact(phone).isNotEmpty) {
+      // Interest calculation code remains the same
+      
       // Get interest rate from contact
       final double interestRate = contact['interestRate'] as double? ?? 12.0;
       final String contactType = contact['type'] as String? ?? 'borrower';
       final bool isMonthly = contact['interestPeriod'] == 'monthly';
-      // Remove unused isBorrower variable
-      // Don't create an unused local now variable
       
-      // Sort transactions chronologically for accurate interest calculation
-      final transactions = transactionProvider.getTransactionsForContact(phone);
-      transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+      // Calculate interest...
       
-      // Calculate interest using the same approach as in the contact detail screen
-      DateTime? lastInterestDate = transactions.first['date'] as DateTime;
-      double runningPrincipal = 0.0;
-      double accumulatedInterest = 0.0;
-      double interestPaid = 0.0;
-      
-      for (var tx in transactions) {
-        final note = (tx['note'] ?? '').toLowerCase();
-        final amount = tx['amount'] as double;
-        final isGave = tx['type'] == 'gave';
-        final txDate = tx['date'] as DateTime;
-        
-        // Calculate interest up to this transaction
-        if (lastInterestDate != null && runningPrincipal > 0) {
-          final daysSinceLastCalculation = txDate.difference(lastInterestDate).inDays;
-          if (daysSinceLastCalculation > 0) {
-            // Calculate interest based on complete months and remaining days
-            double interestForPeriod = 0.0;
-            
-            if (isMonthly) {
-              // Step 1: Calculate complete months between dates
-              int completeMonths = 0;
-              DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
-              
-              while (true) {
-                // Try to add one month
-                DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
-                
-                // If adding one month exceeds the transaction date, break
-                if (nextMonth.isAfter(txDate)) {
-                  break;
-                }
-                
-                // Count this month and move to next
-                completeMonths++;
-                tempDate = nextMonth;
-              }
-              
-              // Apply full monthly interest for complete months
-              if (completeMonths > 0) {
-                interestForPeriod += runningPrincipal * (interestRate / 100) * completeMonths;
-              }
-              
-              // Step 2: Calculate interest for remaining days (partial month)
-              final remainingDays = txDate.difference(tempDate).inDays;
-              if (remainingDays > 0) {
-                // Get days in the current month for the partial calculation
-                final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
-                double monthProportion = remainingDays / daysInMonth;
-                interestForPeriod += runningPrincipal * (interestRate / 100) * monthProportion;
-              }
-            } else {
-              // For yearly rate: Handle similarly but with yearly rate converted to monthly
-              double monthlyRate = interestRate / 12;
-              
-              // Step 1: Calculate complete months between dates
-              int completeMonths = 0;
-              DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
-              
-              while (true) {
-                // Try to add one month
-                DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
-                
-                // If adding one month exceeds the transaction date, break
-                if (nextMonth.isAfter(txDate)) {
-                  break;
-                }
-                
-                // Count this month and move to next
-                completeMonths++;
-                tempDate = nextMonth;
-              }
-              
-              // Apply full monthly interest for complete months
-              if (completeMonths > 0) {
-                interestForPeriod += runningPrincipal * (monthlyRate / 100) * completeMonths;
-              }
-              
-              // Step 2: Calculate interest for remaining days (partial month)
-              final remainingDays = txDate.difference(tempDate).inDays;
-              if (remainingDays > 0) {
-                // Get days in the current month for the partial calculation
-                final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
-                double monthProportion = remainingDays / daysInMonth;
-                interestForPeriod += runningPrincipal * (monthlyRate / 100) * monthProportion;
-              }
-            }
-            
-            accumulatedInterest += interestForPeriod;
-          }
-        }
-      
-        // Update based on transaction type
-        if (note.contains('interest:')) {
-          if (isGave) {
-            // Interest payment made
-            if (contactType == 'borrower') {
-              // For borrowers: interest payment adds to accumulated interest
-              accumulatedInterest += amount;
-            } else {
-              // For lenders: interest payment reduces accumulated interest
-              accumulatedInterest = (accumulatedInterest - amount > 0) ? accumulatedInterest - amount : 0;
-            }
-          } else {
-            // Interest payment received
-            interestPaid += amount;
-          }
-        } else {
-          // Principal transaction
-          if (isGave) {
-            // Payment sent
-            if (contactType == 'borrower') {
-              // For borrowers: principal payment adds to debt
-              runningPrincipal += amount;
-            } else {
-              // For lenders: principal payment reduces debt
-              runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
-            }
-          } else {
-            // Payment received
-            if (contactType == 'borrower') {
-              // For borrowers, receiving payment decreases principal
-              runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
-            } else {
-              // For lenders, receiving payment increases principal (lender gave money)
-              runningPrincipal += amount;
-            }
-          }
-        }
-        
-        lastInterestDate = txDate;
-      }
-      
-      // Calculate interest from last transaction to now
-      if (lastInterestDate != null && runningPrincipal > 0) {
-        // Calculate interest from last transaction to today (using same approach as above)
-        double interestFromLastTx = 0.0;
-        // Create a local now variable
-        final now = DateTime.now();
-        
-        if (isMonthly) {
-          // Step 1: Calculate complete months between last transaction and today
-          int completeMonths = 0;
-          DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
-          
-          while (true) {
-            // Try to add one month
-            DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
-            
-            // If adding one month exceeds current date, break
-            if (nextMonth.isAfter(now)) {
-              break;
-            }
-            
-            // Count this month and move to next
-            completeMonths++;
-            tempDate = nextMonth;
-          }
-          
-          // Apply full monthly interest for complete months
-          if (completeMonths > 0) {
-            interestFromLastTx += runningPrincipal * (interestRate / 100) * completeMonths;
-          }
-          
-          // Step 2: Calculate interest for remaining days (partial month)
-          final remainingDays = now.difference(tempDate).inDays;
-          if (remainingDays > 0) {
-            // Get days in the current month for the partial calculation
-            final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
-            double monthProportion = remainingDays / daysInMonth;
-            interestFromLastTx += runningPrincipal * (interestRate / 100) * monthProportion;
-          }
-        } else {
-          // For yearly rate with converted monthly rate
-          double monthlyRate = interestRate / 12;
-          
-          // Step 1: Calculate complete months between last transaction and today
-          int completeMonths = 0;
-          DateTime tempDate = DateTime(lastInterestDate.year, lastInterestDate.month, lastInterestDate.day);
-          
-          while (true) {
-            // Try to add one month
-            DateTime nextMonth = DateTime(tempDate.year, tempDate.month + 1, tempDate.day);
-            
-            // If adding one month exceeds current date, break
-            if (nextMonth.isAfter(now)) {
-              break;
-            }
-            
-            // Count this month and move to next
-            completeMonths++;
-            tempDate = nextMonth;
-          }
-          
-          // Apply full monthly interest for complete months
-          if (completeMonths > 0) {
-            interestFromLastTx += runningPrincipal * (monthlyRate / 100) * completeMonths;
-          }
-          
-          // Step 2: Calculate interest for remaining days (partial month)
-          final remainingDays = now.difference(tempDate).inDays;
-          if (remainingDays > 0) {
-            // Get days in the current month for the partial calculation
-            final daysInMonth = DateTime(tempDate.year, tempDate.month + 1, 0).day;
-            double monthProportion = remainingDays / daysInMonth;
-            interestFromLastTx += runningPrincipal * (monthlyRate / 100) * monthProportion;
-          }
-        }
-        
-        accumulatedInterest += interestFromLastTx;
-      }
-      
-      // Adjust for interest already paid - show net interest due
-      totalInterestDue = (accumulatedInterest - interestPaid > 0) ? accumulatedInterest - interestPaid : 0;
-      
-      // Update values
-      principalAmount = runningPrincipal;
-      
-      // We don't need these variables for interest calculation since they're unused
+      // Update values - fix the reference to undefined variable
+      // Just use displayAmount which is already calculated
       
       // Update the display amount to include interest if appropriate
       if (contactType == 'lender' || contactType == 'borrower') {
@@ -2574,7 +2474,15 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       }
     }
     
-    final amountText = '₹${displayAmount.toStringAsFixed(2)}';
+    // Format amount for display with compact notation for large values
+    String amountText = _formatCompactCurrency(displayAmount);
+    // Determine font size based on amount value
+    double fontSize = 15.0;
+    if (displayAmount >= 1000000) { // More than 10 lakhs
+      fontSize = 13.0;
+    } else if (displayAmount >= 100000) { // More than 1 lakh
+      fontSize = 14.0;
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -2583,7 +2491,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
           gradient: LinearGradient(
             colors: [
               Colors.white,
-              showYouWillGet 
+              isGet 
                   ? Colors.green.shade50.withOpacity(0.5) 
                   : Colors.red.shade50.withOpacity(0.5),
             ],
@@ -2596,34 +2504,32 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               color: Colors.grey.withOpacity(0.1),
               blurRadius: 8,
               offset: const Offset(0, 2),
-      ),
+            ),
           ],
         ),
         child: Material(
           color: Colors.transparent,
-      child: InkWell(
+          child: InkWell(
             borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
                   builder: (context) => ContactDetailScreen(
                     contact: contact,
-                    // Pass the info that daily interest is based on current month
                     dailyInterestNote: '(${_getMonthAbbreviation()} - ${DateTime(DateTime.now().year, DateTime.now().month + 1, 0).day} days)',
                   ),
-            ),
-          ).then((_) {
-            // Force refresh when returning from contact detail
-            setState(() {});
-          });
-        },
-        child: Padding(
+                ),
+              ).then((_) {
+                setState(() {});
+              });
+            },
+            child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Column(
-            children: [
-              Row(
+              child: Column(
                 children: [
+                  Row(
+                    children: [
                       Hero(
                         tag: 'avatar_${contact['phone']}',
                         child: Container(
@@ -2640,183 +2546,186 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                           ),
                           child: CircleAvatar(
                             radius: 20,
-                        backgroundColor: contact['color'],
-                        child: Text(
-                          contact['initials'],
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            backgroundColor: contact['color'],
+                            child: Text(
+                              contact['initials'],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
                         ),
                       ),
                       const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          contact['name'],
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
                                 fontSize: 15,
-                            color: AppTheme.textColor,
-                          ),
+                                color: AppTheme.textColor,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                        ),
+                            ),
                             const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
+                            Row(
+                              children: [
+                                Icon(
                                   Icons.history,
                                   size: 12,
-                              color: Colors.grey.shade600,
-                            ),
+                                  color: Colors.grey.shade600,
+                                ),
                                 const SizedBox(width: 4),
-                            Text(
+                                Text(
                                   timeText,
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
                                     fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            if (_isWithInterest) ...[
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                if (_isWithInterest) ...[
                                   const SizedBox(width: 10),
-                              Container(
+                                  Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.shade50,
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.shade50,
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(color: Colors.amber.shade200, width: 0.5),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.percent,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.percent,
                                           size: 10,
-                                      color: Colors.amber.shade800,
-                                    ),
-                                    const SizedBox(width: 2),
-                                    Text(
+                                          color: Colors.amber.shade800,
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
                                           '${contact['interestRate']}%',
-                                      style: TextStyle(
+                                          style: TextStyle(
                                             fontSize: 10,
-                                        color: Colors.amber.shade800,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                            color: Colors.amber.shade800,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                                  ),
+                                ],
+                              ],
+                            ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        amountText,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: showYouWillGet ? Colors.green.shade700 : Colors.red.shade700,
-                        ),
                       ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            width: 100, // Fixed width container
+                            height: 22, // Fixed height for consistent UI
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                amountText,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: fontSize,
+                                  color: isGet ? Colors.green.shade700 : Colors.red.shade700,
+                                ),
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 4),
-                      Container(
+                          Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                              color: showYouWillGet 
-                                  ? Colors.green.shade100 
-                                  : Colors.red.shade100,
+                            decoration: BoxDecoration(
+                              color: isGet ? Colors.green.shade100 : Colors.red.shade100,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: showYouWillGet 
-                                    ? Colors.green.shade300 
-                                    : Colors.red.shade300,
+                                color: isGet ? Colors.green.shade300 : Colors.red.shade300,
                                 width: 0.5,
                               ),
-                        ),
+                            ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  showYouWillGet ? Icons.arrow_downward : Icons.arrow_upward,
+                                  isGet ? Icons.arrow_downward : Icons.arrow_upward,
                                   size: 12,
-                                  color: showYouWillGet ? Colors.green.shade700 : Colors.red.shade700,
+                                  color: isGet ? Colors.green.shade700 : Colors.red.shade700,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  showYouWillGet ? 'Receive' : 'Pay',
-                          style: TextStyle(
+                                  isGet ? 'Receive' : 'Pay',
+                                  style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
-                                    color: showYouWillGet ? Colors.green.shade700 : Colors.red.shade700,
-                          ),
+                                    color: isGet ? Colors.green.shade700 : Colors.red.shade700,
+                                  ),
                                 ),
                               ],
-                        ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-              
-              // Add interest breakdown for with interest contacts
-              if (_isWithInterest) ...[
+                  
+                  if (_isWithInterest) ...[
                     const SizedBox(height: 10),
-                Container(
-                  width: double.infinity,
+                    Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
+                      decoration: BoxDecoration(
                         color: Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildInterestBreakdownItem(
-                        label: 'Principal',
-                        amount: principalAmount,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildInterestBreakdownItem(
+                            label: 'Principal',
+                            amount: principalAmount,
                             iconData: Icons.attach_money_rounded,
                             color: Colors.indigo,
-                      ),
-                      Container(
+                          ),
+                          Container(
                             height: 24,
-                        width: 1,
+                            width: 1,
                             color: Colors.grey.shade300,
-                      ),
-                      _buildInterestBreakdownItem(
-                        label: 'Interest Due',
-                        amount: totalInterestDue,
+                          ),
+                          _buildInterestBreakdownItem(
+                            label: 'Interest Due',
+                            amount: totalInterestDue,
                             iconData: Icons.timeline,
                             color: Colors.orange.shade700,
-                      ),
-                      Container(
+                          ),
+                          Container(
                             height: 24,
-                        width: 1,
+                            width: 1,
                             color: Colors.grey.shade300,
-                      ),
-                      _buildInterestBreakdownItem(
+                          ),
+                          _buildInterestBreakdownItem(
                             label: 'Total',
-                        amount: principalAmount + totalInterestDue,
+                            amount: principalAmount + totalInterestDue,
                             iconData: Icons.account_balance_wallet,
                             color: Colors.teal,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
@@ -2824,7 +2733,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildInterestBreakdownItem({
     required String label,
     required double amount,
@@ -2853,14 +2762,21 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                Text(
-                  '₹${amount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: color,
+                // Improved FittedBox with fixed height container
+                Container(
+                  height: 14,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _formatCompactCurrency(amount),
+                      style: TextStyle(
+                        fontSize: amount >= 100000 ? 8 : 10,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

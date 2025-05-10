@@ -213,6 +213,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeNotifications();
       _setupFCMHandlers();
+      _syncAllReminders();
     });
     
     // Set up a timer to refresh notifications periodically
@@ -432,6 +433,45 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     } else {
       // Default to opening the notification center
       navigatorKey.currentState?.pushNamed(NotificationCenterScreen.routeName);
+    }
+  }
+
+  // Method to sync all reminders
+  Future<void> _syncAllReminders() async {
+    try {
+      // Use a safe way to access the context through navigatorKey
+      if (navigatorKey.currentContext != null) {
+        final notificationProvider = Provider.of<NotificationProvider>(
+          navigatorKey.currentContext!,
+          listen: false,
+        );
+        await notificationProvider.syncAllReminders();
+      } else {
+        // If context is not available yet, schedule a retry
+        await Future.delayed(const Duration(seconds: 1), () async {
+          if (mounted) {
+            await _syncAllReminders();
+          }
+        });
+      }
+    } catch (e) {
+      print('Error syncing reminders: $e');
+      // Try again after a short delay to handle initialization timing issues
+      if (mounted) {
+        await Future.delayed(const Duration(seconds: 2), () async {
+          if (mounted) {
+            try {
+              final notificationProvider = Provider.of<NotificationProvider>(
+                navigatorKey.currentContext!,
+                listen: false,
+              );
+              await notificationProvider.syncAllReminders();
+            } catch (retryError) {
+              print('Retry error syncing reminders: $retryError');
+            }
+          }
+        });
+      }
     }
   }
 

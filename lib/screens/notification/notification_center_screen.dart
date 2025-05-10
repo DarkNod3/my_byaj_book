@@ -42,8 +42,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
             showBackButton: true,
             actions: [
               IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                onPressed: _refreshNotifications,
+                tooltip: 'Refresh notifications',
+              ),
+              IconButton(
                 icon: const Icon(Icons.done_all, color: Colors.white),
                 onPressed: _markAllAsRead,
+                tooltip: 'Mark all as read',
               ),
             ],
           ),
@@ -145,6 +151,27 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
   Widget _buildNotificationItem(AppNotification notification) {
     final formattedDate = DateFormat('dd MMM yy, hh:mm a').format(notification.timestamp);
     
+    // Format due date if available
+    String? formattedDueDate;
+    DateTime? dueDate;
+    if (notification.data != null && notification.data!.containsKey('dueDate')) {
+      try {
+        dueDate = DateTime.parse(notification.data!['dueDate']);
+        formattedDueDate = DateFormat('dd MMM yyyy').format(dueDate);
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
+    
+    // Check if due today
+    bool isDueToday = false;
+    if (dueDate != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final dueDay = DateTime(dueDate.year, dueDate.month, dueDate.day);
+      isDueToday = dueDay.isAtSameMomentAs(today);
+    }
+    
     // Define colors and icons based on notification type
     IconData icon;
     Color iconColor;
@@ -165,6 +192,10 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
       case 'contact':
         icon = Icons.person;
         iconColor = Colors.purple;
+        break;
+      case 'reminder':
+        icon = Icons.notifications_active;
+        iconColor = Colors.red;
         break;
       case 'fcm':
         icon = Icons.notifications;
@@ -249,16 +280,17 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
                             child: Text(
                               notification.title,
                               style: TextStyle(
-                                fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+                                fontWeight: FontWeight.bold,
                                 fontSize: 15,
+                                color: notification.isRead ? Colors.black87 : AppTheme.primaryColor,
                               ),
                             ),
                           ),
                           if (!notification.isRead)
                             Container(
-                              width: 10,
-                              height: 10,
-                              decoration: const BoxDecoration(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: AppTheme.primaryColor,
                               ),
@@ -270,22 +302,57 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
                         notification.message,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey.shade700,
+                          color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            formattedDate,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade500,
+                          // Show due date if available
+                          if (formattedDueDate != null)
+                            Row(
+                              children: [
+                                Icon(
+                                  isDueToday ? Icons.today : Icons.event, 
+                                  size: 12, 
+                                  color: isDueToday ? Colors.red[600] : Colors.grey[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isDueToday ? 'Due today' : 'Due: $formattedDueDate',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: isDueToday ? FontWeight.bold : FontWeight.normal,
+                                    color: isDueToday ? Colors.red[600] : Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            Text(
+                              formattedDate,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
                             ),
-                          ),
-                          if (_canBePaid(notification) && !notification.isPaid)
-                            _buildMarkAsPaidButton(notification),
+                          if (notification.isPaid)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'PAID',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ],
@@ -435,6 +502,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
             }
           }
           break;
+        case 'reminder':
+          // Navigate to reminders screen
+          if (mounted) {
+            Navigator.of(context).pushNamed('/reminder');
+          }
+          break;
       }
     }
   }
@@ -460,6 +533,38 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
             backgroundColor: Colors.green,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _refreshNotifications() async {
+    setState(() {
+      _isMarkingAllRead = true;
+    });
+    
+    try {
+      final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+      await notificationProvider.syncAllReminders();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Notifications refreshed'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    } catch (e) {
+      // If there was an error, show a message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to refresh notifications'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isMarkingAllRead = false;
+        });
       }
     }
   }

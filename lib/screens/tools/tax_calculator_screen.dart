@@ -491,6 +491,14 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
   }
   
   Widget _buildResultCard() {
+    // Determine font size based on amount value - smaller font for large amounts
+    double fontSize = 36;
+    if (_totalTaxLiability >= 1000000) { // More than 10 lakhs
+      fontSize = 28;
+    } else if (_totalTaxLiability >= 100000) { // More than 1 lakh
+      fontSize = 32;
+    }
+    
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
@@ -518,31 +526,55 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              _formatCurrency(_totalTaxLiability),
-              style: const TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: 280,
+                maxWidth: double.infinity,
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Text(
+                    _formatCurrency(_totalTaxLiability),
+                    style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildResultDetail(
-                  title: 'Taxable Income',
-                  value: _formatCurrency(_taxableIncome),
-                ),
-                _buildResultDetail(
-                  title: 'Income Tax',
-                  value: _formatCurrency(_taxAmount),
-                ),
-                _buildResultDetail(
-                  title: 'Effective Rate',
-                  value: '${_effectiveTaxRate.toStringAsFixed(1)}%',
-                ),
-              ],
+            // Use a more flexible layout for the bottom row
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Expanded(
+                    child: _buildResultDetail(
+                      title: 'Taxable Income',
+                      value: _formatCurrency(_taxableIncome),
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildResultDetail(
+                      title: 'Income Tax',
+                      value: _formatCurrency(_taxAmount),
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildResultDetail(
+                      title: 'Effective Rate',
+                      value: '${_effectiveTaxRate.toStringAsFixed(1)}%',
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -554,22 +586,44 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
     required String title,
     required String value,
   }) {
+    // Determine font size based on value length
+    double fontSize = 16;
+    if (value.length > 14) {
+      fontSize = 12;
+    } else if (value.length > 10) {
+      fontSize = 14;
+    }
+    
     return Column(
       children: [
         Text(
           title,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 13,
             color: Colors.white70,
           ),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 100,
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
       ],
