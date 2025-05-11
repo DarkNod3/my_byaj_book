@@ -26,8 +26,6 @@ Future<bool> requestPermission(Permission permission, BuildContext context) asyn
       return await permissionUtils.requestContactsPermission(context);
     case Permission.phone:
       return await permissionUtils.requestCallPhonePermission(context);
-    case Permission.sms:
-      return await permissionUtils.requestSmsPermission(context);
     case Permission.notification:
       return await permissionUtils.requestNotificationPermission(context);
     default:

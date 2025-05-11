@@ -2662,14 +2662,14 @@ ${_getAppUserName()} 📱
       return;
     }
     
-    // Check SMS permission first
-    final permissionUtils = PermissionUtils();
-    final hasSmsPermission = await permissionUtils.requestSmsPermission(context);
+    // No longer need SMS permission - using intent instead
+    // final permissionUtils = PermissionUtils();
+    // final hasSmsPermission = await permissionUtils.requestSmsPermission(context);
     
-    if (!hasSmsPermission) {
-      // Permission denied
-      return;
-    }
+    // if (!hasSmsPermission) {
+    //   // Permission denied
+    //   return;
+    // }
     
     // For SMS, keep the + prefix for international numbers
     String formattedPhone = phone.replaceAll(RegExp(r'\s+'), '');

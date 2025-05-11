@@ -6,9 +6,10 @@
     <!-- Phone permissions -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
     
-    <!-- SMS permissions -->
-    <uses-permission android:name="android.permission.SEND_SMS" />
-    <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- SMS permissions - REMOVED -->
+    <!-- These permissions are high-risk for Play Store review -->
+    <!-- <uses-permission android:name="android.permission.SEND_SMS" /> -->
+    <!-- <uses-permission android:name="android.permission.READ_SMS" /> -->
     
     <!-- Camera and Storage permissions -->
     <uses-permission android:name="android.permission.CAMERA" />

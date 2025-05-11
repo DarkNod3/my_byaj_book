@@ -19,6 +19,12 @@ Welcome to My Byaj Book. We value your privacy and are committed to protecting y
 - **Transaction Data**: Loan details, interest amounts, payment records, notes, and customer names (if entered by you)
 - **Device Info**: Operating system, device type, and unique identifiers
 
+### 🔹 Permissions We Use
+- **Contacts**: We request access to your contacts to help you easily add and manage people in your loan records
+- **Camera**: Used only when you choose to take photos for profile pictures or transaction receipts
+- **Storage**: Used to store images and backup files locally on your device
+- **Phone**: Used only when you initiate a call to a contact from within the app
+
 ### 🔹 Non-Personal Information
 - **Usage Statistics**: Features used, session duration, and app interaction logs
 - **Crash Reports**: Technical errors and bugs to improve app performance
@@ -128,6 +134,24 @@ This Privacy Policy complies with:
             _buildBulletPoint('Account Details: Name, mobile number, and UID if created'),
             _buildBulletPoint('Transaction Data: Loan details, interest amounts, payment records, notes, and customer names (if entered by you)'),
             _buildBulletPoint('Device Info: Operating system, device type, and unique identifiers'),
+            const SizedBox(height: 8),
+            RichText(
+              text: const TextSpan(
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+                children: [
+                  TextSpan(
+                    text: '🔹 ',
+                    style: TextStyle(color: Colors.blue),
+                  ),
+                  TextSpan(text: 'Permissions We Use'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            _buildBulletPoint('Contacts: We request access to your contacts to help you easily add and manage people in your loan records'),
+            _buildBulletPoint('Camera: Used only when you choose to take photos for profile pictures or transaction receipts'),
+            _buildBulletPoint('Storage: Used to store images and backup files locally on your device'),
+            _buildBulletPoint('Phone: Used only when you initiate a call to a contact from within the app'),
             const SizedBox(height: 8),
             RichText(
               text: const TextSpan(

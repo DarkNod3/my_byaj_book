@@ -124,7 +124,10 @@ class PermissionUtils {
     return status.isGranted;
   }
   
-  // SMS permission
+  // SMS permission - REMOVED
+  // SMS permissions are considered sensitive by Google Play Store
+  // Using SMS Intent instead, which doesn't require permission
+  /*
   Future<bool> requestSmsPermission(BuildContext context) async {
     var status = await Permission.sms.status;
     
@@ -150,6 +153,7 @@ class PermissionUtils {
     
     return status.isGranted;
   }
+  */
   
   // Notification permission
   Future<bool> requestNotificationPermission(BuildContext context) async {
