@@ -44,6 +44,11 @@
         <meta-data
             android:name="com.google.firebase.auth.SMS_APP_NAME"
             android:value="My Byaj Book" />
+            
+        <!-- Firebase App Check debug provider -->
+        <meta-data
+            android:name="firebase_app_check_debug_provider_enabled"
+            android:value="true" />
         
         <!-- Firebase Cloud Messaging Service -->
         <service

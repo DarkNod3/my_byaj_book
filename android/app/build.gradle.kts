@@ -78,4 +78,7 @@ dependencies {
     
     // Required for Firebase Phone Authentication with in-app reCAPTCHA verification
     implementation("androidx.browser:browser:1.4.0")
+    
+    // Required for Firebase App Check with SafetyNet provider
+    implementation("com.google.android.gms:play-services-safetynet:18.0.1")
 }

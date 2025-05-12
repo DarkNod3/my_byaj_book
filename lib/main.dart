@@ -97,9 +97,13 @@ void main() async {
       
       // Initialize Firebase App Check - helps with security and app verification
       await FirebaseAppCheck.instance.activate(
-        // Use debug provider for development, replace with proper provider for production
-        androidProvider: AndroidProvider.debug,
-        appleProvider: AppleProvider.debug,
+        // Use SafetyNet provider for release builds instead of PlayIntegrity
+        androidProvider: kReleaseMode 
+            ? AndroidProvider.safetyNet 
+            : AndroidProvider.debug,
+        appleProvider: kReleaseMode
+            ? AppleProvider.appAttest
+            : AppleProvider.debug,
       );
       
       // Configure Firebase services with proper app information
