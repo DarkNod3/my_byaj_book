@@ -7,6 +7,7 @@ import 'package:my_byaj_book/widgets/dialogs/confirm_dialog.dart';
 import 'package:my_byaj_book/screens/contact/contact_detail_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:my_byaj_book/utils/image_picker_helper.dart';
 
 class EditContactScreen extends StatefulWidget {
   final Map<String, dynamic> contact;
@@ -78,79 +79,25 @@ class _EditContactScreenState extends State<EditContactScreen> {
     super.dispose();
   }
 
-  void _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    try {
-      final pickedFile = await picker.pickImage(
-        source: source,
-        imageQuality: 70,
-        maxWidth: 500,
-      );
-
-      if (pickedFile != null) {
-        setState(() {
-          _profileImage = File(pickedFile.path);
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
-    }
-  }
-
-  void _showProfileImageOptions() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Choose Profile Picture',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildImageSourceOption(
-                  context,
-                  Icons.camera_alt,
-                  'Camera',
-                  () => _pickImage(ImageSource.camera),
-                ),
-                _buildImageSourceOption(
-                  context,
-                  Icons.photo_library,
-                  'Gallery',
-                  () => _pickImage(ImageSource.gallery),
-                ),
-                if (_profileImage != null)
-                  _buildImageSourceOption(
-                    context,
-                    Icons.delete,
-                    'Remove',
-                    () {
-                      setState(() {
-                        _profileImage = null;
-                      });
-                      Navigator.pop(context);
-                    },
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
+  // Updated method to use ImagePickerHelper
+  void _showProfileImageOptions() async {
+    final imagePickerHelper = ImagePickerHelper();
+    final File? result = await imagePickerHelper.showImageSourceDialog(
+      context,
+      currentImage: _profileImage,
     );
+    
+    // If result is null, user might have pressed "Remove"
+    if (result != null) {
+      setState(() {
+        _profileImage = result;
+      });
+    } else if (result == null && mounted) {
+      // This could be either "Remove" was pressed or selection was canceled
+      // To differentiate, we need to check if the dialog returned vs user canceled
+      // Since we can't easily differentiate, we'll handle this in the UI where 
+      // "Remove" button explicitly sets _profileImage to null
+    }
   }
 
   Widget _buildImageSourceOption(

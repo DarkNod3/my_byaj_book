@@ -95,12 +95,31 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
     } else {
       // Initialize with default values or provided initial values
       _selectedDate = widget.initialDate ?? DateTime.now();
-      _selectedShift = _getDefaultShift();
-      _quantityController.text = '';
       
-      // Always set the rate from seller's default rate for new entries
+      // Auto-select morning/evening based on current time
+      _selectedShift = _getDefaultShift();
+      
+      // Fetch the seller to get their default values
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _updateRateFromSeller();
+        // Get seller info to pre-fill defaults
+        final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
+        final seller = sellerProvider.getSellerById(widget.sellerId);
+        
+        if (seller != null) {
+          // Set default rate
+          setState(() {
+            _rateController.text = seller.defaultRate.toString();
+            
+            // Set default quantity from seller settings
+            if (seller.defaultQuantity > 0) {
+              _quantityController.text = seller.defaultQuantity.toString();
+            }
+            
+            // Set unit type based on seller preference
+            // (This would need additional logic if you add unit preference to seller model)
+          });
+        }
+        
         // Check for duplicate entries when form loads
         _checkDuplicateEntry();
       });
@@ -112,19 +131,8 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
   
   EntryShift _getDefaultShift() {
     final currentHour = DateTime.now().hour;
-    // Morning: before 12pm, Evening: after 12pm
-    return currentHour < 12 ? EntryShift.morning : EntryShift.evening;
-  }
-  
-  void _updateSellerPriceSystem() {
-    final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
-    final seller = sellerProvider.getSellerById(widget.sellerId);
-    
-    if (seller != null) {
-      setState(() {
-        _isFatBased = seller.priceSystem == PriceSystem.fatBased;
-      });
-    }
+    // Morning: 3am to 11am, Evening: after 11am to 3am
+    return (currentHour >= 3 && currentHour < 11) ? EntryShift.morning : EntryShift.evening;
   }
   
   @override
@@ -193,13 +201,13 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
   }
   */
   
-  void _updateRateFromSeller() {
+  void _updateSellerPriceSystem() {
     final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
     final seller = sellerProvider.getSellerById(widget.sellerId);
     
     if (seller != null) {
       setState(() {
-        _rateController.text = seller.defaultRate.toString();
+        _isFatBased = seller.priceSystem == PriceSystem.fatBased;
       });
     }
   }

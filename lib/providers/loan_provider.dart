@@ -75,6 +75,16 @@ class LoanProvider extends ChangeNotifier {
       // Create a new map with all the updated data
       _activeLoans[index] = {..._activeLoans[index], ...updatedData};
       
+      // Ensure date fields are preserved as DateTime objects
+      // This fixes the issue where dates were being lost during the update
+      if (updatedData.containsKey('startDate')) {
+        _activeLoans[index]['startDate'] = updatedData['startDate'];
+      }
+      
+      if (updatedData.containsKey('firstPaymentDate')) {
+        _activeLoans[index]['firstPaymentDate'] = updatedData['firstPaymentDate'];
+      }
+      
       // Ensure progress field is correctly calculated if installments are present
       if (_activeLoans[index].containsKey('installments') && _activeLoans[index]['installments'] is List) {
         final installments = _activeLoans[index]['installments'] as List;

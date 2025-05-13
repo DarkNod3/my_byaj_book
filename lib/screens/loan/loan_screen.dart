@@ -6,6 +6,7 @@ import '../../constants/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'add_loan_screen.dart';
 import 'loan_details_screen.dart';
+import '../../widgets/safe_area_wrapper.dart';
 
 class LoanScreen extends StatefulWidget {
   final bool showAppBar;
@@ -125,7 +126,7 @@ class _LoanScreenState extends State<LoanScreen> {
               ) : null,
               body: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -135,9 +136,9 @@ class _LoanScreenState extends State<LoanScreen> {
                         totalAmount: summaryData['totalAmount'] ?? 0,
                         dueAmount: summaryData['dueAmount'] ?? 0,
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                       _buildLoanTypeFilters(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                       _buildActiveLoansList(loanProvider),
                     ],
                   ),
@@ -213,11 +214,11 @@ class _LoanScreenState extends State<LoanScreen> {
         const Text(
           'Loan Categories',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -247,7 +248,7 @@ class _LoanScreenState extends State<LoanScreen> {
           });
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
             color: isSelected ? AppTheme.primaryColor : Colors.grey.shade200,
             borderRadius: BorderRadius.circular(50),
@@ -266,6 +267,7 @@ class _LoanScreenState extends State<LoanScreen> {
             style: TextStyle(
               color: isSelected ? Colors.white : Colors.black87,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 13,
             ),
           ),
         ),
@@ -341,7 +343,7 @@ class _LoanScreenState extends State<LoanScreen> {
             Text(
               _selectedCategory == 'All' ? 'All Loans' : '$_selectedCategory Loans',
               style: const TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -354,24 +356,26 @@ class _LoanScreenState extends State<LoanScreen> {
                   ),
                 );
               },
-              icon: const Icon(Icons.add),
+              icon: const Icon(Icons.add, size: 16),
               label: const Text('New Loan'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
                 elevation: 2,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 textStyle: const TextStyle(
                   fontWeight: FontWeight.bold,
+                  fontSize: 12,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
           itemCount: _filteredLoans.length,
           itemBuilder: (context, index) {
             return _buildLoanCard(_filteredLoans[index]);
@@ -429,30 +433,31 @@ class _LoanScreenState extends State<LoanScreen> {
       },
       child: Card(
         elevation: 2,
-        margin: const EdgeInsets.only(bottom: 16),
+        margin: const EdgeInsets.only(bottom: 8),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: Colors.grey.shade300, width: 1),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(8.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
                       color: loanColor.withAlpha(26),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       loanIcon,
                       color: loanColor,
-                      size: 24,
+                      size: 16,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,14 +466,14 @@ class _LoanScreenState extends State<LoanScreen> {
                           loan['loanName'],
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 15,
                           ),
                         ),
                         Text(
                           'Principal: ₹${loan['loanAmount']}',
                           style: TextStyle(
                             color: Colors.grey[600],
-                            fontSize: 14,
+                            fontSize: 13,
                           ),
                         ),
                       ],
@@ -476,30 +481,32 @@ class _LoanScreenState extends State<LoanScreen> {
                   ),
                   // Status badge
                   Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    margin: const EdgeInsets.only(right: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                     decoration: BoxDecoration(
                       color: loan['status'] == 'Active' ? Colors.green.shade100 : Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       loan['status'] ?? 'Active',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: FontWeight.bold,
                         color: loan['status'] == 'Active' ? Colors.green.shade800 : Colors.grey.shade800,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.more_vert),
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
                     onPressed: () {
                       _showLoanOptions(loan);
                     },
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -518,20 +525,20 @@ class _LoanScreenState extends State<LoanScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 6),
               const Text(
                 'Loan Repayment Progress',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 10,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 3),
               Row(
                 children: [
                   Expanded(
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: (loan['progress'] != null && loan['progress'] is num) ? loan['progress'] : 
                           (loan['installments'] != null && loan['installments'] is List) ? 
@@ -539,11 +546,11 @@ class _LoanScreenState extends State<LoanScreen> {
                             (loan['installments'] as List).length : 0.0,
                         backgroundColor: Colors.grey[200],
                         valueColor: AlwaysStoppedAnimation<Color>(loanColor),
-                        minHeight: 10,
+                        minHeight: 5,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 6),
                   Text(
                     '${((loan['progress'] != null && loan['progress'] is num) ? (loan['progress'] * 100).toInt() : 
                         (loan['installments'] != null && loan['installments'] is List) ? 
@@ -552,11 +559,12 @@ class _LoanScreenState extends State<LoanScreen> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: loanColor,
+                      fontSize: 10,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -564,6 +572,7 @@ class _LoanScreenState extends State<LoanScreen> {
                     'Remaining: ${_calculateRemainingAmount(loan)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
+                      fontSize: 11,
                     ),
                   ),
                   OutlinedButton(
@@ -578,10 +587,10 @@ class _LoanScreenState extends State<LoanScreen> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: loanColor,
                       side: BorderSide(color: loanColor),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      minimumSize: const Size(100, 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      minimumSize: const Size(70, 22),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      textStyle: const TextStyle(fontSize: 12),
+                      textStyle: const TextStyle(fontSize: 9),
                     ),
                     child: const Text('View Details'),
                   ),
@@ -721,10 +730,10 @@ class _LoanScreenState extends State<LoanScreen> {
           title,
           style: TextStyle(
             color: Colors.grey[600],
-            fontSize: 12,
+            fontSize: 10,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 1),
         Row(
           children: [
             Text(
@@ -732,13 +741,13 @@ class _LoanScreenState extends State<LoanScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: color,
-                fontSize: 14,
+                fontSize: 12,
               ),
             ),
             if (showCheckmark) ...[
-              const SizedBox(width: 4),
+              const SizedBox(width: 3),
               Container(
-                padding: const EdgeInsets.all(2),
+                padding: const EdgeInsets.all(1),
                 decoration: BoxDecoration(
                   color: Colors.green.shade100,
                   shape: BoxShape.circle,
@@ -746,22 +755,22 @@ class _LoanScreenState extends State<LoanScreen> {
                 child: Icon(
                   Icons.check,
                   color: Colors.green.shade700,
-                  size: 12,
+                  size: 10,
                 ),
               ),
             ],
             if (badge != null) ...[
-              const SizedBox(width: 4),
+              const SizedBox(width: 3),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                 decoration: BoxDecoration(
                   color: badgeColor?.withAlpha(26) ?? Colors.red.withAlpha(26),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   badge,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
                     color: badgeColor ?? Colors.red,
                   ),

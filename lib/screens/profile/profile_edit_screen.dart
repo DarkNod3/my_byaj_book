@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import '../../providers/user_provider.dart';
 import '../../constants/app_theme.dart';
+import '../../utils/image_picker_helper.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   static const routeName = '/profile-edit';
@@ -50,31 +51,23 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
   
   Future<void> _takePhoto() async {
-    final pickedFile = await ImagePicker().pickImage(
-      source: ImageSource.camera,
-      maxWidth: 800,
-      maxHeight: 800,
-      imageQuality: 85,
-    );
+    final imagePickerHelper = ImagePickerHelper();
+    final imageFile = await imagePickerHelper.pickImage(context, ImageSource.camera);
     
-    if (pickedFile != null) {
+    if (imageFile != null) {
       setState(() {
-        _profileImage = File(pickedFile.path);
+        _profileImage = imageFile;
       });
     }
   }
   
   Future<void> _pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 800,
-      maxHeight: 800,
-      imageQuality: 85,
-    );
+    final imagePickerHelper = ImagePickerHelper();
+    final imageFile = await imagePickerHelper.pickImage(context, ImageSource.gallery);
     
-    if (pickedFile != null) {
+    if (imageFile != null) {
       setState(() {
-        _profileImage = File(pickedFile.path);
+        _profileImage = imageFile;
       });
     }
   }

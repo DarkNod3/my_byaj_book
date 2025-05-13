@@ -1,7 +1,7 @@
 name: my_byaj_book
 description: A loan management and financial tool application.
 publish_to: 'none'
-version: 1.0.0+5
+version: 1.0.0+6
 
 environment:
   sdk: '>=3.7.2 <4.0.0'
@@ -40,6 +40,7 @@ dependencies:
   flutter_timezone: ^4.1.0
   flutter_launcher_icons: ^0.14.3
   flutter_native_splash: ^2.4.6
+  sms_autofill: ^2.4.1
   
 dev_dependencies:
   flutter_test:

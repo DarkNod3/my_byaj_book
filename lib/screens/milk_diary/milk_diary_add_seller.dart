@@ -34,6 +34,7 @@ class _MilkDiaryAddSellerState extends State<MilkDiaryAddSeller> {
   final _defaultRateController = TextEditingController();
   final _fatRateController = TextEditingController();
   final _baseFatController = TextEditingController();
+  final _defaultQuantityController = TextEditingController();
   
   PriceSystem _priceSystem = PriceSystem.defaultRate;
   String _defaultUnit = 'Liter (L)';
@@ -48,6 +49,7 @@ class _MilkDiaryAddSellerState extends State<MilkDiaryAddSeller> {
       _phoneController.text = widget.seller?.mobile ?? '';
       _addressController.text = widget.seller?.address ?? '';
       _defaultRateController.text = widget.seller!.defaultRate.toString();
+      _defaultQuantityController.text = widget.seller!.defaultQuantity.toString();
       _priceSystem = widget.seller!.priceSystem;
       
       // Initialize fat-based pricing fields if available
@@ -63,6 +65,7 @@ class _MilkDiaryAddSellerState extends State<MilkDiaryAddSeller> {
     } else {
       // Default values for new seller
       _defaultRateController.text = '';
+      _defaultQuantityController.text = '1.0';
       _fatRateController.text = '85.0';
       _baseFatController.text = '100.0';
     }
@@ -76,6 +79,7 @@ class _MilkDiaryAddSellerState extends State<MilkDiaryAddSeller> {
     _defaultRateController.dispose();
     _fatRateController.dispose();
     _baseFatController.dispose();
+    _defaultQuantityController.dispose();
     super.dispose();
   }
 
@@ -89,6 +93,14 @@ class _MilkDiaryAddSellerState extends State<MilkDiaryAddSeller> {
         };
       }
       
+      // Get default quantity
+      double defaultQuantity = 1.0;
+      try {
+        defaultQuantity = double.parse(_defaultQuantityController.text);
+      } catch (e) {
+        // Use default if parsing fails
+      }
+      
       // Create seller object
       final seller = MilkSeller(
         id: widget.seller?.id ?? const Uuid().v4(),
@@ -98,6 +110,7 @@ class _MilkDiaryAddSellerState extends State<MilkDiaryAddSeller> {
         defaultRate: _priceSystem == PriceSystem.defaultRate 
             ? double.parse(_defaultRateController.text)
             : 0.0,
+        defaultQuantity: defaultQuantity,
         isActive: true,
         priceSystem: _priceSystem,
         fatRates: fatRates,
@@ -355,6 +368,41 @@ class _MilkDiaryAddSellerState extends State<MilkDiaryAddSeller> {
                             const SizedBox(height: 8.0),
                             Text(
                               'This rate will be used for all entries for this seller.',
+                              style: _hintStyle,
+                            ),
+                            
+                            // Default Quantity field
+                            const SizedBox(height: 16.0),
+                            Text(
+                              'Default Quantity',
+                              style: _labelStyle,
+                            ),
+                            const SizedBox(height: 8.0),
+                            TextFormField(
+                              controller: _defaultQuantityController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: InputDecoration(
+                                hintText: 'Default milk quantity',
+                                prefixIcon: const Icon(Icons.water_drop_outlined),
+                                suffixText: _defaultUnit == 'Liter (L)' ? 'L' : 'kg',
+                                border: const OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter default quantity';
+                                }
+                                if (double.tryParse(value) == null) {
+                                  return 'Please enter a valid number';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 8.0),
+                            Text(
+                              'This quantity will be pre-filled when adding new entries for this seller.',
                               style: _hintStyle,
                             ),
                           ],

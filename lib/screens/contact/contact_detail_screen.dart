@@ -19,6 +19,7 @@ import 'dart:convert';
 import 'package:my_byaj_book/providers/notification_provider.dart';
 import 'package:my_byaj_book/utils/permission_handler.dart';
 import 'package:my_byaj_book/screens/home/home_screen.dart';
+import 'package:my_byaj_book/utils/image_picker_helper.dart';
 
 class ContactDetailScreen extends StatefulWidget {
   final Map<String, dynamic> contact;
@@ -1145,49 +1146,22 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
   }
 
   Future<void> _getImage(ImageSource source, Function(String) onImageSelected) async {
-    final picker = ImagePicker();
-    
-    // Check for appropriate permission first
-    bool hasPermission = false;
-    
-    if (source == ImageSource.camera) {
-      hasPermission = await _checkCameraPermission();
-    } else {
-      hasPermission = await _checkGalleryPermission();
-    }
-    
-    if (!hasPermission) {
-      return; // Return if permission not granted
-    }
+    final imagePickerHelper = ImagePickerHelper();
     
     try {
-      final pickedFile = await picker.pickImage(
-        source: source,
-        imageQuality: 70,
-        maxWidth: 1000,
-      );
+      // Use our helper that handles permission automatically
+      final imageFile = await imagePickerHelper.pickImage(context, source);
       
-      if (pickedFile != null) {
-        onImageSelected(pickedFile.path);
+      if (imageFile != null) {
+        onImageSelected(imageFile.path);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
-  }
-  
-  // Add methods to check for camera and gallery permissions
-  Future<bool> _checkCameraPermission() async {
-    // Use the centralized permission utility
-    final permissionUtils = PermissionUtils();
-    return await permissionUtils.requestCameraPermission(context);
-  }
-  
-  Future<bool> _checkGalleryPermission() async {
-    // Use the centralized permission utility
-    final permissionUtils = PermissionUtils();
-    return await permissionUtils.requestGalleryPermission(context);
   }
 
   Widget _buildInterestSummaryCard() {
@@ -1884,7 +1858,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                         ),
                         const SizedBox(width: 8),
                 Text(
-                  isPositive ? 'TO RECEIVE' : 'TO PAY',
+                  isPositive ? 'You Will RECEIVE' : 'You Will PAY',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

@@ -290,6 +290,18 @@ class NotificationService {
     // Store the notification ID mapping
     _loanNotificationIds[loanId] = id;
     
+    // Ensure amount is properly formatted with comma separation for thousands
+    final String formattedAmount = amount > 0 
+        ? amount.toStringAsFixed(2).replaceAllMapped(
+            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), 
+            (Match m) => '${m[1]},')
+        : '0.00';
+
+    // Create modified body text with the properly formatted amount
+    final String finalBody = body.contains('₹') 
+        ? body.replaceFirst(RegExp(r'₹\d+\.?\d*'), '₹$formattedAmount')
+        : body.replaceFirst('payment of', 'payment of ₹$formattedAmount');
+    
     // Create Android notification details
     const androidPlatformChannelSpecifics = AndroidNotificationDetails(
       'loan_payment_channel',
@@ -342,7 +354,7 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.zonedSchedule(
       id,
       title,
-      body,
+      finalBody,
       tzScheduledDate,
       platformChannelSpecifics,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -592,6 +604,13 @@ class NotificationService {
       iOS: iOSDetails,
     );
     
+    // Format the amount with commas for thousands and proper decimal places
+    final String formattedAmount = amount > 0 
+        ? amount.toStringAsFixed(2).replaceAllMapped(
+            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), 
+            (Match m) => '${m[1]},')
+        : '0.00';
+        
     final formattedDueDate = '${dueDate.day}/${dueDate.month}/${dueDate.year}';
     final payload = LoanNotification(
       loanId: loanId,
@@ -604,7 +623,7 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.show(
       id,
       'Payment Due: $loanName',
-      'Installment #$installmentNumber for ₹${amount.toStringAsFixed(2)} is due on $formattedDueDate. Tap to view details.',
+      'Installment #$installmentNumber for ₹$formattedAmount is due on $formattedDueDate. Tap to view details.',
       notificationDetails,
       payload: payload,
     );
@@ -613,7 +632,7 @@ class NotificationService {
     await _scheduleTimedNotification(
       id: id + 1000, // Use a different ID for the scheduled notification
       title: 'Payment Due: $loanName',
-      body: 'Installment #$installmentNumber for ₹${amount.toStringAsFixed(2)} is due today. Tap to view details.',
+      body: 'Installment #$installmentNumber for ₹$formattedAmount is due today. Tap to view details.',
       scheduledDate: dueDate,
       payload: payload,
     );
@@ -927,17 +946,42 @@ class NotificationService {
   }
   
   double _calculateMonthlyEMI(Map<String, dynamic> loan) {
-    final loanAmount = double.parse(loan['loanAmount'] ?? '0');
-    final interestRate = double.parse(loan['interestRate'] ?? '0') / 100 / 12; // Monthly rate
-    final loanTerm = int.parse(loan['loanTerm'] ?? '0');
+    // First check if installments are already calculated
+    if (loan.containsKey('installments') && 
+        loan['installments'] is List && 
+        (loan['installments'] as List).isNotEmpty) {
+      // Return the total amount from the first installment
+      try {
+        return (loan['installments'][0]['totalAmount'] as double?) ?? 0.0;
+      } catch (e) {
+        // Fall back to calculation if installment data is invalid
+      }
+    }
     
-    if (interestRate == 0 || loanTerm == 0) {
-      return loanAmount / loanTerm; // Simple division for zero interest
+    // Calculate EMI if no installments or error accessing them
+    final String loanAmountStr = loan['loanAmount'] ?? '0';
+    final String interestRateStr = loan['interestRate'] ?? '0';
+    final String loanTermStr = loan['loanTerm'] ?? '0';
+    
+    // Parse values, handling formatting issues
+    final double loanAmount = double.tryParse(loanAmountStr.replaceAll(',', '')) ?? 0.0;
+    final double annualRate = double.tryParse(interestRateStr.replaceAll(',', '')) ?? 0.0;
+    final double monthlyRate = annualRate / 100 / 12; // Convert annual rate to monthly
+    final int loanTerm = int.tryParse(loanTermStr) ?? 0;
+    
+    // Return 0 for invalid inputs to avoid NaN results
+    if (loanAmount <= 0 || loanTerm <= 0) {
+      return 0.0;
+    }
+    
+    // For zero interest rate, simply divide loan amount by term
+    if (monthlyRate <= 0) {
+      return loanAmount / loanTerm;
     }
     
     // EMI = P * r * (1+r)^n / ((1+r)^n - 1)
-    return loanAmount * interestRate * pow(1 + interestRate, loanTerm) / 
-        (pow(1 + interestRate, loanTerm) - 1);
+    return loanAmount * monthlyRate * pow(1 + monthlyRate, loanTerm) / 
+        (pow(1 + monthlyRate, loanTerm) - 1);
   }
 
   // Schedule notification

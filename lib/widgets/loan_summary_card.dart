@@ -21,7 +21,7 @@ class LoanSummaryCard extends StatelessWidget {
     
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -35,8 +35,8 @@ class LoanSummaryCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: Colors.blue.shade200.withOpacity(0.5),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -48,20 +48,20 @@ class LoanSummaryCard extends StatelessWidget {
             'Welcome, $userName',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           const Text(
             'Have a great day!',
             style: TextStyle(
               color: Colors.white70,
-              fontSize: 12,
+              fontSize: 11,
             ),
           ),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           
           // Loan summary with month and year text
           Row(
@@ -71,7 +71,7 @@ class LoanSummaryCard extends StatelessWidget {
                 'Your loan summary',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -79,13 +79,13 @@ class LoanSummaryCard extends StatelessWidget {
                 monthYear,
                 style: const TextStyle(
                   color: Colors.white70,
-                  fontSize: 12,
+                  fontSize: 11,
                 ),
               ),
             ],
           ),
           
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           
           // Loan details in row
           Row(
@@ -109,15 +109,15 @@ class LoanSummaryCard extends StatelessWidget {
           label,
           style: const TextStyle(
             color: Colors.white70,
-            fontSize: 12,
+            fontSize: 11,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           value,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
           ),
         ),

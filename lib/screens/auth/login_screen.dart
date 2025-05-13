@@ -180,17 +180,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   // Modified verification method to use in-app reCAPTCHA
   void _verifyMobile() {
     if (_formKey.currentState!.validate()) {
-      // Check if reCAPTCHA verification was completed
-      if (!_recaptchaVerified) {
-        setState(() {
-          _errorMessage = 'Please verify that you are not a robot first';
-        });
-        return;
-      }
-      
+      // Remove the reCAPTCHA verification check
       setState(() {
         _isLoading = true;
         _errorMessage = null;
+        _recaptchaVerified = true; // Set to true to bypass verification check
       });
       
       // If Firebase Auth is not available or we want to skip Firebase auth,
@@ -309,15 +303,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       if (firebaseUser != null) {
         debugPrint("Successfully signed in with phone number: ${firebaseUser.phoneNumber}");
         
+        // Get the mobile number from the controller
+        final mobileNumber = _mobileController.text.trim();
+        
         // Check if user exists in your own database
-        final exists = await userProvider.checkUserExists(_mobileController.text);
+        final exists = await userProvider.checkUserExists(mobileNumber);
         
         if (!mounted) return;
         
         if (exists) {
           debugPrint("Existing user found in database");
           // Existing user - login and go to home
-          await userProvider.loginWithMobile(_mobileController.text);
+          await userProvider.loginWithMobile(mobileNumber);
           
           if (mounted) {
             _navigateToHome();
@@ -396,6 +393,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           ),
         ),
         child: SafeArea(
+          bottom: true,
           child: Column(
             children: [
               Expanded(
@@ -574,69 +572,75 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           ),
         ),
       ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Thin divider line
-          Container(
-            height: 1, // Very thin line
-            color: Colors.white.withAlpha(25), // Subtle white color
-          ),
-          // Footer content based on current step
-          _currentStep == 1 
-            ? Container(
-                height: 10, 
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topRight,
-                    end: Alignment.bottomLeft,
-                    colors: [
-                      Colors.blue.shade800,
-                      Colors.blue.shade900,
-                      Colors.indigo.shade900,
+      bottomNavigationBar: SafeArea(
+        top: false,
+        bottom: true,
+        minimum: const EdgeInsets.only(bottom: 8), // Add minimum padding to ensure visibility
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Thin divider line
+            Container(
+              height: 1, // Very thin line
+              color: Colors.white.withAlpha(25), // Subtle white color
+            ),
+            // Footer content based on current step
+            _currentStep == 1 
+              ? Container(
+                  height: 10, 
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                      colors: [
+                        Colors.blue.shade800,
+                        Colors.blue.shade900,
+                        Colors.indigo.shade900,
+                      ],
+                    ),
+                  ),
+                )
+              : Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                      colors: [
+                        Colors.blue.shade800,
+                        Colors.blue.shade900,
+                        Colors.indigo.shade900,
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "powered by",
+                        style: TextStyle(
+                          color: Colors.white.withAlpha(178),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        "RJ Innovative Media",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 8), // Add extra bottom spacing
                     ],
                   ),
                 ),
-              )
-            : Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topRight,
-                    end: Alignment.bottomLeft,
-                    colors: [
-                      Colors.blue.shade800,
-                      Colors.blue.shade900,
-                      Colors.indigo.shade900,
-                    ],
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      "powered by",
-                      style: TextStyle(
-                        color: Colors.white.withAlpha(178),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w300,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      "RJ Innovative Media",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -810,78 +814,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           },
         ),
         const SizedBox(height: 20),
-        // Interactive reCAPTCHA widget
-        GestureDetector(
-          onTap: () {
-            if (!_captchaInProgress && !_recaptchaVerified) {
-              _verifyRecaptcha();
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-              color: Colors.grey.shade50,
-            ),
-            child: Column(
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Checkbox(
-                      value: _recaptchaVerified,
-                      onChanged: (value) {
-                        if (!_captchaInProgress && !_recaptchaVerified) {
-                          _verifyRecaptcha();
-                        }
-                      },
-                      checkColor: Colors.white,
-                      fillColor: WidgetStateProperty.resolveWith(
-                        (states) => _recaptchaVerified ? Colors.green.shade600 : Colors.grey.shade400,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Expanded(
-                      child: Text(
-                        'I am not a robot',
-                        style: TextStyle(color: Colors.black87, fontSize: 14),
-                      ),
-                    ),
-                    _recaptchaVerified 
-                      ? Icon(Icons.verified_user, color: Colors.green.shade600)
-                      : _captchaInProgress
-                          ? SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                value: _captchaProgress / 100,
-                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-                              ),
-                            )
-                          : Icon(Icons.shield_outlined, color: Colors.grey.shade600),
-                  ],
-                ),
-                // Show progress during verification
-                if (_captchaInProgress) ...[
-                  const SizedBox(height: 10),
-                  LinearProgressIndicator(
-                    value: _captchaProgress / 100,
-                    backgroundColor: Colors.grey.shade200,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade500),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Verifying you are human...',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 15),
+        // Remove the reCAPTCHA widget
         const Text(
           'We\'ll send a 6-digit OTP to verify your number',
           style: TextStyle(color: Colors.grey, fontSize: 12),
@@ -1156,7 +1089,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     }
     
     // Simulate network delay
-    Future.delayed(const Duration(seconds: 1), () {
+    Future.delayed(const Duration(seconds: 1), () async {
       if (!mounted) return;
       
       final enteredOTP = _otpController.text.trim();
@@ -1165,18 +1098,38 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       if (enteredOTP.length == 6 && int.tryParse(enteredOTP) != null) {
         debugPrint("Mock OTP accepted: $enteredOTP");
         
-        // For demo, consider mobile number "9876543210" as existing user
-        if (mobileNumber == "9876543210") {
-          debugPrint("Existing user detected: $mobileNumber");
-          loginUser(mobileNumber);
-        } else {
-          debugPrint("New user detected: $mobileNumber");
-          // New user - request name
-          if (mounted) {
+        try {
+          // Check if user exists in database using UserProvider
+          final userProvider = Provider.of<UserProvider>(context, listen: false);
+          final exists = await userProvider.checkUserExists(mobileNumber);
+          
+          if (!mounted) return;
+          
+          if (exists) {
+            debugPrint("Existing user detected: $mobileNumber");
+            loginUser(mobileNumber);
+          } else {
+            debugPrint("New user detected: $mobileNumber");
+            // New user - request name
             setState(() {
               _isLoading = false;
             });
             _transitionToNextStep();
+          }
+        } catch (e) {
+          debugPrint("Error checking user: $e");
+          // Fallback to hardcoded check if provider fails
+          if (mobileNumber == "9876543210") {
+            debugPrint("Fallback: Existing user detected: $mobileNumber");
+            loginUser(mobileNumber);
+          } else {
+            debugPrint("Fallback: New user detected: $mobileNumber");
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+              _transitionToNextStep();
+            }
           }
         }
       } else {

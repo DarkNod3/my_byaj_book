@@ -33,40 +33,43 @@ class BottomNavBar extends StatelessWidget {
         
         final navItems = navPrefs.selectedNavItems;
         
-        return Container(
-          height: 70,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                spreadRadius: 0,
-                blurRadius: 10,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              // Home button (index 0)
-              _buildNavItem(context, 0, navItems[0].icon, navItems[0].title),
-              
-              // First customizable button (index 1)
-              if (navItems.length > 1)
-                _buildNavItem(context, 1, navItems[1].icon, navItems[1].title),
-              
-              // Center tools button (index 2)
-              _buildToolsButton(context),
-              
-              // Second customizable button (index 3)
-              if (navItems.length > 2)
-                _buildNavItem(context, 3, navItems[2].icon, navItems[2].title),
-              
-              // Third customizable button (index 4) - replaces Manage button
-              if (navItems.length > 3)
-                _buildNavItem(context, 4, navItems[3].icon, navItems[3].title),
-            ],
+        return SafeArea(
+          bottom: true,
+          child: Container(
+            height: 60, // Reduced from 70 to better fit with gesture navigation
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  spreadRadius: 0,
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                // Home button (index 0)
+                _buildNavItem(context, 0, navItems[0].icon, navItems[0].title),
+                
+                // First customizable button (index 1)
+                if (navItems.length > 1)
+                  _buildNavItem(context, 1, navItems[1].icon, navItems[1].title),
+                
+                // Center tools button (index 2)
+                _buildToolsButton(context),
+                
+                // Second customizable button (index 3)
+                if (navItems.length > 2)
+                  _buildNavItem(context, 3, navItems[2].icon, navItems[2].title),
+                
+                // Third customizable button (index 4) - replaces Manage button
+                if (navItems.length > 3)
+                  _buildNavItem(context, 4, navItems[3].icon, navItems[3].title),
+              ],
+            ),
           ),
         );
       }
@@ -81,23 +84,23 @@ class BottomNavBar extends StatelessWidget {
         _onItemTapped(index, label);
       },
       child: Container(
-        width: 60,
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        width: 55,
+        padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 26,
+              size: 24,
               color: isSelected 
                 ? Colors.blue.shade700
                 : Colors.grey.shade600,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 color: isSelected 
                   ? Colors.blue.shade700
@@ -114,9 +117,9 @@ class BottomNavBar extends StatelessWidget {
     return GestureDetector(
       onTap: () => _showToolsPopup(context),
       child: Container(
-        width: 60,
-        height: 60,
-        margin: const EdgeInsets.only(bottom: 20),
+        width: 55,
+        height: 55,
+        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -139,7 +142,7 @@ class BottomNavBar extends StatelessWidget {
         child: const Icon(
           Icons.grid_view_rounded,
           color: Colors.white,
-          size: 30,
+          size: 28,
         ),
       ),
     );

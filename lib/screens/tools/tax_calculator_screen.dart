@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:my_byaj_book/services/pdf_template_service.dart';
+import '../../widgets/safe_area_wrapper.dart';
 
 class TaxCalculatorScreen extends StatefulWidget {
   static const routeName = '/tax-calculator';

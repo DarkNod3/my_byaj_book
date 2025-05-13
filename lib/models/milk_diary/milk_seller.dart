@@ -16,6 +16,7 @@ class MilkSeller {
   final int unit;
   final int baseFat;
   final bool fatBasedPricing;
+  final double defaultQuantity;
   double _dueAmount = 0.0;
 
   MilkSeller({
@@ -32,6 +33,7 @@ class MilkSeller {
     this.unit = 1,
     this.baseFat = 3,
     this.fatBasedPricing = false,
+    this.defaultQuantity = 1.0,
   }) : _dueAmount = dueAmount;
 
   double get dueAmount => _dueAmount;
@@ -56,6 +58,7 @@ class MilkSeller {
     int? unit,
     int? baseFat,
     bool? fatBasedPricing,
+    double? defaultQuantity,
   }) {
     return MilkSeller(
       id: id ?? this.id,
@@ -71,6 +74,7 @@ class MilkSeller {
       unit: unit ?? this.unit,
       baseFat: baseFat ?? this.baseFat,
       fatBasedPricing: fatBasedPricing ?? this.fatBasedPricing,
+      defaultQuantity: defaultQuantity ?? this.defaultQuantity,
     );
   }
 
@@ -92,6 +96,7 @@ class MilkSeller {
       'unit': unit,
       'baseFat': baseFat,
       'fatBasedPricing': fatBasedPricing,
+      'defaultQuantity': defaultQuantity,
     };
   }
 
@@ -123,6 +128,7 @@ class MilkSeller {
       unit: map['unit'] ?? 1,
       baseFat: map['baseFat'] ?? 3,
       fatBasedPricing: map['fatBasedPricing'] ?? false,
+      defaultQuantity: map['defaultQuantity']?.toDouble() ?? 1.0,
     );
   }
 

@@ -96,8 +96,26 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
       _selectedInterestType = loanData['interestType'] ?? 'Fixed';
       _selectedPaymentMethod = loanData['paymentMethod'] ?? 'UPI';
       
-      _loanStartDate = loanData['startDate'] ?? DateTime(2025, 4, 25);
-      _firstPaymentDate = loanData['firstPaymentDate'] ?? DateTime(2025, 5, 25);
+      // Properly handle DateTime objects
+      if (loanData['startDate'] is DateTime) {
+        _loanStartDate = loanData['startDate'];
+      } else if (loanData['startDate'] is String) {
+        try {
+          _loanStartDate = DateTime.parse(loanData['startDate']);
+        } catch (e) {
+          _loanStartDate = DateTime(2025, 4, 25);
+        }
+      }
+      
+      if (loanData['firstPaymentDate'] is DateTime) {
+        _firstPaymentDate = loanData['firstPaymentDate'];
+      } else if (loanData['firstPaymentDate'] is String) {
+        try {
+          _firstPaymentDate = DateTime.parse(loanData['firstPaymentDate']);
+        } catch (e) {
+          _firstPaymentDate = DateTime(2025, 5, 25);
+        }
+      }
     }
   }
 

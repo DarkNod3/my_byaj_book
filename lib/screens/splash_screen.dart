@@ -136,180 +136,183 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     final Size size = MediaQuery.of(context).size;
     
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-            colors: [
-              Colors.blue.shade800,
-              Colors.blue.shade900,
-              Colors.indigo.shade900,
-            ],
+      body: SafeArea(
+        bottom: true,
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+              colors: [
+                Colors.blue.shade800,
+                Colors.blue.shade900,
+                Colors.indigo.shade900,
+              ],
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Animated Logo
-                  FadeTransition(
-                    opacity: _fadeInAnimation,
-                    child: ScaleTransition(
-                      scale: _scaleAnimation,
-                      child: SlideTransition(
-                        position: _slideAnimation,
-                        child: Hero(
-                          tag: 'app_logo',
-                          child: Container(
-                            height: size.width * 0.45,
-                            width: size.width * 0.45,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withAlpha(38),
-                                  spreadRadius: 2,
-                                  blurRadius: 15,
-                                  offset: const Offset(0, 7),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Animated Logo
+                    FadeTransition(
+                      opacity: _fadeInAnimation,
+                      child: ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: Hero(
+                            tag: 'app_logo',
+                            child: Container(
+                              height: size.width * 0.45,
+                              width: size.width * 0.45,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withAlpha(38),
+                                    spreadRadius: 2,
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 7),
+                                  ),
+                                  BoxShadow(
+                                    color: Colors.blue.shade700.withAlpha(26),
+                                    spreadRadius: 10,
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 0),
+                                  ),
+                                ],
+                                border: Border.all(
+                                  color: Colors.white.withAlpha(230),
+                                  width: 4,
                                 ),
-                                BoxShadow(
-                                  color: Colors.blue.shade700.withAlpha(26),
-                                  spreadRadius: 10,
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 0),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.white,
+                                    Colors.white.withAlpha(230),
+                                  ],
+                                ),
+                              ),
+                              padding: const EdgeInsets.all(2),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(100),
+                                child: Image.asset(
+                                  'assets/my_byaj_book_logo.png',
+                                  fit: BoxFit.contain,
+                                  width: size.width * 0.35,
+                                  height: size.width * 0.35,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 30),
+                    
+                    // App Name
+                    FadeTransition(
+                      opacity: _fadeInAnimation,
+                      child: ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: Text(
+                            'My Byaj Book',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 1.2,
+                              shadows: [
+                                Shadow(
+                                  offset: const Offset(2, 2),
+                                  blurRadius: 3.0,
+                                  color: Colors.black.withAlpha(77),
                                 ),
                               ],
-                              border: Border.all(
-                                color: Colors.white.withAlpha(230),
-                                width: 4,
-                              ),
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.white,
-                                  Colors.white.withAlpha(230),
-                                ],
-                              ),
-                            ),
-                            padding: const EdgeInsets.all(2),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(100),
-                              child: Image.asset(
-                                'assets/my_byaj_book_logo.png',
-                                fit: BoxFit.contain,
-                                width: size.width * 0.35,
-                                height: size.width * 0.35,
-                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  
-                  const SizedBox(height: 30),
-                  
-                  // App Name
-                  FadeTransition(
-                    opacity: _fadeInAnimation,
-                    child: ScaleTransition(
-                      scale: _scaleAnimation,
-                      child: SlideTransition(
-                        position: _slideAnimation,
-                        child: Text(
-                          'My Byaj Book',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 1.2,
-                            shadows: [
-                              Shadow(
-                                offset: const Offset(2, 2),
-                                blurRadius: 3.0,
-                                color: Colors.black.withAlpha(77),
-                              ),
-                            ],
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Hindi Text (Meaning "Simplify Your Accounting" in Hindi)
+                    FadeTransition(
+                      opacity: _fadeInAnimation,
+                      child: Text(
+                        'सरल हिसाब, स्मार्ट ज़िंदगी',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 50),
+                    
+                    // Loading indicator
+                    FadeTransition(
+                      opacity: _fadeInAnimation,
+                      child: SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white.withAlpha(230),
                           ),
+                          strokeWidth: 3,
                         ),
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 12),
-                  
-                  // Hindi Text (Meaning "Simplify Your Accounting" in Hindi)
-                  FadeTransition(
-                    opacity: _fadeInAnimation,
-                    child: Text(
-                      'सरल हिसाब, स्मार्ट ज़िंदगी',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 50),
-                  
-                  // Loading indicator
-                  FadeTransition(
-                    opacity: _fadeInAnimation,
-                    child: SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.white.withAlpha(230),
-                        ),
-                        strokeWidth: 3,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Footer
-            FadeTransition(
-              opacity: _fadeInAnimation,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.only(bottom: 24),
-                child: Column(
-                  children: [
-                    Text(
-                      "powered by",
-                      style: TextStyle(
-                        color: Colors.white.withAlpha(179),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w300,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      "RJ Innovative Media",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+              
+              // Footer
+              FadeTransition(
+                opacity: _fadeInAnimation,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.only(bottom: 32),
+                  child: Column(
+                    children: [
+                      Text(
+                        "powered by",
+                        style: TextStyle(
+                          color: Colors.white.withAlpha(179),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        "RJ Innovative Media",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

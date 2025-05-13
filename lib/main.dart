@@ -36,6 +36,7 @@ import 'dart:async';
 import 'package:my_byaj_book/utils/permission_handler.dart';
 import 'screens/settings/notification_settings_screen.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'widgets/safe_area_wrapper.dart';
 
 // Global notification service
 final notificationService = NotificationService.instance;
@@ -525,6 +526,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             debugShowCheckedModeBanner: false,
             theme: themeProvider.themeData,
             home: const SplashScreen(),
+            // Add a builder to wrap all screens with SafeAreaWrapper
+            builder: (context, child) {
+              // Don't wrap if child is null
+              if (child == null) return Container();
+              
+              // Apply SafeAreaWrapper to all routes in the app
+              return SafeAreaWrapper(child: child);
+            },
             routes: {
               // Add route for notification settings screen
               NotificationSettingsScreen.routeName: (ctx) => const NotificationSettingsScreen(),

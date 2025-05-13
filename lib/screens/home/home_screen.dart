@@ -30,6 +30,7 @@ import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
 import 'package:my_byaj_book/widgets/notification_badge.dart';
 import 'package:intl/intl.dart';
 import 'package:my_byaj_book/utils/permission_handler.dart';
+import 'package:my_byaj_book/utils/image_picker_helper.dart';
 
 // Add dummy MyApp class as requested
 class MyApp extends StatelessWidget {
@@ -300,7 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         size: 18,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     const Text(
                       'Add Person',
                       style: TextStyle(
@@ -1537,15 +1538,11 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
 
   // Helper method to format large currency values in a compact way
   String _formatCompactCurrency(double amount) {
-    // For amounts of 1 crore (10 million) or more
+    // Only abbreviate for amounts of 1 crore (10 million) or more
     if (amount >= 10000000) {
       return '₹${(amount / 10000000).toStringAsFixed(2)} Cr';
     } 
-    // For amounts of 1 lakh (100,000) or more but less than 1 crore
-    else if (amount >= 100000) {
-      return '₹${(amount / 100000).toStringAsFixed(2)} L';
-    } 
-    // For smaller amounts, use proper Indian number formatting
+    // For all other amounts, use proper Indian number formatting
     else {
       final currencyFormat = NumberFormat.currency(
         locale: 'en_IN',
@@ -1614,19 +1611,26 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                       ],
                     ),
                       const SizedBox(height: 8),
-                    // Improved FittedBox with better constraints
-                    SizedBox(
-                      height: 28,
-                      child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                      child: Text(
-                          _formatCompactCurrency(_cachedTotalToGive),
-                          style: TextStyle(
-                            fontSize: _getAdaptiveFontSize(_cachedTotalToGive),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                    // Remove the original FittedBox display and keep only the white button
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
+                        ],
+                      ),
+                      child: Text(
+                        _formatCompactCurrency(_cachedTotalToGive),
+                        style: TextStyle(
+                          fontSize: _getButtonFontSize(_cachedTotalToGive),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade700,
                         ),
                       ),
                     ),
@@ -1687,19 +1691,26 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                       ],
                     ),
                       const SizedBox(height: 8),
-                    // Improved FittedBox with better constraints
-                    SizedBox(
-                      height: 28,
-                      child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                      child: Text(
-                          _formatCompactCurrency(_cachedTotalToGet),
-                          style: TextStyle(
-                            fontSize: _getAdaptiveFontSize(_cachedTotalToGet),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                    // Remove the original FittedBox display and keep only the white button
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
+                        ],
+                      ),
+                      child: Text(
+                        _formatCompactCurrency(_cachedTotalToGet),
+                        style: TextStyle(
+                          fontSize: _getButtonFontSize(_cachedTotalToGet),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade700,
                         ),
                       ),
                     ),
@@ -2429,7 +2440,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                                         ),
                                         const SizedBox(width: 2),
                                         Text(
-                                          '${contact['interestRate']}%',
+                                          '${contact['interestRate']} PA',
                                           style: TextStyle(
                                             fontSize: 10,
                                             color: Colors.amber.shade800,
@@ -2645,7 +2656,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                       ),
                       if (_isWithInterest)
                         Text(
-                          'Interest: ${contact['interestRate']}% p.a.',
+                          'Interest: ${contact['interestRate']} PA',
                           style: const TextStyle(
                             color: Colors.orange,
                             fontSize: 14,
@@ -3020,26 +3031,27 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   
   Future<void> _pickQRCodeImage() async {
     try {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+      final imagePickerHelper = ImagePickerHelper();
+      final imageFile = await imagePickerHelper.pickImage(context, ImageSource.gallery);
       
-      if (pickedFile != null) {
+      if (imageFile != null) {
         // Save the image path to SharedPreferences
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('payment_qr_code_path', pickedFile.path);
-        
-        // No need to update the removed _qrCodePath variable
+        await prefs.setString('payment_qr_code_path', imageFile.path);
         
         // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('QR code uploaded successfully')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('QR code uploaded successfully')),
+          );
+        }
       }
     } catch (e) {
-      // Removed debug print
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading QR code: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading QR code: $e')),
+        );
+      }
     }
   }
   
@@ -3262,6 +3274,19 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
           _cachedTotalToGet += balance;
         }
       }
+    }
+  }
+
+  // Helper method to determine font size for amount buttons based on the amount
+  double _getButtonFontSize(double amount) {
+    if (amount >= 10000000) { // ≥ 1 crore (always abbreviated)
+      return 16.0;
+    } else if (amount >= 1000000) { // ≥ 10 lakh
+      return 14.0;
+    } else if (amount >= 100000) { // ≥ 1 lakh
+      return 15.0;
+    } else {
+      return 16.0; // Default size for smaller amounts
     }
   }
 }

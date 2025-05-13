@@ -1203,7 +1203,7 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
       MaterialPageRoute(
         builder: (context) => AddLoanScreen(
           isEditing: true,
-          loanData: widget.loanData,
+          loanData: Map<String, dynamic>.from(widget.loanData), // Create a copy to avoid reference issues
         ),
       ),
     );
@@ -1214,37 +1214,40 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> with SingleTicker
       final updatedLoan = loanProvider.getLoanById(widget.loanData['id']);
       
       if (updatedLoan != null) {
-        // Re-fetch the latest loan data completely
+        // Store values for comparison before updating
+        final oldLoanAmount = widget.loanData['loanAmount'];
+        final oldLoanTerm = widget.loanData['loanTerm'];
+        final oldInterestRate = widget.loanData['interestRate'];
+
+        // Update the widget data with the fresh data from provider
         setState(() {
-          // Update the installments based on the new loan data
+          widget.loanData.clear();
+          widget.loanData.addAll(updatedLoan);
+          
+          // Reset installments to force regeneration
           _installments = [];
           
-          // If we're returning to a completely new loan data (amount, term, rate changed)
-          // we should regenerate all installments
-          if (updatedLoan['loanAmount'] != widget.loanData['loanAmount'] ||
-              updatedLoan['loanTerm'] != widget.loanData['loanTerm'] ||
-              updatedLoan['interestRate'] != widget.loanData['interestRate']) {
-            
-            // Force reload by calling Navigator.pop and navigating back with refreshed data
-            Navigator.pop(context, true);
-            
-            // Re-open the loan details with the updated loan data
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => LoanDetailsScreen(
-                    loanData: updatedLoan,
-                    initialTab: _tabController.index,
-                  ),
-                ),
-              );
-            });
+          // Check if loan calculation parameters changed by comparing with stored old values
+          bool paramsChanged = 
+              oldLoanAmount != updatedLoan['loanAmount'] ||
+              oldLoanTerm != updatedLoan['loanTerm'] ||
+              oldInterestRate != updatedLoan['interestRate'];
+          
+          if (paramsChanged) {
+            // Deeply regenerate installments with new loan parameters
+            _generateInstallments();
           } else {
-            // If only other fields were changed, just update the current view
-          _generateInstallments();
-          _updateLoanStatus();
+            // If only other fields like name or dates changed
+            if (updatedLoan.containsKey('installments') && 
+                updatedLoan['installments'] is List) {
+              _installments = List<Map<String, dynamic>>.from(updatedLoan['installments']);
+            } else {
+              _generateInstallments();
+            }
           }
+          
+          // Update loan status in any case
+          _updateLoanStatus();
         });
         
         // Show confirmation
