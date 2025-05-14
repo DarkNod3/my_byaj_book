@@ -1327,7 +1327,13 @@ class _CardScreenState extends State<CardScreen> {
                               'entries': card['entries'],
                             };
                               
+                            // Call updateCard function to save changes
                             updateCard(cardIndex, updatedCard);
+                            
+                            // Schedule notifications for updated due date
+                            final cardProvider = Provider.of<CardProvider>(context, listen: false);
+                            notificationService.scheduleCardDueNotifications(cardProvider);
+                            
                             Navigator.pop(context);
                             
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -2316,6 +2322,7 @@ class _CardScreenState extends State<CardScreen> {
     TextEditingController controller,
     Color themeColor,
   ) async {
+    // Always start with current date if field is empty
     DateTime initialDate = DateTime.now();
     
     // If controller has a value, try to parse it
@@ -2323,23 +2330,25 @@ class _CardScreenState extends State<CardScreen> {
       try {
         List<String> parts = controller.text.split(' ');
         if (parts.length >= 3) {
-          int day = int.tryParse(parts[0]) ?? 1;
-          String monthName = parts[1];
+          int day = int.parse(parts[0]) ?? 1;
+          String monthName = parts[1].replaceAll(',', '');
           int month = _getMonthNumber(monthName);
           int year = int.tryParse(parts[2].replaceAll(',', '')) ?? DateTime.now().year;
           
           initialDate = DateTime(year, month, day);
         }
       } catch (e) {
-        // Continue with fallback logic
+        // Continue with default date if parsing fails
+        print("Failed to parse date: $e");
       }
     }
     
-    final selectedDate = await showDatePicker(
+    // Show the date picker
+    final DateTime? selectedDate = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 30)), // Allow selecting from recent past dates
-      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -2354,6 +2363,7 @@ class _CardScreenState extends State<CardScreen> {
       },
     );
     
+    // Update controller if date was selected
     if (selectedDate != null) {
       String formattedDate = "${selectedDate.day} ${_getMonthName(selectedDate.month)}, ${selectedDate.year}";
       controller.text = formattedDate;

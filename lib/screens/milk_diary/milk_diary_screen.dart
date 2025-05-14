@@ -94,19 +94,24 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
     }
   }
   
-  // Show seller details
+  // Show seller details - optimized for better performance
   void _showSellerDetails(BuildContext context, String sellerId) {
     final sellerProvider = Provider.of<MilkSellerProvider>(context, listen: false);
     final seller = sellerProvider.getSellerById(sellerId);
     
-    if (seller != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => SellerProfileScreen(seller: seller),
-        ),
-      );
-    }
+    if (seller == null) return;
+    
+    // Use lightweight route transition for better performance
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => 
+          SellerProfileScreen(seller: seller),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 200),
+      ),
+    );
   }
   
   // Show add seller dialog
@@ -130,7 +135,7 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
   
   // Time ago format for last entry
   String _timeAgo(DateTime date) {
-    return timeago.format(date, locale: 'en_short');
+    return timeago.format(date, locale: 'en');
   }
   
   // Updated _buildSummaryCard method to show complete history and current month dues
@@ -305,254 +310,6 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
     );
   }
   
-  // Fix for the pending dues section to prevent overflow
-  Widget _buildPendingDuesSection(BuildContext context) {
-    return Consumer2<DailyEntryProvider, MilkSellerProvider>(
-      builder: (context, entryProvider, sellerProvider, child) {
-        final sellers = sellerProvider.sellers;
-        
-        // Calculate pending dues for each seller
-        Map<String, double> pendingDues = {};
-        
-        // Only process if there are sellers
-        if (sellers.isNotEmpty) {
-          for (var seller in sellers) {
-            final entries = entryProvider.getEntriesForSeller(seller.id);
-            final totalAmount = entries.isEmpty ? 0.0 :
-              entries.fold(0.0, (sum, entry) => sum + entry.amount);
-            
-            // Get payments for this seller and calculate actual due amount
-            final sellerPayments = sellerProvider.getPaymentsForSeller(seller.id);
-            final totalPaid = sellerPayments.isEmpty ? 0.0 :
-              sellerPayments.fold(0.0, (sum, payment) => sum + payment.amount);
-            
-            pendingDues[seller.id] = totalAmount - totalPaid;
-            
-            // Update the seller's due amount for consistency
-            seller.updateDueAmount(pendingDues[seller.id] ?? 0.0);
-            sellerProvider.updateSeller(seller);
-          }
-        }
-        
-        return Row(
-          children: [
-            // Pending Dues Section
-                  Expanded(
-              flex: 3,
-              child: Card(
-                color: Colors.pink[50],
-                elevation: 2,
-                        shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.account_balance_wallet,
-                            color: Colors.deepOrange,
-                            size: 20,
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            'Pending Dues',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.deepOrange,
-                            ),
-                          ),
-                          Spacer(),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      
-                      if (sellers.isEmpty || pendingDues.values.every((due) => due <= 0))
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text(
-                            'No pending dues',
-                            style: TextStyle(
-                              color: Colors.grey,
-                            ),
-                          ),
-                        )
-                      else
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 100),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: sellers
-                                .where((seller) => pendingDues[seller.id]! > 0)
-                                .take(2) // Show only top 2 sellers with pending dues
-                                .map((seller) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 6),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              seller.name,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w400,
-                                                fontSize: 13,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          Text(
-                                            '₹${pendingDues[seller.id]!.toStringAsFixed(0)}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: Colors.red,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ))
-                                .toList(),
-                          ),
-                        ),
-                      
-                      // Add View More button below the entries
-                      if (sellers.where((seller) => pendingDues[seller.id]! > 0).length > 2)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6.0),
-                          child: GestureDetector(
-                            onTap: () => _showAllPendingDues(context, sellers, pendingDues),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'View More',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.blue[700],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.arrow_forward,
-                                  size: 12,
-                                  color: Colors.blue[700],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            
-                  const SizedBox(width: 8),
-                  
-            // Payment Actions Card
-                  Expanded(
-              flex: 2,
-              child: SizedBox(
-                height: 100,
-                child: Card(
-                  color: Colors.green[50],
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // Add Payment Button
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            // Show add payment dialog for any seller
-                            _showAddPaymentDialog(context);
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.payments,
-                                  color: Colors.green[800],
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Add Payment',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green[800],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      const Divider(height: 1, thickness: 1, indent: 8, endIndent: 8),
-                      
-                      // Payment History Button
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            // Navigate to payment history screen
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const MilkPaymentsScreen(),
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.history,
-                                  color: Colors.blue[800],
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Payment History',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue[800],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-  
   // Seller list title row
   Widget _buildSellerListTitle() {
     return const Row(
@@ -624,7 +381,7 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                         ),
                         const SizedBox(width: 12),
                         
-                        // Seller details and time ago
+                        // Seller name and last entry time
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -638,25 +395,29 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                               ),
                               if (mostRecentEntry != null)
                                 Text(
-                                  'Last entry: ${_timeAgo(mostRecentEntry.date)}',
+                                  _timeAgo(mostRecentEntry.date),
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[600],
                                   ),
                                 ),
-                              // Show due amount instead of default rate
-                              Text(
-                                'Due: ₹${amountDue.toStringAsFixed(0)}',
-                                style: TextStyle(
-                                  color: Colors.red[700],
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
                             ],
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ),
+                
+                // Due amount (moved from below Last entry to right side)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: Text(
+                    'Due: ₹${amountDue.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      color: Colors.red[700],
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
@@ -977,10 +738,6 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                 // Summary card
                 _buildSummaryCard(context),
                 
-                // Pending Dues and Add Seller section (1x2 layout)
-                const SizedBox(height: 16),
-                _buildPendingDuesSection(context),
-                
                 // Seller list title
                 const SizedBox(height: 24),
                 _buildSellerListTitle(),
@@ -1178,115 +935,6 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
     );
   }
 
-  // Add this new method to show all pending dues in a dialog
-  void _showAllPendingDues(BuildContext context, List<MilkSeller> sellers, Map<String, double> pendingDues) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-                children: [
-            Icon(
-              Icons.account_balance_wallet,
-              color: Colors.deepOrange,
-              size: 20,
-            ),
-                  SizedBox(width: 8),
-                  Text(
-              'All Pending Dues',
-                    style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-        content: Container(
-          width: double.maxFinite,
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.5,
-          ),
-          child: ListView(
-            shrinkWrap: true,
-            children: sellers
-                .where((seller) => pendingDues[seller.id]! > 0)
-                .map((seller) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-            Expanded(
-                      child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                                  seller.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                if (seller.mobile != null)
-                                  Text(
-                                    seller.mobile!,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-            Text(
-                                '₹${pendingDues[seller.id]!.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                                  color: Colors.red,
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  _showAddPaymentDialogForSeller(context, seller.id);
-                                },
-                                child: Container(
-                                  margin: const EdgeInsets.only(top: 4),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green[100],
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    'Pay Now',
-          style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.green[800],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-          ),
-        ),
-      ],
-                          ),
-                        ],
-                      ),
-                    ))
-                .toList(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
   // Add a new method for editing sellers
   void _editSeller(BuildContext context, MilkSeller seller) async {
     // Use a local variable instead of depending on the widget's mounted property
@@ -1369,7 +1017,18 @@ class SellerProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(seller.name),
+        title: Row(
+          children: [
+            Expanded(child: Text(seller.name)),
+            Text(
+              '₹${seller.defaultRate}/L',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
       body: Consumer2<DailyEntryProvider, MilkSellerProvider>(
         builder: (context, entryProvider, sellerProvider, child) {
@@ -1395,32 +1054,6 @@ class SellerProfileScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Seller info card
-              Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        seller.name,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (seller.mobile != null)
-                        Text('Phone: ${seller.mobile}'),
-                      if (seller.address != null)
-                        Text('Address: ${seller.address}'),
-                      const SizedBox(height: 8),
-                      Text('Default Rate: ₹${seller.defaultRate}/L'),
-                    ],
-                  ),
-                ),
-              ),
-              
               // Add summary stats card
               Card(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -1438,6 +1071,47 @@ class SellerProfileScreen extends StatelessWidget {
                   ),
                 ),
               ),
+
+              // Contact information card
+              if (seller.mobile != null || seller.address != null)
+                Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Contact Information',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (seller.mobile != null)
+                          Row(
+                            children: [
+                              const Icon(Icons.phone, size: 16, color: Colors.grey),
+                              const SizedBox(width: 8),
+                              Text('Phone: ${seller.mobile}'),
+                            ],
+                          ),
+                        if (seller.address != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text('Address: ${seller.address}')),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
 
               // Payment and PDF buttons in one row
               Padding(
