@@ -1,7 +1,7 @@
 name: my_byaj_book
 description: A loan management and financial tool application.
 publish_to: 'none'
-version: 1.0.0+6
+version: 1.1.0+1
 
 environment:
   sdk: '>=3.7.2 <4.0.0'
@@ -75,24 +75,27 @@ flutter:
 
 flutter_native_splash:
   color: "#0D47A1"
-  image: assets/my_byaj_book_logo.png
+  image: assets/native_splash_icon.png
   color_dark: "#0D47A1"
-  image_dark: assets/my_byaj_book_logo.png
+  image_dark: assets/native_splash_icon.png
   
   android_12:
-    image: assets/my_byaj_book_logo.png
+    image: assets/native_splash_icon.png
     icon_background_color: "#0D47A1"
-    image_dark: assets/my_byaj_book_logo.png
+    image_dark: assets/native_splash_icon.png
     icon_background_color_dark: "#0D47A1"
   
   android: true
   ios: true
   web: false
 
-  # Fix for cropped logo - set splash screen dimensions
+  # Set scaling options to prevent stretching  
   android_gravity: center
   ios_content_mode: center
+  
+  # Keep splash on screen until app fully loads
   fullscreen: true
   
-  # Set a lower size to prevent cropping
-  image_size: 0.65
+  # Ensure backward compatibility
+  info_plist_files:
+    - 'ios/Runner/Info.plist'

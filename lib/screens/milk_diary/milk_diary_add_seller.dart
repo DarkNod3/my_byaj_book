@@ -342,7 +342,7 @@ class _MilkDiaryAddSellerState extends State<MilkDiaryAddSeller> {
                                         isExpanded: true,
                                         icon: const Icon(Icons.arrow_drop_down),
                                         padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                        items: ['Liter (L)', 'Kilogram (kg)'].map((unit) {
+                                        items: ['Liter (L)'].map((unit) {
                                           return DropdownMenuItem<String>(
                                             value: unit,
                                             child: Text(

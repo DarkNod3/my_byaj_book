@@ -149,7 +149,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                   style: TextStyle(color: Colors.grey, fontSize: 10),
                 ),
                 Text(
-                  '© 2023 My Byaj Book',
+                  '© 2025 My Byaj Book',
                   style: TextStyle(color: Colors.grey, fontSize: 10),
                 ),
               ],

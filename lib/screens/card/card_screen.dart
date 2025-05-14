@@ -2326,12 +2326,11 @@ class _CardScreenState extends State<CardScreen> {
           int day = int.tryParse(parts[0]) ?? 1;
           String monthName = parts[1];
           int month = _getMonthNumber(monthName);
-          int year = int.tryParse(parts[2]) ?? DateTime.now().year;
+          int year = int.tryParse(parts[2].replaceAll(',', '')) ?? DateTime.now().year;
           
           initialDate = DateTime(year, month, day);
         }
       } catch (e) {
-        // Removed debug print
         // Continue with fallback logic
       }
     }
@@ -2339,7 +2338,7 @@ class _CardScreenState extends State<CardScreen> {
     final selectedDate = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 30)), // Allow selecting from recent past dates
       lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
       builder: (context, child) {
         return Theme(
@@ -2358,9 +2357,6 @@ class _CardScreenState extends State<CardScreen> {
     if (selectedDate != null) {
       String formattedDate = "${selectedDate.day} ${_getMonthName(selectedDate.month)}, ${selectedDate.year}";
       controller.text = formattedDate;
-      
-      // Schedule notifications after due date changes
-      // This will happen when the dialog is closed with the new date
     }
   }
 

@@ -780,9 +780,19 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
             loanData['interestRate'] != widget.loanData!['interestRate'] ||
             loanData['loanTerm'] != widget.loanData!['loanTerm'];
             
+        // Also regenerate installments if the first payment date has changed
+        if (widget.loanData!['firstPaymentDate'] is DateTime) {
+          final oldDate = widget.loanData!['firstPaymentDate'] as DateTime;
+          final newDate = _firstPaymentDate;
+          
+          if (oldDate.year != newDate.year || oldDate.month != newDate.month || oldDate.day != newDate.day) {
+            shouldRegenerateInstallments = true;
+          }
+        }
+        
         // Only keep existing installments if loan parameters haven't changed
         if (!shouldRegenerateInstallments) {
-        loanData['installments'] = widget.loanData!['installments']; // Preserve existing installments
+          loanData['installments'] = widget.loanData!['installments']; // Preserve existing installments
         } else {
           // Clear installments to force regeneration
           loanData['installments'] = null;

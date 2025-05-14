@@ -146,41 +146,58 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
   // Check if all inputs for reverse calculation are valid
   void _checkReverseInputs() {
     bool canCalculate = false;
+    String newError = '';
     
     try {
-      double loanAmount = double.tryParse(_reverseLoanAmountController.text) ?? 0;
-      double emiAmount = double.tryParse(_reverseEmiAmountController.text) ?? 0;
-      int tenure = int.tryParse(_reverseTenureController.text) ?? 0;
+      // Use tryParse with null check to avoid exceptions
+      final loanAmountText = _reverseLoanAmountController.text.trim();
+      final emiAmountText = _reverseEmiAmountController.text.trim();
+      final tenureText = _reverseTenureController.text.trim();
       
-      if (loanAmount > 0 && emiAmount > 0 && tenure > 0) {
-        // Convert tenure to months if needed
-        if (_reverseTenureType == 0) {
-          tenure *= 12;
-        }
-        
-        // Check if the EMI is sensible (at least enough to cover the principal)
-        double minEmi = loanAmount / tenure;
-        
-        if (emiAmount >= minEmi) {
-          canCalculate = true;
-          _reverseCalculationError = '';
-        } else {
-          _reverseCalculationError = 'EMI too low for this loan amount and tenure';
-        }
+      // Only proceed if all fields have values
+      if (loanAmountText.isEmpty || emiAmountText.isEmpty || tenureText.isEmpty) {
+        newError = '';
       } else {
-        _reverseCalculationError = '';
+        double loanAmount = double.tryParse(loanAmountText) ?? 0;
+        double emiAmount = double.tryParse(emiAmountText) ?? 0;
+        int tenure = int.tryParse(tenureText) ?? 0;
+        
+        if (loanAmount > 0 && emiAmount > 0 && tenure > 0) {
+          // Convert tenure to months if needed
+          final tenureMonths = (_reverseTenureType == 0) ? tenure * 12 : tenure;
+          
+          // Check if the EMI is sensible (at least enough to cover the principal)
+          double minEmi = loanAmount / tenureMonths;
+          
+          if (emiAmount >= minEmi) {
+            canCalculate = true;
+          } else {
+            newError = 'EMI too low for this loan amount and tenure';
+          }
+        }
       }
     } catch (e) {
-      _reverseCalculationError = '';
+      // In case of any errors, we won't be able to calculate
+      newError = '';
     }
     
-    if (canCalculate != _canCalculateRate) {
+    // Only update state and trigger calculation if something changed
+    if (canCalculate != _canCalculateRate || newError != _reverseCalculationError) {
       setState(() {
         _canCalculateRate = canCalculate;
+        _reverseCalculationError = newError;
       });
       
-      if (canCalculate) {
-        _calculateInterestRate();
+      // Only calculate if we can and there is no error
+      if (canCalculate && newError.isEmpty) {
+        // Add a small delay before calculating to allow UI to update first
+        // and prevent input lag during typing
+        Future.delayed(const Duration(milliseconds: 300), () {
+          // Check if the input values are still the same before calculating
+          if (mounted && canCalculate == _canCalculateRate) {
+            _calculateInterestRate();
+          }
+        });
       }
     }
   }
@@ -193,95 +210,100 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
     
     setState(() {
       _isCalculatingRate = true;
+      _calculatedInterestRate = 0; // Reset previous result
     });
     
-    try {
-      double p = double.tryParse(_reverseLoanAmountController.text) ?? 1.0; // Principal
-      double emi = double.tryParse(_reverseEmiAmountController.text) ?? 1.0; // EMI amount
-      
-      // Ensure minimum values are 1
-      p = p < 1.0 ? 1.0 : p;
-      emi = emi < 1.0 ? 1.0 : emi;
-      
-      int n = int.tryParse(_reverseTenureController.text) ?? 1; // Tenure
-      // Ensure minimum tenure is 1
-      n = n < 1 ? 1 : n;
-      
-      // Convert years to months if needed
-      if (_reverseTenureType == 0) {
-        n = n * 12;
-      }
-      
-      // Function to calculate EMI given rate
-      // We'll use Newton-Raphson method to find the rate
-      double f(double r) {
-        if (r <= 0) return p / n - emi; // For 0 or negative rate, EMI is just principal/tenure
-        return p * r * pow(1 + r, n) / (pow(1 + r, n) - 1) - emi;
-      }
-      
-      // Derivative of f with respect to r
-      double fPrime(double r) {
-        if (r <= 0.0001) return 0; // Avoid division by zero
-        double numerator1 = p * pow(1 + r, n);
-        double numerator2 = p * n * r * pow(1 + r, n - 1);
-        double denominator = pow(1 + r, n) - 1;
-        return (numerator1 + numerator2) / denominator - 
-               p * r * pow(1 + r, n) * n * pow(1 + r, n - 1) / pow(denominator, 2);
-      }
-      
-      // Implement Newton-Raphson method
-      double r = 0.10 / 12; // Initial guess: 10% annually, converted to monthly
-      int maxIterations = 100;
-      double tolerance = 1e-10;
-      
-      for (int i = 0; i < maxIterations; i++) {
-        double fValue = f(r);
-        if (fValue.abs() < tolerance) {
-          break;
+    // Use Future.delayed to prevent UI freezing and give time for loading indicator to appear
+    Future.delayed(const Duration(milliseconds: 50), () {
+      try {
+        double p = double.tryParse(_reverseLoanAmountController.text) ?? 1.0; // Principal
+        double emi = double.tryParse(_reverseEmiAmountController.text) ?? 1.0; // EMI amount
+        
+        // Ensure minimum values are 1
+        p = p < 1.0 ? 1.0 : p;
+        emi = emi < 1.0 ? 1.0 : emi;
+        
+        int n = int.tryParse(_reverseTenureController.text) ?? 1; // Tenure
+        // Ensure minimum tenure is 1
+        n = n < 1 ? 1 : n;
+        
+        // Convert years to months if needed
+        if (_reverseTenureType == 0) {
+          n = n * 12;
         }
         
-        double fPrimeValue = fPrime(r);
-        if (fPrimeValue.abs() < tolerance) {
-          // If derivative is close to zero, use a different approach
-          r = r * 1.1; // Try a slightly higher rate
-          continue;
+        // Simplified approach using binary search for better stability
+        // This is more reliable than Newton-Raphson for this specific calculation
+        double rateMin = 0.0;  // 0% monthly
+        double rateMax = 1.0;  // 100% monthly (1200% annually) - reasonable upper bound
+        double r = 0.01;       // Initial guess: 1% monthly
+        double calculatedEmi;
+        double epsilon = 0.0000001; // Precision threshold
+        int maxIterations = 50;
+        
+        // Binary search for finding the rate
+        for (int i = 0; i < maxIterations; i++) {
+          // Special case: 0% interest rate
+          if (r < epsilon) {
+            calculatedEmi = p / n;
+          } else {
+            // EMI formula: P * r * (1 + r)^n / ((1 + r)^n - 1)
+            calculatedEmi = p * r * pow(1 + r, n) / (pow(1 + r, n) - 1);
+          }
+          
+          // If we're close enough to the target EMI, stop iterating
+          if ((calculatedEmi - emi).abs() < 0.01) {
+            break;
+          }
+          
+          // Update our search range based on whether calculated EMI is higher or lower
+          if (calculatedEmi > emi) {
+            rateMax = r;
+            r = (rateMin + r) / 2;
+          } else {
+            rateMin = r;
+            r = (r + rateMax) / 2;
+          }
+          
+          // If the range is very small, we've converged
+          if ((rateMax - rateMin) < epsilon) {
+            break;
+          }
         }
         
-        double nextR = r - fValue / fPrimeValue;
+        // Convert monthly rate to annual percentage
+        double annualRate = r * 12 * 100;
         
-        // Check if the method is converging
-        if ((nextR - r).abs() < tolerance) {
-          r = nextR;
-          break;
+        // Round to 2 decimal places
+        annualRate = double.parse(annualRate.toStringAsFixed(2));
+        
+        // Check if result is reasonable (cap at 100%)
+        if (annualRate > 100 || annualRate.isNaN || !annualRate.isFinite) {
+          if (mounted) {
+            setState(() {
+              _reverseCalculationError = 'Unable to calculate valid interest rate';
+              _isCalculatingRate = false;
+            });
+          }
+          return;
         }
         
-        // Ensure r stays positive
-        r = nextR > 0 ? nextR : r / 2;
+        if (mounted) {
+          setState(() {
+            _calculatedInterestRate = annualRate;
+            _isCalculatingRate = false;
+          });
+        }
+        
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _reverseCalculationError = 'Calculation error';
+            _isCalculatingRate = false;
+          });
+        }
       }
-      
-      // Convert monthly rate to annual percentage
-      double annualRate = r * 12 * 100;
-      
-      // Check if result is reasonable (cap at 100%)
-      if (annualRate > 100 || annualRate.isNaN) {
-        setState(() {
-          _reverseCalculationError = 'Unable to calculate valid interest rate';
-          _isCalculatingRate = false;
-        });
-        return;
-      }
-      
-      setState(() {
-        _calculatedInterestRate = annualRate;
-        _isCalculatingRate = false;
-      });
-      
-    } catch (e) {
-      setState(() {
-        _reverseCalculationError = 'Calculation error';
-        _isCalculatingRate = false;
-      });
-    }
+    });
   }
 
   void _calculateEMI() {
@@ -951,9 +973,20 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                         onChanged: (value) {
                           if (value != null) {
                             setState(() {
+                              // Store current value to convert
+                              int? currentTenure = int.tryParse(_loanTenureController.text);
+                              if (currentTenure != null) {
+                                // Convert value when switching tenure types
+                                if (_selectedTenureType == 1 && value == 0) {
+                                  // Converting months to years
+                                  int years = (currentTenure / 12).floor();
+                                  _loanTenureController.text = years > 0 ? years.toString() : '1';
+                                } else if (_selectedTenureType == 0 && value == 1) {
+                                  // Converting years to months
+                                  _loanTenureController.text = (currentTenure * 12).toString();
+                                }
+                              }
                               _selectedTenureType = value;
-                              // Force validation check when tenure type changes
-                              // (e.g., if user switches from months to years with value > 50)
                             });
                             _calculateEMI(); // This will check validation and update UI
                           }
@@ -1363,49 +1396,212 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
               ),
             ),
             
+            // Calculated Interest Rate Box - NOW AT THE TOP
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Calculated Interest Rate',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (_reverseCalculationError.isNotEmpty)
+                      Text(
+                        _reverseCalculationError,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.red.shade700,
+                        ),
+                        textAlign: TextAlign.center,
+                      )
+                    else if (_isCalculatingRate)
+                      const Column(
+                        children: [
+                          SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                            ),
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            'Calculating...',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ],
+                      )
+                    else if (_canCalculateRate)
+                      AnimatedOpacity(
+                        opacity: _calculatedInterestRate > 0 ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeIn,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              '${_calculatedInterestRate.toStringAsFixed(2)}%',
+                              style: TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade800,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'per annum',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.blue.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      const Text(
+                        'Enter all values to calculate interest rate',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            
             // Form fields
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Loan Amount
-                    TextField(
-                      controller: _reverseLoanAmountController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        TextInputFormatter.withFunction(
-                          (oldValue, newValue) {
-                            // Allow backspace/deletion
-                            if (oldValue.text.length > newValue.text.length) {
-                              return newValue;
-                            }
-                            
-                            // Check if new value exceeds 10 Crore
-                            if (newValue.text.isNotEmpty) {
-                              final value = double.tryParse(newValue.text) ?? 0;
-                              if (value > 100000000) { // 10 Crore = 10,00,00,000
-                                return oldValue;
+                    // Loan Amount and Tenure in one row (60:40 ratio)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Loan Amount (60%)
+                        Expanded(
+                          flex: 60,
+                          child: TextField(
+                            controller: _reverseLoanAmountController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              TextInputFormatter.withFunction(
+                                (oldValue, newValue) {
+                                  // Allow backspace/deletion
+                                  if (oldValue.text.length > newValue.text.length) {
+                                    return newValue;
+                                  }
+                                  
+                                  // Check if new value exceeds 10 Crore
+                                  if (newValue.text.isNotEmpty) {
+                                    final value = double.tryParse(newValue.text) ?? 0;
+                                    if (value > 100000000) { // 10 Crore = 10,00,00,000
+                                      return oldValue;
+                                    }
+                                  }
+                                  return newValue;
+                                },
+                              )
+                            ],
+                            decoration: const InputDecoration(
+                              labelText: 'Loan Amount (Rs.)',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.currency_rupee),
+                              contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                            ),
+                            onChanged: (value) {
+                              // Allow any value, just prevent "0" as the only digit
+                              if (value == "0") {
+                                _reverseLoanAmountController.text = '1';
                               }
-                            }
-                            return newValue;
-                          },
-                        )
+                              _checkReverseInputs();
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Tenure (40%) - Years only
+                        Expanded(
+                          flex: 40,
+                          child: TextField(
+                            controller: _reverseTenureController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              TextInputFormatter.withFunction(
+                                (oldValue, newValue) {
+                                  // Allow backspace/deletion
+                                  if (oldValue.text.length > newValue.text.length) {
+                                    return newValue;
+                                  }
+                                  
+                                  // Check if new value exceeds max tenure
+                                  if (newValue.text.isNotEmpty) {
+                                    final value = int.tryParse(newValue.text) ?? 0;
+                                    if (value > 50) { // Max 50 years
+                                      return oldValue;
+                                    }
+                                  }
+                                  return newValue;
+                                },
+                              )
+                            ],
+                            decoration: const InputDecoration(
+                              labelText: 'Years',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.calendar_today),
+                              contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                            ),
+                            onChanged: (value) {
+                              // Allow any value, just prevent "0" as the only digit
+                              if (value == "0") {
+                                _reverseTenureController.text = '1';
+                              }
+                              
+                              // Always set tenure type to years (0)
+                              setState(() {
+                                _reverseTenureType = 0;
+                              });
+                              
+                              _checkReverseInputs();
+                            },
+                          ),
+                        ),
                       ],
-                      decoration: const InputDecoration(
-                        labelText: 'Loan Amount (Rs.)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.currency_rupee),
-                        contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                      ),
-                      onChanged: (value) {
-                        // Allow any value, just prevent "0" as the only digit
-                        if (value == "0") {
-                          _reverseLoanAmountController.text = '1';
-                        }
-                        _checkReverseInputs();
-                      },
                     ),
                     const SizedBox(height: 16),
                     
@@ -1446,168 +1642,69 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
                         _checkReverseInputs();
                       },
                     ),
-                    const SizedBox(height: 16),
-                    
-                    // Loan Tenure
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _reverseTenureController,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              TextInputFormatter.withFunction(
-                                (oldValue, newValue) {
-                                  // Allow backspace/deletion
-                                  if (oldValue.text.length > newValue.text.length) {
-                                    return newValue;
-                                  }
-                                  
-                                  // Check if new value exceeds max tenure based on type
-                                  if (newValue.text.isNotEmpty) {
-                                    final value = int.tryParse(newValue.text) ?? 0;
-                                    if (_reverseTenureType == 0 && value > 50) { // Years
-                                      return oldValue;
-                                    } else if (_reverseTenureType == 1 && value > 600) { // Months
-                                      return oldValue;
-                                    }
-                                  }
-                                  return newValue;
-                                },
-                              )
-                            ],
-                            decoration: const InputDecoration(
-                              labelText: 'Loan Tenure',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.calendar_today),
-                              contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                            ),
-                            onChanged: (value) {
-                              // Allow any value, just prevent "0" as the only digit
-                              if (value == "0") {
-                                _reverseTenureController.text = '1';
-                              }
-                              _checkReverseInputs();
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Container(
-                            height: 56,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade400),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<int>(
-                                value: _reverseTenureType,
-                                isExpanded: true,
-                                items: const [
-                                  DropdownMenuItem(value: 0, child: Text('Years')),
-                                  DropdownMenuItem(value: 1, child: Text('Months')),
-                                ],
-                                onChanged: (value) {
-                                  if (value != null) {
-                                    setState(() {
-                                      _reverseTenureType = value;
-                                      _checkReverseInputs();
-                                    });
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: 24),
                     
-                    // Result display
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.blue.shade200,
-                          width: 1,
+                    // EMI Breakdown as per live interest
+                    if (_canCalculateRate && _calculatedInterestRate > 0)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'EMI Breakdown',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildBreakdownRow(
+                              label: 'Principal Amount',
+                              value: _reverseLoanAmountController.text.isNotEmpty
+                                  ? _currencyFormat.format(double.tryParse(_reverseLoanAmountController.text) ?? 0)
+                                  : '-',
+                            ),
+                            const SizedBox(height: 8),
+                            _buildBreakdownRow(
+                              label: 'Interest Rate',
+                              value: '${_calculatedInterestRate.toStringAsFixed(2)}% p.a.',
+                            ),
+                            const SizedBox(height: 8),
+                            _buildBreakdownRow(
+                              label: 'Loan Tenure',
+                              value: '${_reverseTenureController.text} Years',
+                            ),
+                            const SizedBox(height: 8),
+                            _buildBreakdownRow(
+                              label: 'Monthly EMI',
+                              value: _reverseEmiAmountController.text.isNotEmpty
+                                  ? _currencyFormat.format(double.tryParse(_reverseEmiAmountController.text) ?? 0)
+                                  : '-',
+                              isBold: true,
+                            ),
+                            const SizedBox(height: 8),
+                            const Divider(),
+                            const SizedBox(height: 8),
+                            _buildBreakdownRow(
+                              label: 'Total Interest',
+                              value: _calculateTotalInterest(),
+                              showColor: true,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildBreakdownRow(
+                              label: 'Total Amount',
+                              value: _calculateTotalAmount(),
+                              isBold: true,
+                            ),
+                          ],
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'Calculated Interest Rate',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.blue,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          if (_reverseCalculationError.isNotEmpty)
-                            Text(
-                              _reverseCalculationError,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.red.shade700,
-                              ),
-                            )
-                          else if (_isCalculatingRate)
-                            const Column(
-                              children: [
-                                SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Calculating...',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                  ),
-                                ),
-                              ],
-                            )
-                          else if (_canCalculateRate)
-                            Column(
-                              children: [
-                                Text(
-                                  '${_calculatedInterestRate.toStringAsFixed(2)}%',
-                                  style: TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue.shade800,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'per annum',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.blue.shade600,
-                                  ),
-                                ),
-                              ],
-                            )
-                          else
-                            const Text(
-                              'Enter all values to calculate interest rate',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
                     
                     const SizedBox(height: 24),
                     
@@ -1802,5 +1899,69 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
       }
     } catch (_) {}
     return null;
+  }
+
+  String _calculateTotalInterest() {
+    try {
+      double principal = double.tryParse(_reverseLoanAmountController.text) ?? 0;
+      double emi = double.tryParse(_reverseEmiAmountController.text) ?? 0;
+      int years = int.tryParse(_reverseTenureController.text) ?? 0;
+      int months = years * 12;
+      
+      // Total amount paid over the loan period
+      double totalAmount = emi * months;
+      
+      // Interest is the difference between total amount and principal
+      double totalInterest = totalAmount - principal;
+      
+      // Prevent negative values
+      if (totalInterest < 0) totalInterest = 0;
+      
+      return _currencyFormat.format(totalInterest);
+    } catch (e) {
+      return '-';
+    }
+  }
+
+  String _calculateTotalAmount() {
+    try {
+      double emi = double.tryParse(_reverseEmiAmountController.text) ?? 0;
+      int years = int.tryParse(_reverseTenureController.text) ?? 0;
+      int months = years * 12;
+      
+      double totalAmount = emi * months;
+      
+      return _currencyFormat.format(totalAmount);
+    } catch (e) {
+      return '-';
+    }
+  }
+
+  Widget _buildBreakdownRow({
+    required String label,
+    required String value,
+    bool showColor = false,
+    bool isBold = false,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: showColor ? Colors.orange : Colors.grey[800],
+            fontSize: isBold ? 16 : 14,
+          ),
+        ),
+      ],
+    );
   }
 } 

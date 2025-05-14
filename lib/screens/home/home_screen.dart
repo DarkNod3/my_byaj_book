@@ -19,7 +19,6 @@ import 'package:my_byaj_book/providers/nav_preferences_provider.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:my_byaj_book/screens/tea_diary/tea_diary_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -209,7 +208,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'bill_diary': const BillDiaryScreen(showAppBar: false),
       'milk_diary': const MilkDiaryScreen(showAppBar: false),
       'work_diary': const WorkDiaryScreen(showAppBar: false),
-      'tea_diary': const TeaDiaryScreen(showAppBar: false),
       'tools': const MoreToolsScreen(),
       'emi_calc': const EmiCalculatorScreen(showAppBar: false),
       'sip_calc': const SipCalculatorScreen(showAppBar: false),

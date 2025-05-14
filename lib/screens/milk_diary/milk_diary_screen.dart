@@ -971,28 +971,23 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
         
           // Main content area
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                // Refresh state (no actual network refresh needed since data is local)
-                setState(() {});
-              },
-              child: ListView(
+            child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                    children: [
-                  // Summary card
-                  _buildSummaryCard(context),
-                  
-                  // Pending Dues and Add Seller section (1x2 layout)
-              const SizedBox(height: 16),
-                  _buildPendingDuesSection(context),
-                  
-                  // Seller list title
-                  const SizedBox(height: 24),
-                  _buildSellerListTitle(),
-                  const SizedBox(height: 12),
-                  
-                  // Seller list
-                  Consumer2<DailyEntryProvider, MilkSellerProvider>(
+              children: [
+                // Summary card
+                _buildSummaryCard(context),
+                
+                // Pending Dues and Add Seller section (1x2 layout)
+                const SizedBox(height: 16),
+                _buildPendingDuesSection(context),
+                
+                // Seller list title
+                const SizedBox(height: 24),
+                _buildSellerListTitle(),
+                const SizedBox(height: 12),
+                
+                // Seller list
+                Consumer2<DailyEntryProvider, MilkSellerProvider>(
                 builder: (context, entryProvider, sellerProvider, child) {
                       final entries = entryProvider.entries;
                       final sellers = sellerProvider.sellers;
@@ -1051,11 +1046,7 @@ class _MilkDiaryScreenState extends State<MilkDiaryScreen> with SingleTickerProv
                       );
                     },
                   ),
-                  
-                  // Space at the bottom for better UX
-                  const SizedBox(height: 80),
-                ],
-              ),
+              ],
             ),
           ),
         ],
@@ -2173,18 +2164,14 @@ void _deleteSeller(BuildContext context, String sellerId) async {
     // Delete the seller
     await sellerProvider.deleteSeller(sellerId);
     
-    // Force UI refresh safely without directly calling protected methods
     // The providers will automatically handle notification of changes
     
-    // Additional UI refresh to ensure summary card updates properly
+    // No direct UI refresh needed
     if (context.mounted) {
-      // To trigger a complete refresh of the UI and data
+      // Short delay for state to update
       await Future.delayed(const Duration(milliseconds: 100));
       
-      // Use appropriate method to refresh UI
       if (context.mounted) {
-        // Just rely on the provider system - no direct setState needed
-        
         // Show confirmation
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

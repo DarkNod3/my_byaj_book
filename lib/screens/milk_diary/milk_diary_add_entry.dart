@@ -58,9 +58,8 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
   bool _isFatBased = false;
   String? _errorMessage;
   
-  // Lists for preset quantities based on unit
+  // Lists for preset quantities
   final List<String> _literPresets = ['250ml', '500ml', '1L', '2L', '5L'];
-  final List<String> _kgPresets = ['250g', '500g', '1kg', '2kg', '5kg'];
   
   @override
   void initState() {
@@ -147,44 +146,24 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
 
   void _selectQuantity(String amount) {
     setState(() {
-      if (_selectedUnit == 'Liter (L)') {
-        if (amount.endsWith('ml')) {
-          // Convert ml to L
-          final ml = int.parse(amount.replaceAll('ml', ''));
-          _quantityController.text = (ml / 1000).toStringAsFixed(3);
-        } else {
-          _quantityController.text = amount.replaceAll('L', '');
-        }
-      } else if (_selectedUnit == 'Kilogram (kg)') {
-        if (amount.endsWith('g')) {
-          // Convert g to kg
-          final g = int.parse(amount.replaceAll('g', ''));
-          _quantityController.text = (g / 1000).toStringAsFixed(3);
-        } else {
-          _quantityController.text = amount.replaceAll('kg', '');
-        }
+      if (amount.endsWith('ml')) {
+        // Convert ml to L
+        final ml = int.parse(amount.replaceAll('ml', ''));
+        _quantityController.text = (ml / 1000).toStringAsFixed(3);
+      } else {
+        _quantityController.text = amount.replaceAll('L', '');
       }
     });
   }
 
-  // Convert quantity between units if needed
+  // Convert quantity between units if needed - simplified since we only use liters now
   void _convertQuantity(String fromUnit, String toUnit) {
-    if (_quantityController.text.isEmpty) return;
-    
-    try {
-      final quantity = double.parse(_quantityController.text);
-      // In most milk applications, 1L ≈ 1.03kg, but for simplicity we can use 1:1
-      // If a more accurate conversion is needed, we could implement it here
-      
-      // For now, we'll keep the same numeric value and just update the unit
-      _quantityController.text = quantity.toStringAsFixed(3);
-    } catch (e) {
-      // Invalid number, ignore
-    }
+    // No conversion needed since we only support Liters
+    return;
   }
 
   // Get current quantity presets based on selected unit
-  List<String> get _currentPresets => _selectedUnit == 'Liter (L)' ? _literPresets : _kgPresets;
+  List<String> get _currentPresets => _selectedUnit == 'Liter (L)' ? _literPresets : _literPresets;
 
   // Get rate for selected seller
   // Unused method - commented out per analyzer warning
@@ -302,8 +281,8 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
         snf = double.parse(_snfController.text);
       }
       
-      // Get unit type for storage
-      final unitType = _selectedUnit == 'Kilogram (kg)' ? 'kg' : 'L';
+      // Always use liter as the unit
+      const unitType = 'L';
       
       final entry = DailyEntry(
         id: widget.entry?.id ?? const Uuid().v4(),
@@ -317,7 +296,7 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
         amount: amount,
         remarks: _remarksController.text.isNotEmpty ? _remarksController.text : null,
         milkType: _selectedMilkType,
-        unit: unitType, // Store the unit type
+        unit: unitType, // Always L for liter
       );
       
       final entryProvider = Provider.of<DailyEntryProvider>(context, listen: false);
@@ -606,7 +585,7 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
                             });
                           }
                         },
-                        items: ['Liter (L)', 'Kilogram (kg)'].map<DropdownMenuItem<String>>((String value) {
+                        items: ['Liter (L)'].map<DropdownMenuItem<String>>((String value) {
                           return DropdownMenuItem<String>(
                             value: value,
                             child: Text(
@@ -650,7 +629,7 @@ class _MilkDiaryAddEntryState extends State<MilkDiaryAddEntry> {
               controller: _rateController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                labelText: 'Rate (₹ per ${_selectedUnit == 'Liter (L)' ? 'L' : 'kg'})',
+                labelText: 'Rate (₹ per L)',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

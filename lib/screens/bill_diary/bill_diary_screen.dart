@@ -63,8 +63,13 @@ class _BillDiaryScreenState extends State<BillDiaryScreen> with SingleTickerProv
     return Scaffold(
       appBar: widget.showAppBar ? AppBar(
         title: const Text('Bill Diary'),
+        backgroundColor: AppTheme.primaryColor,
+        elevation: 0,
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
           tabs: const [
             Tab(text: 'All Notes'),
             Tab(text: 'Reminders'),
@@ -103,7 +108,7 @@ class _BillDiaryScreenState extends State<BillDiaryScreen> with SingleTickerProv
         children: [
           _buildCategoryChip(BillCategory.all),
           ...BillCategory.values
-              .where((c) => c != BillCategory.all)
+              .where((c) => c != BillCategory.all && c != BillCategory.reminders)
               .map((category) => _buildCategoryChip(category))
               .toList(),
         ],

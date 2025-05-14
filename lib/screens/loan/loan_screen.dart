@@ -391,10 +391,10 @@ class _LoanScreenState extends State<LoanScreen> {
     
     // Check if current month's EMI is paid
     bool isCurrentMonthEmiPaid = false;
-    DateTime? nextPaymentDate = loan['firstPaymentDate'];
+    DateTime? nextPaymentDate;
     
     // If we have installments, determine next payment date and EMI paid status
-    if (loan.containsKey('installments') && loan['installments'] is List) {
+    if (loan.containsKey('installments') && loan['installments'] is List && (loan['installments'] as List).isNotEmpty) {
       final installments = loan['installments'] as List;
       final now = DateTime.now();
       final currentMonth = now.month;
@@ -418,6 +418,9 @@ class _LoanScreenState extends State<LoanScreen> {
           break;
         }
       }
+    } else {
+      // If no installments exist or list is empty, use firstPaymentDate as the source of truth
+      nextPaymentDate = loan['firstPaymentDate'];
     }
     
     final bool isNextPaymentDue = _isPaymentDue(nextPaymentDate);
@@ -646,6 +649,22 @@ class _LoanScreenState extends State<LoanScreen> {
                     SnackBar(
                       content: Text('Loan marked as ${isActive ? 'inactive' : 'active'}'),
                       backgroundColor: isActive ? Colors.orange : Colors.green,
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit, color: Colors.blue),
+                title: const Text('Edit Loan'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddLoanScreen(
+                        isEditing: true,
+                        loanData: loan,
+                      ),
                     ),
                   );
                 },
