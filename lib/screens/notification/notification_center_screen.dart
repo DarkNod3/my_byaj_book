@@ -69,11 +69,6 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> wit
                 tooltip: 'Notification Settings',
               ),
               IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white),
-                onPressed: _refreshNotifications,
-                tooltip: 'Refresh notifications',
-              ),
-              IconButton(
                 icon: const Icon(Icons.done_all, color: Colors.white),
                 onPressed: _markAllAsRead,
                 tooltip: 'Mark all as read',

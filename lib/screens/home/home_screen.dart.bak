@@ -416,74 +416,46 @@ class _HomeContentState extends State<HomeContent> {
     if (!mounted) return;
     
     try {
-      // Get transaction provider
-      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-      
-      // Get all contacts from the provider
-      final allContacts = transactionProvider.contacts;
-      if (allContacts.isEmpty) {
-        // If there are no contacts in the provider, retry after a short delay
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) {
-            setState(() {
-              _syncContactsWithTransactions();
-            });
-          }
-        });
-        return;
-      }
-      
+    // Get transaction provider
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    
+    // Get all contacts from the provider
+    final allContacts = transactionProvider.contacts;
+    if (allContacts.isEmpty) {
+      // If there are no contacts in the provider, retry after a short delay
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          setState(() {
+            _syncContactsWithTransactions();
+          });
+        }
+      });
+      return;
+    }
+    
       // Reset totals
-      _cachedTotalToGive = 0.0;
-      _cachedTotalToGet = 0.0;
+    _cachedTotalToGive = 0.0;
+    _cachedTotalToGet = 0.0;
+    
+      // Process all contacts
+    for (final contact in allContacts) {
+      final phone = contact['phone'] ?? '';
+      if (phone.isEmpty) continue;
       
-      // Clear existing contacts if needed
-      if (_contacts.isNotEmpty) {
-        _contacts.clear();
-      }
+        // Calculate balance
+      final balance = transactionProvider.calculateBalance(phone);
       
-      // Process all contacts with fresh balance calculation
-      for (final contact in allContacts) {
-        final phone = contact['phone'] ?? '';
-        if (phone.isEmpty) continue;
-        
-        // Calculate balance with the latest transactions
-        final balance = transactionProvider.calculateBalance(phone);
-        
-        // Create a copy of the contact to avoid modifying the original
-        final updatedContact = Map<String, dynamic>.from(contact);
-        
-        // Update contact with calculated amount and direction
-        updatedContact['amount'] = balance.abs();
-        updatedContact['isGet'] = balance >= 0;
-        
-        // Apply search filtering if needed
-        if (_searchQuery.isNotEmpty) {
-          final name = updatedContact['name'] as String? ?? '';
-          final amount = updatedContact['amount'] as double? ?? 0.0;
-          
-          // Check if contact matches search query by name or amount
-          final searchLower = _searchQuery.toLowerCase();
-          final nameLower = name.toLowerCase();
-          final amountStr = amount.toStringAsFixed(2);
-          
-          if (!nameLower.contains(searchLower) && !amountStr.contains(_searchQuery)) {
-            continue; // Skip this contact if not matching search
-          }
-        }
-        
-        // Add to contacts list
-        _contacts.add(updatedContact);
-        
-        // Update totals based on the latest calculated balance
-        if (balance >= 0) {
-          _cachedTotalToGet += balance.abs();
-        } else {
-          _cachedTotalToGive += balance.abs();
+      // Update contact with calculated amount
+      contact['amount'] = balance.abs();
+      contact['isGet'] = balance >= 0;
+      
+        // Add to contacts list if not already included
+        if (!_contacts.contains(contact)) {
+          _contacts.add(contact);
         }
       }
       
-      // Apply sort logic
+      // Apply search and filtering logic
       _applySearchAndFilter();
       
       // Update the UI
@@ -496,44 +468,18 @@ class _HomeContentState extends State<HomeContent> {
   
   // Method to apply search and filtering
   void _applySearchAndFilter() {
-    // Sort contacts based on the selected sort mode
-    switch (_sortMode) {
-      case 'Recent':
-        // Sort by lastEditedAt (newest first)
-        _contacts.sort((a, b) {
-          final aTime = a['lastEditedAt'] as DateTime?;
-          final bTime = b['lastEditedAt'] as DateTime?;
-          if (aTime == null || bTime == null) {
-            return 0;
-          }
-          return bTime.compareTo(aTime);
-        });
-        break;
-      case 'High to Low':
-        // Sort by amount (highest first)
-        _contacts.sort((a, b) {
-          final aAmount = a['amount'] as double? ?? 0.0;
-          final bAmount = b['amount'] as double? ?? 0.0;
-          return bAmount.compareTo(aAmount);
-        });
-        break;
-      case 'Low to High':
-        // Sort by amount (lowest first)
-        _contacts.sort((a, b) {
-          final aAmount = a['amount'] as double? ?? 0.0;
-          final bAmount = b['amount'] as double? ?? 0.0;
-          return aAmount.compareTo(bAmount);
-        });
-        break;
-      case 'By Name':
-        // Sort alphabetically by name
-        _contacts.sort((a, b) {
-          final aName = a['name'] as String? ?? '';
-          final bName = b['name'] as String? ?? '';
-          return aName.compareTo(bName);
-        });
-        break;
-    }
+    // Sort contacts by lastEditedAt (newest first) as default
+    _contacts.sort((a, b) {
+      final aTime = a['lastEditedAt'] as DateTime?;
+      final bTime = b['lastEditedAt'] as DateTime?;
+      if (aTime == null || bTime == null) {
+        return 0;
+      }
+      return bTime.compareTo(aTime);
+    });
+    
+    // Update totals
+    _updateCachedTotals();
   }
   
   // Update cached totals
@@ -651,40 +597,34 @@ class _HomeContentState extends State<HomeContent> {
   Widget _buildSearchBar() {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-        decoration: BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.grey.shade200,
         borderRadius: BorderRadius.circular(30),
       ),
-                child: TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
+      child: TextField(
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value;
             _contacts.clear();
             _syncContactsWithTransactions();
-                    });
-                  },
+          });
+        },
         decoration: InputDecoration(
-          hintText: 'Find person by name or amount...',
+          hintText: 'Search contacts...',
           prefixIcon: const Icon(Icons.search, color: Colors.grey),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 15),
           suffixIcon: Row(
             mainAxisSize: MainAxisSize.min,
-        children: [
+            children: [
               IconButton(
                 icon: const Icon(Icons.sort, color: Colors.grey),
                 onPressed: _showSortOptions,
               ),
-              IconButton(
-                icon: const Icon(Icons.qr_code_scanner, color: Colors.grey),
-                onPressed: () {
-                  // Implement QR code scanning functionality
-                },
-              ),
             ],
-                ),
-              ),
-            ),
+          ),
+        ),
+      ),
     );
   }
   
@@ -721,86 +661,85 @@ class _HomeContentState extends State<HomeContent> {
   }
   
   Widget _buildContactsList() {
+    // Generate consistent colors for avatars
+    final List<Color> avatarColors = [
+      Colors.red.shade400,
+      Colors.blue.shade400,
+      Colors.green.shade400,
+      Colors.amber.shade400,
+      Colors.purple.shade400,
+      Colors.teal.shade400,
+      Colors.orange.shade400,
+      Colors.pink.shade400,
+    ];
+
     return ListView.builder(
       itemCount: _contacts.length,
       padding: const EdgeInsets.only(bottom: 80), // Space for FAB
       itemBuilder: (context, index) {
         final contact = _contacts[index];
         final name = contact['name'] as String? ?? 'Unknown';
+        final phone = contact['phone'] as String? ?? '';
         final amount = contact['amount'] as double? ?? 0.0;
         final isGet = contact['isGet'] as bool? ?? true;
-        final lastEditedAt = contact['lastEditedAt'] as DateTime?;
         
         // Create initials for avatar
         final initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
         
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: InkWell(
-            onTap: () => _navigateToContactDetails(contact),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Row(
-                children: [
-                  // Avatar
-                  CircleAvatar(
-                    backgroundColor: Colors.deepPurple,
-                    child: Text(initials, style: const TextStyle(color: Colors.white)),
-                  ),
-                  const SizedBox(width: 12),
-                  
-                  // Contact details
-              Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        // Get a deterministic color based on the name
+        final colorIndex = name.isEmpty ? 0 : name.codeUnitAt(0) % avatarColors.length;
+        final avatarColor = avatarColors[colorIndex];
+        
+        return ListTile(
+          onTap: () => _navigateToContactDetails(contact),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          leading: CircleAvatar(
+            backgroundColor: avatarColor,
+            radius: 20,
+            child: Text(
+              initials, 
+              style: const TextStyle(
+                color: Colors.white, 
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          title: Text(
+            name,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          subtitle: Text(
+            phone.isNotEmpty ? phone : '',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+          ),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isGet ? Colors.green.shade100 : Colors.red.shade100,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                        Text(
-                          name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        if (lastEditedAt != null)
-                          Text(
-                            '${_getTimeAgo(lastEditedAt)}',
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                    ),
-                  ],
+                Icon(
+                  isGet ? Icons.arrow_downward : Icons.arrow_upward,
+                  size: 16,
+                  color: isGet ? Colors.green : Colors.red,
                 ),
-                  ),
-                  
-                  // Amount
-                    Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                      color: isGet ? Colors.green.shade100 : Colors.red.shade100,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                    children: [
-                        Icon(
-                          isGet ? Icons.arrow_downward : Icons.arrow_upward,
-                          size: 16,
-                          color: isGet ? Colors.green : Colors.red,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '₹${amount.toStringAsFixed(2)}',
+                const SizedBox(width: 4),
+                Text(
+                  '₹${amount.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                            color: isGet ? Colors.green : Colors.red,
-                          ),
-                        ),
-                  ],
+                    color: isGet ? Colors.green : Colors.red,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
             ),
-                        ),
-                      );
-                    },
+          ),
+        );
+      },
     );
   }
   
@@ -809,13 +748,13 @@ class _HomeContentState extends State<HomeContent> {
     final difference = now.difference(dateTime);
     
     if (difference.inDays > 365) {
-      return '${(difference.inDays / 365).floor()} years ago';
+      return '${(difference.inDays / 365).floor()} year(s) ago';
     } else if (difference.inDays > 30) {
-      return '${(difference.inDays / 30).floor()} months ago';
+      return '${(difference.inDays / 30).floor()} month(s) ago';
     } else if (difference.inDays > 0) {
-      return '${difference.inDays} days ago';
+      return '${difference.inDays} day(s) ago';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours} h ago';
+      return '${difference.inHours} hour(s) ago';
     } else if (difference.inMinutes > 0) {
       return '${difference.inMinutes} min ago';
     } else {
@@ -876,20 +815,132 @@ class _HomeContentState extends State<HomeContent> {
   void _showAddContactDialog() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => AddContactScreen(
-          onContactAdded: (contact) {
-            setState(() {
-              _contacts.clear();
-              _syncContactsWithTransactions();
-            });
-            
-            // Show success message
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${contact['name']} added successfully')),
-            );
-                  },
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Add Contact'),
+            backgroundColor: Colors.deepPurple,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search contacts...',
+                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
                 ),
               ),
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.deepPurple.shade100,
+                  child: const Icon(Icons.add, color: Colors.deepPurple),
+                ),
+                title: const Text(
+                  'Create New Contact',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: Colors.deepPurple),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => AddContactScreen(
+                        onContactAdded: (contact) {
+                          setState(() {
+                            _contacts.clear();
+                            _syncContactsWithTransactions();
+                          });
+                          
+                          // Show success message
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('${contact['name']} added successfully')),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+              Expanded(
+                child: _buildContactSelectionList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactSelectionList() {
+    // Generate consistent colors for avatars
+    final List<Color> avatarColors = [
+      Colors.red.shade400,
+      Colors.blue.shade400,
+      Colors.green.shade400,
+      Colors.amber.shade400,
+      Colors.purple.shade400,
+      Colors.teal.shade400,
+      Colors.orange.shade400,
+      Colors.pink.shade400,
+    ];
+
+    return ListView.builder(
+      itemCount: _contacts.length,
+      padding: const EdgeInsets.only(bottom: 80),
+      itemBuilder: (context, index) {
+        final contact = _contacts[index];
+        final name = contact['name'] as String? ?? 'Unknown';
+        final phone = contact['phone'] as String? ?? '';
+        
+        // Create initials for avatar
+        final initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+        
+        // Get a deterministic color based on the name
+        final colorIndex = name.isEmpty ? 0 : name.codeUnitAt(0) % avatarColors.length;
+        final avatarColor = avatarColors[colorIndex];
+        
+        return ListTile(
+          onTap: () {
+            Navigator.pop(context);
+            _navigateToContactDetails(contact);
+          },
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          leading: CircleAvatar(
+            backgroundColor: avatarColor,
+            radius: 20,
+            child: Text(
+              initials, 
+              style: const TextStyle(
+                color: Colors.white, 
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          title: Text(
+            name,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          subtitle: Text(
+            phone.isNotEmpty ? phone : '',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+          ),
+        );
+      },
     );
   }
   
@@ -901,16 +952,9 @@ class _HomeContentState extends State<HomeContent> {
       ),
     ).then((_) {
       // Refresh contacts when returning from details page
-      // Clear contacts first to ensure we get fresh data
       setState(() {
         _contacts.clear();
-      });
-      
-      // Use Future.microtask to ensure this runs after the current frame
-      Future.microtask(() {
-        if (mounted) {
-          _syncContactsWithTransactions();
-        }
+        _syncContactsWithTransactions();
       });
     });
   }
@@ -936,11 +980,6 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
   double _totalAmount = 0.0;
   bool _isGet = true;
   final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
-  
-  // Add these properties
-  int localTenureMonths = 3;
-  String tenurePeriod = 'Month'; // Add missing tenurePeriod variable
-  DateTime localDueDate = DateTime.now().add(const Duration(days: 90));
   
   // Add selected tab
   String _selectedTab = 'Normal'; // 'Normal' or 'Interest'
@@ -2228,44 +2267,6 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
     );
   }
 
-  // Helper method to build a tenure button
-  Widget _buildTenureButton(StateSetter setState, int months, int selectedMonths) {
-    final isSelected = months == selectedMonths;
-    
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-    setState(() {
-            localTenureMonths = months;
-            // Set tenurePeriod to Month or Year based on the selected option
-            if (months >= 12 && months % 12 == 0) {
-              tenurePeriod = 'Year';
-        } else {
-              tenurePeriod = 'Month';
-            }
-            localDueDate = DateTime.now().add(Duration(days: 30 * months));
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.blue : Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            months < 12 ? '$months Months' : (months == 12 ? '1 Year' : '${months ~/ 12} Years'),
-            style: TextStyle(
-              fontSize: 12,
-              color: isSelected ? Colors.white : Colors.black,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   // Add _buildDottedLine method
   Widget _buildDottedLine() {
     return Container(
@@ -2292,8 +2293,6 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
     bool isPayingInterest = false;
     double interestRate = 0.0;
     String interestPeriod = 'Month';
-    int localTenureMonths = 3;
-    String tenurePeriod = 'Month';
     DateTime localDueDate = DateTime.now().add(const Duration(days: 90));
     List<String> imagePaths = [];
     
@@ -2371,9 +2370,9 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
                               fontWeight: FontWeight.bold,
                               color: isGet ? Colors.green : Colors.red,
                             ),
-          ),
-        ],
-      ),
+                          ),
+                        ],
+                      ),
 
                       const SizedBox(height: 12),
                       
@@ -2607,116 +2606,7 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
                         
                             const SizedBox(height: 12),
                         
-                        // Tenure with period switcher (50:50 ratio)
-                            const Text(
-                          'Tenure',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        
-                        // First row - Tenure value display and period switcher (50:50)
-                        Row(
-                          children: [
-                            // Tenure value display (50%)
-                            Expanded(
-                              flex: 5,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  tenurePeriod == 'Month' 
-                                      ? localTenureMonths.toString()
-                                      : (localTenureMonths / 12).toStringAsFixed(localTenureMonths % 12 == 0 ? 0 : 1),
-                                  style: TextStyle(color: Colors.grey.shade800, fontSize: 14),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            
-                            // Period switcher (50%)
-                            Expanded(
-                              flex: 5,
-                              child: Container(
-                                height: 39,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade200,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.grey.shade300),
-                                ),
-                                child: Row(
-                                  children: [
-                                    // Month option
-                                    Expanded(
-                                      child: GestureDetector(
-                                        onTap: () => setState(() => tenurePeriod = 'Month'),
-                                        child: Container(
-                                          alignment: Alignment.center,
-                                          decoration: BoxDecoration(
-                                            color: tenurePeriod == 'Month' ? Colors.blue : Colors.transparent,
-                                            borderRadius: BorderRadius.circular(7),
-                                          ),
-                                          child: Text(
-                                            'Month',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                              color: tenurePeriod == 'Month' ? Colors.white : Colors.black,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    // Year option
-                  Expanded(
-                    child: GestureDetector(
-                                        onTap: () => setState(() {
-                                          tenurePeriod = 'Year';
-                                        }),
-                      child: Container(
-                                          alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                                            color: tenurePeriod == 'Year' ? Colors.blue : Colors.transparent,
-                                            borderRadius: BorderRadius.circular(7),
-                                          ),
-                                          child: Text(
-                                            'Year', 
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                              color: tenurePeriod == 'Year' ? Colors.white : Colors.black,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                ),
-                              ],
-                            ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 8),
-                        
-                        // Second row - Quick tenure selection buttons
-                        Row(
-                          children: [
-                            _buildTenureButton(setState, 3, localTenureMonths),
-                            const SizedBox(width: 8),
-                            _buildTenureButton(setState, 6, localTenureMonths),
-                            const SizedBox(width: 8),
-                            _buildTenureButton(setState, 12, localTenureMonths),
-                          ],
-                        ),
-                      ],
-                      
-                      // Row with Note and Attachments - 75:25 ratio
+                        // Row with Note and Attachments - 75:25 ratio
                             const SizedBox(height: 12),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2962,7 +2852,6 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
                                   imagePaths,
                                   isPayingInterest,
                                   selectedTransaction,
-                                  localTenureMonths,
                                 );
                                 
                                 Navigator.pop(context);
@@ -3099,7 +2988,6 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
     bool hasInterest = transaction['hasInterest'] as bool? ?? false;
     double interestRate = transaction['interestRate'] as double? ?? 0.0;
     String interestPeriod = transaction['interestPeriod'] as String? ?? 'Month';
-    int tenureMonths = transaction['tenureMonths'] as int? ?? 3;
     DateTime dueDate = transaction['dueDate'] as DateTime? ?? DateTime.now().add(const Duration(days: 90));
     DateTime transactionDate = transaction['date'] as DateTime? ?? DateTime.now();
     
@@ -3299,8 +3187,8 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
                               updatedTransaction['hasInterest'] = hasInterest;
                               updatedTransaction['interestRate'] = interestRate;
                               updatedTransaction['interestPeriod'] = interestPeriod;
-                              updatedTransaction['tenureMonths'] = tenureMonths;
-                              updatedTransaction['dueDate'] = dueDate;
+                              updatedTransaction['tenureMonths'] = 3;
+                              updatedTransaction['dueDate'] = DateTime.now().add(const Duration(days: 90));
                               updatedTransaction['imagePaths'] = imagePaths;
                               
                               // Find index of the transaction
