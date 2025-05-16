@@ -68,18 +68,70 @@ class HomeScreen extends StatefulWidget {
   
   // Add a static method that can be called from other files to refresh the home screen
   static void refreshHomeContent(BuildContext context) {
-    // Find the home screen state
-    final homeScreenState = context.findAncestorStateOfType<_HomeScreenState>();
-    if (homeScreenState != null) {
-      // Try to find HomeContent state to refresh its contacts
-      final homeContentState = homeScreenState._findHomeContentState(context);
-      if (homeContentState != null) {
-        homeContentState.setState(() {
+    print("HomeScreen.refreshHomeContent: Refreshing home screen content");
+    
+    // First, force the providers to rebuild their contacts lists
+    try {
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      final contactProvider = Provider.of<ContactProvider>(context, listen: false);
+      
+      // Clear cached data in providers
+      print("Reloading providers data");
+      
+      // Reset sync attempts counter in any HomeContent states
+      void resetSyncCounter(Element element) {
+        if (element.widget is HomeContent) {
+          final state = (element as StatefulElement).state;
+          if (state is _HomeContentState) {
+            state._syncAttempts = 0;
+          }
+        }
+        element.visitChildElements(resetSyncCounter);
+      }
+      
+      // Start from the root to reset sync counters
+      try {
+        final app = WidgetsBinding.instance.renderViewElement;
+        if (app != null) {
+          app.visitChildElements(resetSyncCounter);
+        }
+      } catch (e) {
+        print('Error resetting sync counters: $e');
+      }
+      
+      // Force reload of contacts in both providers
+      contactProvider.loadContacts().then((_) {
+        transactionProvider.syncContactsFromProvider(context).then((_) {
+          // Ensure the home content widgets refresh their content
+          // Find all instances of HomeContent states and refresh them
+          void visitor(Element element) {
+            if (element.widget is HomeContent) {
+              final state = (element as StatefulElement).state;
+              if (state is _HomeContentState) {
+                state.setState(() {
           // Force a complete refresh
-          homeContentState._contacts.clear();
-          homeContentState._syncContactsWithTransactions();
+                  state._contacts.clear();
+                  state._syncContactsWithTransactions();
         });
       }
+    }
+            element.visitChildElements(visitor);
+          }
+          
+          // Start visiting from the root to find all HomeContent widgets
+          try {
+            final app = WidgetsBinding.instance.renderViewElement;
+            if (app != null) {
+              app.visitChildElements(visitor);
+              print("HomeScreen.refreshHomeContent: Finished refreshing home content");
+            }
+          } catch (e) {
+            print('Error finding HomeContent: $e');
+          }
+        });
+      });
+    } catch (e) {
+      print('Error refreshing providers: $e');
     }
   }
 }
@@ -346,6 +398,8 @@ class _HomeContentState extends State<HomeContent> {
   // List for contacts
   final List<Map<String, dynamic>> _contacts = [];
   bool _isInitialized = false;
+  int _syncAttempts = 0;
+  bool _isLoading = true;
 
   // Method to refresh contacts and totals
   void refresh() {
@@ -412,43 +466,103 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   // Sync method to load contacts and transactions
-  void _syncContactsWithTransactions() {
+  Future<void> _syncContactsWithTransactions() async {
     if (!mounted) return;
     
     try {
-      // Get transaction provider
-      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      // Get transaction provider and contact provider
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      final contactProvider = Provider.of<ContactProvider>(context, listen: false);
       
-      // Get all contacts from the provider
-      final allContacts = transactionProvider.contacts;
-      if (allContacts.isEmpty) {
-        // If there are no contacts in the provider, retry after a short delay
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) {
-            setState(() {
-              _syncContactsWithTransactions();
-            });
-          }
+      print('===== DEBUG: HOME SCREEN SYNC START =====');
+      print('Sync attempt #: $_syncAttempts');
+      
+      // Safety check to prevent infinite loops
+      if (_syncAttempts > 3) {
+        print('Too many sync attempts, stopping to prevent infinite loop');
+          setState(() {
+          _isLoading = false;
         });
         return;
       }
+      _syncAttempts++;
       
-      // Reset totals
-      _cachedTotalToGive = 0.0;
-      _cachedTotalToGet = 0.0;
+      // CRITICAL FIX: First make sure we load the contacts directly from SharedPreferences
+      // This ensures we have the most up-to-date list regardless of provider state
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final contactsList = prefs.getStringList('contacts') ?? [];
+      print('Raw contacts in SharedPreferences: ${contactsList.length}');
       
-      // Clear existing contacts if needed
-      if (_contacts.isNotEmpty) {
-        _contacts.clear();
+      // Force both providers to reload their contacts
+      await contactProvider.loadContacts();
+      print('ContactProvider contacts count after reload: ${contactProvider.contacts.length}');
+      
+      // Ensure the transaction provider is in sync with the contact provider
+      await transactionProvider.syncContactsFromProvider(context);
+      print('TransactionProvider contacts count after sync: ${transactionProvider.contacts.length}');
+      
+      // Now get a combined list from both providers to ensure we have all contacts
+      Set<String> contactIds = {};
+      final combinedContacts = <Map<String, dynamic>>[];
+      
+      // First add all contacts from the ContactProvider
+      for (var contact in contactProvider.contacts) {
+        if (!contactIds.contains(contact['phone'])) {
+          contactIds.add(contact['phone'] as String);
+          combinedContacts.add(Map<String, dynamic>.from(contact));
+        }
       }
       
-      // Process all contacts with fresh balance calculation
-      for (final contact in allContacts) {
-        final phone = contact['phone'] ?? '';
-        if (phone.isEmpty) continue;
+      // Then add any contacts from the TransactionProvider that aren't already in the list
+      for (var contact in transactionProvider.contacts) {
+        final phone = contact['phone'] as String?;
+        if (phone != null && !contactIds.contains(phone)) {
+          contactIds.add(phone);
+          combinedContacts.add(Map<String, dynamic>.from(contact));
+        }
+      }
+      
+      // Also check for any contacts with transactions that might be missing
+      final transactionContactIds = prefs.getStringList('transaction_contacts') ?? [];
+      for (var contactId in transactionContactIds) {
+        if (!contactIds.contains(contactId)) {
+          // Create a minimal contact for this ID
+          combinedContacts.add({
+            'name': 'Contact $contactId',
+            'phone': contactId,
+            'lastEditedAt': DateTime.now(),
+          });
+          contactIds.add(contactId);
+        }
+      }
+      
+      print('Combined contacts total: ${combinedContacts.length}');
+    
+      // Reset totals
+    _cachedTotalToGive = 0.0;
+    _cachedTotalToGet = 0.0;
+      
+      // Clear existing contacts to ensure we have a clean slate
+      _contacts.clear();
+    
+      // Process all contacts
+      for (final contact in combinedContacts) {
+        final phone = contact['phone'] as String?;
+        if (phone == null || phone.isEmpty) {
+          print('Skipping contact with empty phone number');
+          continue;
+        }
         
         // Calculate balance with the latest transactions
-        final balance = transactionProvider.calculateBalance(phone);
+        final balance = transactionProvider.calculateBalance(phone, includeInterest: false);
+        print('Contact: ${contact['name']}, Phone: $phone, Balance: $balance');
+        
+        // Update totals based on the calculated balance
+        if (balance >= 0) {
+          _cachedTotalToGet += balance.abs();
+        } else {
+          _cachedTotalToGive += balance.abs();
+        }
         
         // Create a copy of the contact to avoid modifying the original
         final updatedContact = Map<String, dynamic>.from(contact);
@@ -456,7 +570,7 @@ class _HomeContentState extends State<HomeContent> {
         // Update contact with calculated amount and direction
         updatedContact['amount'] = balance.abs();
         updatedContact['isGet'] = balance >= 0;
-        
+      
         // Apply search filtering if needed
         if (_searchQuery.isNotEmpty) {
           final name = updatedContact['name'] as String? ?? '';
@@ -468,29 +582,38 @@ class _HomeContentState extends State<HomeContent> {
           final amountStr = amount.toStringAsFixed(2);
           
           if (!nameLower.contains(searchLower) && !amountStr.contains(_searchQuery)) {
+            print('Contact ${contact['name']} filtered out by search query: $_searchQuery');
             continue; // Skip this contact if not matching search
           }
         }
         
-        // Add to contacts list
+        // Add this contact to our display list regardless of balance
         _contacts.add(updatedContact);
-        
-        // Update totals based on the latest calculated balance
-        if (balance >= 0) {
-          _cachedTotalToGet += balance.abs();
-        } else {
-          _cachedTotalToGive += balance.abs();
-        }
+        print('Added ${updatedContact['name']} to visible contacts list');
       }
+      
+      print('Final contacts count to display: ${_contacts.length}');
       
       // Apply sort logic
       _applySearchAndFilter();
       
       // Update the UI
-      setState(() {});
+      setState(() {
+        _isLoading = false;
+      });
+      print('Updated home with ${_contacts.length} contacts to display');
+      print('Totals: Pay=${_cachedTotalToGive}, Receive=${_cachedTotalToGet}');
+      print('===== DEBUG: HOME SCREEN SYNC END =====');
     } catch (e) {
       // Handle any errors
       print('Error syncing contacts: $e');
+      print(e.toString());
+      if (e is Error) {
+        print(e.stackTrace);
+      }
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
   
@@ -500,14 +623,14 @@ class _HomeContentState extends State<HomeContent> {
     switch (_sortMode) {
       case 'Recent':
         // Sort by lastEditedAt (newest first)
-        _contacts.sort((a, b) {
-          final aTime = a['lastEditedAt'] as DateTime?;
-          final bTime = b['lastEditedAt'] as DateTime?;
-          if (aTime == null || bTime == null) {
-            return 0;
-          }
-          return bTime.compareTo(aTime);
-        });
+    _contacts.sort((a, b) {
+      final aTime = a['lastEditedAt'] as DateTime?;
+      final bTime = b['lastEditedAt'] as DateTime?;
+      if (aTime == null || bTime == null) {
+        return 0;
+      }
+      return bTime.compareTo(aTime);
+    });
         break;
       case 'High to Low':
         // Sort by amount (highest first)
@@ -566,7 +689,9 @@ class _HomeContentState extends State<HomeContent> {
           
           // Contacts list
         Expanded(
-            child: _contacts.isEmpty
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _contacts.isEmpty
                 ? _buildEmptyState()
                 : _buildContactsList(),
                 ),
@@ -592,9 +717,12 @@ class _HomeContentState extends State<HomeContent> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           // You Will Pay section
-          Column(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                   const Icon(Icons.arrow_upward, color: Colors.white, size: 16),
                   const SizedBox(width: 4),
@@ -605,24 +733,39 @@ class _HomeContentState extends State<HomeContent> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(8),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                       ),
                       child: Text(
                   '₹ ${_cachedTotalToGive.toStringAsFixed(2)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.red.shade700,
+                    ),
                 ),
                   ),
                 ],
+            ),
               ),
           
           // Vertical divider
-          Container(width: 1, height: 40, color: Colors.white.withOpacity(0.5)),
+          Container(width: 1, height: 60, color: Colors.white.withOpacity(0.5)),
           
           // You Will Receive section
-          Column(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                   const Icon(Icons.arrow_downward, color: Colors.white, size: 16),
                   const SizedBox(width: 4),
@@ -633,15 +776,27 @@ class _HomeContentState extends State<HomeContent> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(8),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                       ),
                       child: Text(
                   '₹ ${_cachedTotalToGet.toStringAsFixed(2)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold, 
+                      fontSize: 16,
+                      color: Colors.green.shade700,
+                    ),
                 ),
               ),
             ],
+            ),
           ),
         ],
       ),
@@ -721,6 +876,8 @@ class _HomeContentState extends State<HomeContent> {
   }
   
   Widget _buildContactsList() {
+    print('Building contacts list with ${_contacts.length} contacts');
+    
     return ListView.builder(
       itemCount: _contacts.length,
       padding: const EdgeInsets.only(bottom: 80), // Space for FAB
@@ -730,6 +887,8 @@ class _HomeContentState extends State<HomeContent> {
         final amount = contact['amount'] as double? ?? 0.0;
         final isGet = contact['isGet'] as bool? ?? true;
         final lastEditedAt = contact['lastEditedAt'] as DateTime?;
+        
+        print('Rendering contact: $name with amount: $amount');
         
         // Create initials for avatar
         final initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
@@ -878,15 +1037,24 @@ class _HomeContentState extends State<HomeContent> {
       MaterialPageRoute(
         builder: (context) => AddContactScreen(
           onContactAdded: (contact) {
+            // This callback is called when a contact is successfully added
+            // Clear the contacts list first to ensure we get fresh data
             setState(() {
               _contacts.clear();
-              _syncContactsWithTransactions();
             });
+            
+            // Use Future.microtask to ensure this runs after the current frame
+            Future.microtask(() {
+              if (mounted) {
+                // Refresh contacts and update totals
+              _syncContactsWithTransactions();
             
             // Show success message
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('${contact['name']} added successfully')),
             );
+              }
+            });
                   },
                 ),
               ),
@@ -897,7 +1065,7 @@ class _HomeContentState extends State<HomeContent> {
     Navigator.push(
       context, 
       MaterialPageRoute(
-        builder: (context) => ContactDetailPage(contact: contact),
+        builder: (context) => ContactDetailScreen(contact: contact),
       ),
     ).then((_) {
       // Refresh contacts when returning from details page
@@ -908,2492 +1076,10 @@ class _HomeContentState extends State<HomeContent> {
       
       // Use Future.microtask to ensure this runs after the current frame
       Future.microtask(() {
-        if (mounted) {
-          _syncContactsWithTransactions();
-        }
-      });
-    });
-  }
-}
-
-// Add ContactDetailPage at the end of the file
-class ContactDetailPage extends StatefulWidget {
-  final Map<String, dynamic> contact;
-  
-  const ContactDetailPage({
-    Key? key,
-    required this.contact,
-  }) : super(key: key);
-  
-  @override
-  State<ContactDetailPage> createState() => _ContactDetailPageState();
-}
-
-class _ContactDetailPageState extends State<ContactDetailPage> {
-  bool _showInterestMode = false;
-  List<Map<String, dynamic>> _transactions = [];
-  List<Map<String, dynamic>> _filteredTransactions = [];
-  double _totalAmount = 0.0;
-  bool _isGet = true;
-  final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
-  
-  // Add these properties
-  int localTenureMonths = 3;
-  String tenurePeriod = 'Month'; // Add missing tenurePeriod variable
-  DateTime localDueDate = DateTime.now().add(const Duration(days: 90));
-  
-  // Add selected tab
-  String _selectedTab = 'Normal'; // 'Normal' or 'Interest'
-  
-  // Add filter state
-  String _selectedFilter = 'All'; // 'All', 'Received', 'Paid'
-  
-  @override
-  void initState() {
-    super.initState();
-    _loadTransactions();
-  }
-  
-  void _loadTransactions() {
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    final phone = widget.contact['phone'] as String? ?? '';
-    
-    if (phone.isNotEmpty) {
-      setState(() {
-        _transactions = transactionProvider.getTransactionsForContact(phone);
-        
-        // Sort transactions by date (newest first)
-        _transactions.sort((a, b) {
-          final dateA = a['date'] as DateTime? ?? DateTime.now();
-          final dateB = b['date'] as DateTime? ?? DateTime.now();
-          return dateB.compareTo(dateA); // Descending order
-        });
-        
-        _totalAmount = widget.contact['amount'] as double? ?? 0.0;
-        _isGet = widget.contact['isGet'] as bool? ?? true;
-        _filterTransactions(); // Filter transactions based on selected tab and filter
-      });
-    }
-  }
-  
-  // Modify method to filter transactions based on tab and filter
-  void _filterTransactions() {
-    // First filter by tab (Normal/Interest)
-    var filtered = _transactions.where((tx) {
-      final hasInterest = tx['hasInterest'] as bool? ?? false;
-      return _selectedTab == 'Normal' ? !hasInterest : hasInterest;
-    }).toList();
-    
-    // Then apply additional filter (All/Received/Paid)
-    if (_selectedFilter == 'Received') {
-      filtered = filtered.where((tx) => tx['isGet'] as bool? ?? false).toList();
-    } else if (_selectedFilter == 'Paid') {
-      filtered = filtered.where((tx) => !(tx['isGet'] as bool? ?? false)).toList();
-    }
-    
-    setState(() {
-      _filteredTransactions = filtered;
-    });
-  }
-  
-  // Add method to handle filter selection
-  void _selectFilter(String filterName) {
-          setState(() {
-      _selectedFilter = filterName;
-      _filterTransactions();
-    });
-  }
-  
-  // Add method to handle tab selection
-  void _selectTab(String tabName) {
-    setState(() {
-      _selectedTab = tabName;
-      _filterTransactions();
-      // Force rebuild of the summary card by triggering a state update
-    });
-  }
-  
-  @override
-  Widget build(BuildContext context) {
-    final name = widget.contact['name'] as String? ?? 'Unknown';
-    final initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
-    
-    // Truncate name if longer than 15 chars
-    final displayName = name.length > 15 ? '${name.substring(0, 15)}...' : name;
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-      children: [
-            CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Text(
-                initials,
-                style: const TextStyle(color: Colors.deepPurple),
-              ),
-            ),
-            const SizedBox(width: 12),
-        Expanded(
-              child: Text(
-                displayName,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.deepPurple,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () => _editContact(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () => _confirmDeleteContact(),
-          ),
-        ],
-      ),
-      body: Column(
-                children: [
-          // Summary card
-          _buildSummaryCard(),
-          
-          // Add transaction filtering tabs with reduced padding
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
-            child: Container(
-      decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Row(
-                    children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => _selectTab('Normal'),
-                        child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                          color: _selectedTab == 'Normal' ? Colors.white : Colors.transparent,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: _selectedTab == 'Normal' ? [
-                              BoxShadow(
-                              color: Colors.grey.withOpacity(0.3),
-                              spreadRadius: 0,
-                  blurRadius: 4,
-                                offset: const Offset(0, 1),
-                              ),
-                          ] : null,
-                          ),
-                            child: Text(
-                          'Normal',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                            color: _selectedTab == 'Normal' ? Colors.black : Colors.grey.shade700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                    child: GestureDetector(
-                      onTap: () => _selectTab('Interest'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: _selectedTab == 'Interest' ? Colors.white : Colors.transparent,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: _selectedTab == 'Interest' ? [
-                  BoxShadow(
-                              color: Colors.grey.withOpacity(0.3),
-                              spreadRadius: 0,
-                    blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ] : null,
-                        ),
-                        child: Text(
-                          'Interest',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                            color: _selectedTab == 'Interest' ? Colors.black : Colors.grey.shade700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          // Add filter row
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12.0, 0, 12.0, 6.0),
-                                    child: Row(
-                                      children: [
-                _buildFilterChip('All'),
-                const SizedBox(width: 8),
-                _buildFilterChip('Received'),
-                const SizedBox(width: 8),
-                _buildFilterChip('Paid'),
-                const Spacer(),
-                // Sort indicator
-                Row(
-                  children: [
-                    Icon(Icons.arrow_upward, size: 14, color: Colors.grey.shade700),
-                                        const SizedBox(width: 2),
-                                        Text(
-                      'Newest first',
-                                          style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade700,
-                                          ),
-                                        ),
-                                      ],
-                ),
-              ],
-            ),
-          ),
-          
-          // Transactions list - use filtered transactions
-          Expanded(
-            child: _filteredTransactions.isEmpty
-                ? _buildEmptyTransactionState()
-                : _buildTransactionList(),
-                            ),
-                          ],
-                        ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-            children: [
-              Expanded(
-              child: MaterialButton(
-                onPressed: () => _showTransactionDialog(false),
-                color: Colors.red,
-                textColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                    const Icon(Icons.arrow_upward, size: 20),
-                          const SizedBox(width: 8),
-                const Text(
-                      'PAID',
-                              style: TextStyle(
-                    fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: MaterialButton(
-                onPressed: () => _showTransactionDialog(true),
-                color: Colors.green,
-                textColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                            child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                    const Icon(Icons.arrow_downward, size: 20),
-                    const SizedBox(width: 8),
-                const Text(
-                      'RECEIVED',
-                                  style: TextStyle(
-                    fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ),
-                    ],
-                  ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard() {
-    // Use proper color based on whether it's get or pay
-    final cardColor = _isGet 
-        ? const Color(0xFF4CAF50) // Proper green for receive
-        : const Color(0xFFEF9A9A); // Light red for pay
-    
-    // Calculate interest-related values
-    double totalInterestAmount = 0.0;
-    double totalPrincipal = 0.0;
-    double avgInterestRate = 0.0;
-    int interestTransactions = 0;
-    
-    // Calculate interest stats from transactions
-    for (final tx in _transactions) {
-      final hasInterest = tx['hasInterest'] as bool? ?? false;
-      final amount = tx['amount'] as double? ?? 0.0;
-      
-      if (hasInterest) {
-        interestTransactions++;
-        totalPrincipal += amount;
-        final interestRate = tx['interestRate'] as double? ?? 0.0;
-        avgInterestRate += interestRate;
-        
-        // Calculate estimated interest based on rate and tenure
-        final interestPeriod = tx['interestPeriod'] as String? ?? 'Month';
-        final tenureMonths = tx['tenureMonths'] as int? ?? 3;
-        final annualRate = interestPeriod == 'Year' ? interestRate : interestRate * 12;
-        
-        // Simple interest calculation (not compounded)
-        final interestAmount = amount * (annualRate / 100) * (tenureMonths / 12);
-        totalInterestAmount += interestAmount;
-      }
-    }
-    
-    // Calculate average interest rate
-    if (interestTransactions > 0) {
-      avgInterestRate = avgInterestRate / interestTransactions;
-    }
-    
-    final totalWithInterest = totalPrincipal + totalInterestAmount;
-    
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-      margin: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                _isGet ? Icons.monetization_on_outlined : Icons.payments_outlined, 
-                color: Colors.white,
-                size: 18
-              ),
-              const SizedBox(width: 6),
-              Text(
-                _isGet ? 'You Will RECEIVE' : 'You Will PAY',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
-                ),
-              ),
-              const Spacer(),
-              const Icon(Icons.info_outline, color: Colors.white, size: 16),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            currencyFormat.format(_totalAmount),
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          
-          // Show different summary information based on selected tab
-          if (_selectedTab == 'Interest' && interestTransactions > 0) ...[
-            // Interest details
-            const SizedBox(height: 8),
-            const Divider(height: 1, color: Colors.white30),
-            const SizedBox(height: 8),
-            
-            // Interest rate
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Avg Interest Rate:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white70,
-                  ),
-                ),
-                Text(
-                  '${avgInterestRate.toStringAsFixed(2)}%',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            
-            // Principal amount
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Principal Amount:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white70,
-                  ),
-                ),
-                Text(
-                  currencyFormat.format(totalPrincipal),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            
-            // Interest amount
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total Interest:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white70,
-                  ),
-                ),
-                Text(
-                  currencyFormat.format(totalInterestAmount),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            
-            // Total with interest
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total with Interest:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white70,
-                  ),
-                ),
-                Text(
-                  currencyFormat.format(totalWithInterest),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ] else ...[
-            // Normal transaction info - use spread operator here too
-            const SizedBox(height: 2),
-            Text(
-              'Last updated: ${DateFormat('dd MMM yyyy').format(DateTime.now())}',
-              style: const TextStyle(
-                fontSize: 11,
-                color: Colors.white70,
-              ),
-            ),
-          ],
-          
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildActionButton(
-                Icons.call,
-                'Call',
-                Colors.blue,
-                () => _makeCall(),
-              ),
-              _buildActionButton(
-                Icons.picture_as_pdf,
-                'PDF Report',
-                Colors.red,
-                () => _generatePdfReport(),
-              ),
-              _buildActionButton(
-                Icons.notifications,
-                'Reminder',
-                Colors.orange,
-                () => _setReminder(),
-              ),
-              _buildActionButton(
-                Icons.sms,
-                'SMS',
-                Colors.green,
-                () => _sendSms(),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton(IconData icon, String label, Color color, Function() onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-                child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-                        Container(
-                            padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-            color: color,
-                shape: BoxShape.circle,
-                          ),
-            child: Icon(
-              icon,
-                              color: Colors.white,
-              size: 18,
-            ),
-          ),
-          const SizedBox(height: 4),
-                Text(
-                  label,
-            style: const TextStyle(
-              fontSize: 11,
-                              color: Colors.white,
-                          ),
-                        ),
-                      ],
-        ),
-    );
-  }
-
-  Widget _buildEmptyTransactionState() {
-    return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-          Icon(Icons.receipt_long, size: 80, color: Colors.grey.shade400),
-                              const SizedBox(height: 16),
-          Text(
-            'No transactions yet',
-            style: TextStyle(fontSize: 18, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
-                    ),
-                      const SizedBox(height: 8),
-                              Text(
-            'Use the buttons below to add a transaction',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                                textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Redesigned transaction list with ledger-style layout and improved styling
-  Widget _buildTransactionList() {
-    // Calculate running balance for each transaction
-    double runningBalance = 0.0;
-    
-    // First, create a chronologically sorted copy (oldest first) for balance calculation
-    final chronologicalTransactions = List<Map<String, dynamic>>.from(_filteredTransactions);
-    chronologicalTransactions.sort((a, b) {
-      final dateA = a['date'] as DateTime? ?? DateTime.now();
-      final dateB = b['date'] as DateTime? ?? DateTime.now();
-      return dateA.compareTo(dateB); // Ascending order (oldest first)
-    });
-    
-    // Calculate running balances based on chronological order
-    final Map<String, double> transactionBalances = {};
-    
-    for (final tx in chronologicalTransactions) {
-      final amount = tx['amount'] as double? ?? 0.0;
-      final isGet = tx['isGet'] as bool? ?? true;
-      final id = tx['id'] as String? ?? '';
-      
-      // Update running balance based on transaction type
-      if (isGet) {
-        runningBalance += amount; // Credit increases balance
-      } else {
-        runningBalance -= amount; // Debit decreases balance
-      }
-      
-      // Store the balance for this transaction ID
-      transactionBalances[id] = runningBalance;
-    }
-    
-    // Now create our display list with correct balances
-    final transactionsWithBalance = _filteredTransactions.map((tx) {
-      final id = tx['id'] as String? ?? '';
-      final txWithBalance = Map<String, dynamic>.from(tx);
-      
-      // Get the pre-calculated balance for this transaction
-      txWithBalance['runningBalance'] = transactionBalances[id] ?? 0.0;
-      return txWithBalance;
-    }).toList();
-
-    return Column(
-      children: [
-        // Ledger header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade400, width: 1),
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-              // Date column (with space for icon)
-              SizedBox(width: 90, 
-                  child: Text(
-                  'Date',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: Colors.grey.shade800,
-                    ),
-                  ),
-                ),
-              
-              // Vertical dotted line
-              _buildDottedLine(),
-              
-              // Debit column
-                Expanded(
-                flex: 1,
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    'Debit',
-                    style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Colors.red.shade700,
-                    ),
-                  ),
-                ),
-              ),
-              
-              // Vertical dotted line
-              _buildDottedLine(),
-              
-              // Credit column
-              Expanded(
-                flex: 1,
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    'Credit',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Colors.green.shade700,
-                    ),
-                  ),
-                ),
-              ),
-              
-              // Vertical dotted line
-              _buildDottedLine(),
-              
-              // Balance column
-              Expanded(
-                flex: 1,
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    'Balance',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Colors.blue.shade700,
-                    ),
-                  ),
-                ),
-          ),
-        ],
-      ),
-        ),
-        
-        // Transaction list
-        Expanded(
-          child: ListView.builder(
-            itemCount: transactionsWithBalance.length,
-            padding: const EdgeInsets.only(bottom: 80), // Space for FABs
-            itemBuilder: (context, index) {
-              final transaction = transactionsWithBalance[index];
-              final amount = transaction['amount'] as double? ?? 0.0;
-              final isGet = transaction['isGet'] as bool? ?? true;
-              final date = transaction['date'] as DateTime? ?? DateTime.now();
-              final note = transaction['note'] as String? ?? '';
-              final hasInterest = transaction['hasInterest'] as bool? ?? false;
-              final runningBalance = transaction['runningBalance'] as double;
-              
-              // Get receipt images from both imagePath (legacy) and imagePaths (newer) fields
-              List<String> receiptPaths = [];
-              if (transaction.containsKey('imagePaths')) {
-                final paths = transaction['imagePaths'];
-                if (paths is List) {
-                  receiptPaths = List<String>.from(paths);
-                } else if (paths is String && paths.isNotEmpty) {
-                  receiptPaths = [paths];
-                }
-              } else if (transaction.containsKey('imagePath')) {
-                final path = transaction['imagePath'] as String?;
-                if (path != null && path.isNotEmpty) {
-                  receiptPaths = [path];
-                }
-              }
-              
-              // Format amounts with the Indian Rupee symbol
-              final formattedAmount = '₹ ${amount.toStringAsFixed(2)}';
-              final formattedBalance = runningBalance >= 0 
-                  ? '₹ ${runningBalance.toStringAsFixed(2)}' 
-                  : '₹ -${runningBalance.abs().toStringAsFixed(2)}';
-              
-              // Alternating row background for better readability
-              final rowColor = index % 2 == 0 ? Colors.white : Colors.grey.shade50;
-              
-              return GestureDetector(
-                onLongPress: () {
-                  // Show context menu with edit/delete options
-                  _showTransactionOptions(transaction);
-                },
-                child: Column(
-                  children: [
-                    // Main transaction row with ledger columns
-                    Container(
-                      color: rowColor,
-                      padding: EdgeInsets.fromLTRB(12, 8, 12, note.isNotEmpty || receiptPaths.isNotEmpty ? 0 : 8),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Date column with 45-degree arrow icon
-                          SizedBox(
-                            width: 90,
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 45-degree arrow icon
-                                Container(
-                                  width: 24,
-                                  height: 24,
-                                  margin: const EdgeInsets.only(top: 2),
-                      decoration: BoxDecoration(
-                                    color: isGet 
-                                        ? const Color(0xFFE8F5E9) 
-                                        : const Color(0xFFFFEBEE),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Center(
-                                    child: Transform.rotate(
-                                      angle: isGet ? -0.785 : 0.785, // 45 degrees in radians (π/4)
-                                      child: Icon(
-                                        isGet ? Icons.arrow_downward : Icons.arrow_upward,
-                                        color: isGet 
-                                            ? const Color(0xFF4CAF50) 
-                                            : const Color(0xFFE57373),
-                                        size: 14,
-                                ),
-                              ),
-                            ),
-                          ),
-                            const SizedBox(width: 8),
-                                
-                                // Date and details in a column
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                                      // Date in format: 15 Jan 25 09:25 AM
-                                      Text(
-                                        DateFormat('dd MMM yy').format(date),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.grey.shade800,
-                                        ),
-                                      ),
-                                      // Time in 12-hour format with AM/PM
-                                      Text(
-                                        DateFormat('hh:mm a').format(date),
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                      
-                                      // Note if available - directly under the date
-                                      if (note.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 2),
-                                          child: Text(
-                                            note,
-                      style: TextStyle(
-                                              fontSize: 10,
-                                              color: Colors.grey.shade700,
-                                              fontStyle: FontStyle.italic,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      
-                                      // Interest badge if applicable
-                                      if (hasInterest)
-                                        Container(
-                                          margin: const EdgeInsets.only(top: 2),
-                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                  decoration: BoxDecoration(
-                                            color: const Color(0xFFE3F2FD),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            'Interest',
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              color: Colors.blue.shade700,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          
-                          // Vertical dotted line
-                          _buildDottedLine(),
-                          
-                          // Debit column (show amount if it's a payment/debit)
-                          Expanded(
-                            flex: 1,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: !isGet 
-                                  ? Text(
-                                      formattedAmount,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.red.shade700,
-                                      ),
-                                    )
-                                  : const Text(''),
-                            ),
-                          ),
-                          
-                          // Vertical dotted line
-                          _buildDottedLine(),
-                          
-                          // Credit column (show amount if it's a receipt/credit)
-                          Expanded(
-                            flex: 1,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: isGet 
-                                  ? Text(
-                                      formattedAmount,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.green.shade700,
-                                      ),
-                                    )
-                                  : const Text(''),
-                            ),
-                          ),
-                          
-                          // Vertical dotted line
-                          _buildDottedLine(),
-                          
-                          // Balance column
-                          Expanded(
-                            flex: 1,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                formattedBalance,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: runningBalance >= 0 
-                                      ? Colors.blue.shade700 
-                                      : Colors.orange.shade800,
-                                ),
-                              ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                    
-                    // Receipt preview if available
-                    if (receiptPaths.isNotEmpty)
-                      Container(
-                        color: rowColor,
-                        padding: const EdgeInsets.only(left: 44, right: 16, bottom: 8),
-                        child: Row(
-                          children: [
-                            Container(
-                              height: 40,
-                              width: 40,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: Colors.grey.shade300),
-                                image: DecorationImage(
-                                  image: FileImage(File(receiptPaths.first)),
-                                  fit: BoxFit.cover,
-                                  onError: (_, __) {},
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              receiptPaths.length > 1 
-                                  ? '${receiptPaths.length} receipts attached' 
-                                  : 'Receipt attached',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    
-                    // Divider between transaction rows
-                    Divider(height: 1, color: Colors.grey.shade300),
-                  ],
-              ),
-            );
-          },
-          ),
-        ),
-      ],
-    );
-  }
-  
-  // Method to update a transaction
-  void _updateTransaction(
-    String id,
-    double amount,
-    bool isGet,
-    String note,
-    bool hasInterest,
-    double interestRate,
-    String interestPeriod,
-    DateTime dueDate,
-    List<String> imagePaths,
-    bool isPayingInterest,
-    int tenureMonths,
-  ) {
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    final phone = widget.contact['phone'] as String? ?? '';
-    
-    if (phone.isEmpty || id.isEmpty) return;
-    
-    // Create updated transaction map
-    final Map<String, dynamic> updatedTransaction = {
-      'id': id,
-      'amount': amount,
-      'isGet': isGet,
-      'note': note,
-      'hasInterest': hasInterest,
-      'interestRate': hasInterest ? interestRate : 0.0,
-      'interestPeriod': interestPeriod,
-      'tenureMonths': tenureMonths ?? 3, // Default to 3 months if not specified
-      'dueDate': dueDate,
-      'imagePaths': imagePaths, // Changed to store a list
-      'isPayingInterest': isPayingInterest,
-    };
-    
-    // If this is an interest payment related to another transaction, add that reference
-    Map<String, dynamic>? relatedTx;
-    if (isPayingInterest && _transactions.isNotEmpty) {
-      // Try to find the transaction this interest payment relates to
-      // This is just a placeholder - in a real app, you would have a proper way to select the related transaction
-      relatedTx = _transactions.firstWhere(
-        (tx) => tx['hasInterest'] == true && tx['id'] != id,
-        orElse: () => <String, dynamic>{},
-      );
-      
-      if (relatedTx.isNotEmpty) {
-        updatedTransaction['relatedTransactionId'] = relatedTx['id'];
-        
-        // You could add a note mentioning which transaction this interest is for
-        if (note.isEmpty) {
-          final relatedAmount = relatedTx['amount'] as double? ?? 0.0;
-          updatedTransaction['note'] = 'Interest payment for transaction of ₹${relatedAmount.toStringAsFixed(2)}';
-        }
-      }
-    }
-    
-    // Add transaction to provider
-    transactionProvider.addTransaction(phone, updatedTransaction);
-    
-    // Refresh transactions
-    _loadTransactions();
-    
-    // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Transaction of ₹${amount.toStringAsFixed(2)} added')),
-    );
-  }
-  
-  void _confirmDeleteTransaction(Map<String, dynamic> transaction) {
-    final id = transaction['id'] as String? ?? '';
-    if (id.isEmpty) return;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Transaction'),
-        content: const Text('Are you sure you want to delete this transaction? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteTransaction(id);
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _deleteTransaction(String id) {
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    final phone = widget.contact['phone'] as String? ?? '';
-    
-    if (phone.isEmpty) return;
-    
-    // Delete transaction from provider
-    transactionProvider.deleteTransaction(phone, id);
-    
-    // Refresh transactions
-    _loadTransactions();
-    
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Transaction deleted successfully')),
-    );
-  }
-  
-  void _editContact() {
-    final nameController = TextEditingController(text: widget.contact['name'] as String? ?? '');
-    final phoneController = TextEditingController(text: widget.contact['phone'] as String? ?? '');
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Contact'),
-        content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-            TextField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Phone (Optional)',
-                border: OutlineInputBorder(),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-        actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Cancel'),
-                              ),
-          TextButton(
-            onPressed: () {
-              if (nameController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Name is required')),
-                );
-                return;
-              }
-              
-              _updateContact(
-                nameController.text.trim(),
-                phoneController.text.trim(),
-              );
-              
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _updateContact(String name, String phone) {
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    final currentPhone = widget.contact['phone'] as String? ?? '';
-    
-    // Create updated contact map
-    final Map<String, dynamic> updatedContact = Map.from(widget.contact);
-    updatedContact['name'] = name;
-    
-    // Handle phone number change
-    if (phone != currentPhone) {
-      // If phone is changing, need to handle transactions
-      if (currentPhone.isNotEmpty) {
-        transactionProvider.updateContactPhone(currentPhone, phone.isEmpty ? 'manual_${DateTime.now().millisecondsSinceEpoch}' : phone);
-      }
-      updatedContact['phone'] = phone.isEmpty ? 'manual_${DateTime.now().millisecondsSinceEpoch}' : phone;
-    }
-    
-    // Update contact in provider
-    transactionProvider.updateContact(updatedContact);
-    
-    // Refresh data
-    _loadTransactions();
-        
-        // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$name updated successfully')),
-    );
-  }
-  
-  void _confirmDeleteContact() {
-    final name = widget.contact['name'] as String? ?? 'Unknown';
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Contact'),
-        content: Text('Are you sure you want to delete $name and all associated transactions?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteContact();
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  void _deleteContact() {
-      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    final phone = widget.contact['phone'] as String? ?? '';
-    
-    if (phone.isNotEmpty) {
-      // Delete contact and all associated transactions
-      transactionProvider.deleteContact(phone);
-      
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Contact deleted')),
-      );
-      
-      // Navigate back
-      Navigator.pop(context);
-    }
-  }
-  
-  // Add missing methods
-  void _makeCall() {
-    final phone = widget.contact['phone'] as String? ?? '';
-    
-    if (phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No phone number available')),
-      );
-      return;
-    }
-    
-    launchUrl(Uri.parse('tel:$phone'));
-  }
-  
-  void _generatePdfReport() {
-    // Implement PDF report generation functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('PDF report generation coming soon')),
-    );
-  }
-  
-  void _setReminder() {
-    // Implement reminder setting functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reminder setting coming soon')),
-    );
-  }
-  
-  void _sendSms() {
-    final phone = widget.contact['phone'] as String? ?? '';
-    
-    if (phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No phone number available')),
-      );
-      return;
-    }
-    
-    launchUrl(Uri.parse('sms:$phone'));
-  }
-
-  // Build filter chip
-  Widget _buildFilterChip(String filterName) {
-    final isSelected = _selectedFilter == filterName;
-    
-    Color chipColor;
-    Color textColor;
-    
-    if (isSelected) {
-      switch (filterName) {
-        case 'Received':
-          chipColor = Colors.green.shade100;
-          textColor = Colors.green.shade700;
-            break;
-        case 'Paid':
-          chipColor = Colors.red.shade100;
-          textColor = Colors.red.shade700;
-          break;
-        default: // 'All'
-          chipColor = Colors.blue.shade100;
-          textColor = Colors.blue.shade700;
-        }
-      } else {
-      chipColor = Colors.grey.shade200;
-      textColor = Colors.grey.shade700;
-    }
-    
-    return GestureDetector(
-      onTap: () => _selectFilter(filterName),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: chipColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected 
-                ? chipColor 
-                : Colors.grey.shade300,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          filterName,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: textColor,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Helper method to build a tenure button
-  Widget _buildTenureButton(StateSetter setState, int months, int selectedMonths) {
-    final isSelected = months == selectedMonths;
-    
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-    setState(() {
-            localTenureMonths = months;
-            // Set tenurePeriod to Month or Year based on the selected option
-            if (months >= 12 && months % 12 == 0) {
-              tenurePeriod = 'Year';
-        } else {
-              tenurePeriod = 'Month';
-            }
-            localDueDate = DateTime.now().add(Duration(days: 30 * months));
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.blue : Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            months < 12 ? '$months Months' : (months == 12 ? '1 Year' : '${months ~/ 12} Years'),
-            style: TextStyle(
-              fontSize: 12,
-              color: isSelected ? Colors.white : Colors.black,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Add _buildDottedLine method
-  Widget _buildDottedLine() {
-    return Container(
-      height: 20,
-      width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        border: Border(
-          left: BorderSide(
-            color: Colors.grey.shade400,
-            width: 1,
-            style: BorderStyle.solid,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Add showTransactionDialog method
-  void _showTransactionDialog(bool isGet) {
-    final amountController = TextEditingController();
-    final noteController = TextEditingController();
-    bool hasInterest = _showInterestMode;
-    bool isPayingInterest = false;
-    double interestRate = 0.0;
-    String interestPeriod = 'Month';
-    int localTenureMonths = 3;
-    String tenurePeriod = 'Month';
-    DateTime localDueDate = DateTime.now().add(const Duration(days: 90));
-    List<String> imagePaths = [];
-    
-    // For selecting transaction when paying interest
-    Map<String, dynamic>? selectedTransaction;
-    List<Map<String, dynamic>> eligibleTransactions = [];
-    
-    // Filter eligible transactions (only normal transactions)
-    if (isGet) {
-      eligibleTransactions = _transactions.where((tx) => 
-        !(tx['hasInterest'] as bool? ?? false) && 
-        !(tx['isGet'] as bool? ?? true)
-      ).toList();
-    } else {
-      eligibleTransactions = _transactions.where((tx) => 
-        !(tx['hasInterest'] as bool? ?? false) && 
-        (tx['isGet'] as bool? ?? true)
-      ).toList();
-    }
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => Container(
-          height: MediaQuery.of(context).size.height * 0.65,
-          padding: EdgeInsets.zero,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
-          ),
-          child: Column(
-        children: [
-              // Handle indicator at top
-              Container(
-                width: 40,
-                height: 5,
-                margin: const EdgeInsets.only(top: 8, bottom: 6),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              ),
-              
-              // Main content in scrollable area
-          Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header row with Paid/Received indicator
-                      Row(
-                        children: [
-                          // Paid/Received indicator
-                          CircleAvatar(
-                            radius: 16,
-                            backgroundColor: isGet ? Colors.green.shade100 : Colors.red.shade100,
-                            child: Icon(
-                              isGet ? Icons.arrow_downward : Icons.arrow_upward,
-                              color: isGet ? Colors.green : Colors.red,
-                              size: 16,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            isGet ? 'Received' : 'Paid',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: isGet ? Colors.green : Colors.red,
-                            ),
-          ),
-        ],
-      ),
-
-                      const SizedBox(height: 12),
-                      
-                      // Amount section
-                      const Text(
-                        'Amount',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      
-                      // Amount and date in one row
-                      Row(
-                        children: [
-                          // Amount field
-                          Expanded(
-                            flex: 3,
-      child: TextField(
-                              controller: amountController,
-                              keyboardType: TextInputType.numberWithOptions(decimal: true),
-                              decoration: InputDecoration(
-                                hintText: '0.00',
-                                prefixText: '₹ ',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                                isDense: true,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          
-                          // Date picker
-                          Expanded(
-                            flex: 2,
-      child: InkWell(
-                              onTap: () async {
-                                final date = await showDatePicker(
-                                  context: context,
-                                  initialDate: DateTime.now(),
-                                  firstDate: DateTime(2020),
-                                  lastDate: DateTime(2030),
-                                );
-                                if (date != null && mounted) {
-                                  setState(() {
-                                    localDueDate = date;
-                                  });
-                                }
-                              },
-        child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-          decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-                                    Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade600),
-                                    const SizedBox(width: 2),
-                                    Flexible(
-                                      child: Text(
-                                        DateFormat('dd MMM yyyy').format(localDueDate),
-                                        style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 12),
-                      
-                      // Normal/Interest toggle
-                      if (!isPayingInterest) 
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setState(() => hasInterest = false),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: !hasInterest ? Colors.blue : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                child: Text(
-                                      'Normal',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                        color: !hasInterest ? Colors.white : Colors.black,
-                  ),
-                ),
-              ),
-                                ),
-                              ),
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setState(() => hasInterest = true),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: hasInterest ? Colors.blue : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      'Interest',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                        color: hasInterest ? Colors.white : Colors.black,
-                                      ),
-                                    ),
-                                  ),
-                  ),
-                ),
-              ],
-            ),
-                        ),
-                      
-                      // Show interest settings when interest is selected
-                      if (hasInterest && !isPayingInterest) ...[
-                        const SizedBox(height: 12),
-                        
-                        // Interest Rate field with Period switcher (70:30 ratio)
-                        const Text(
-                          'Interest Rate (%)',
-                          style: TextStyle(
-            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            // Interest Rate field (70%)
-                            Expanded(
-                              flex: 7,
-                              child: TextField(
-                                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                                decoration: InputDecoration(
-                                  hintText: '0.00',
-                                  suffixText: '%',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                                  isDense: true,
-                                ),
-                                onChanged: (value) {
-                                  interestRate = double.tryParse(value) ?? 0.0;
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            
-                            // Period switcher (30%)
-                            Expanded(
-                              flex: 3,
-                              child: Container(
-                                height: 42,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade200,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.grey.shade300),
-                                ),
-                                child: Row(
-            children: [
-                                    // Month option
-                                    Expanded(
-                                      child: GestureDetector(
-                                        onTap: () => setState(() => interestPeriod = 'Month'),
-                                        child: Container(
-                                          alignment: Alignment.center,
-                                          decoration: BoxDecoration(
-                                            color: interestPeriod == 'Month' ? Colors.blue : Colors.transparent,
-                                            borderRadius: BorderRadius.circular(7),
-                                          ),
-                                          child: Text(
-                                            'M',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                              color: interestPeriod == 'Month' ? Colors.white : Colors.black,
-                ),
-              ),
-                ),
-              ),
-                                    ),
-                                    // Year option
-                  Expanded(
-                    child: GestureDetector(
-                                        onTap: () => setState(() => interestPeriod = 'Year'),
-                      child: Container(
-                                          alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                                            color: interestPeriod == 'Year' ? Colors.blue : Colors.transparent,
-                                            borderRadius: BorderRadius.circular(7),
-                                          ),
-                                          child: Text(
-                                            'Y', 
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                              color: interestPeriod == 'Year' ? Colors.white : Colors.black,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                ),
-                              ],
-                            ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                            const SizedBox(height: 12),
-                        
-                        // Tenure with period switcher (50:50 ratio)
-                            const Text(
-                          'Tenure',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        
-                        // First row - Tenure value display and period switcher (50:50)
-                        Row(
-                          children: [
-                            // Tenure value display (50%)
-                            Expanded(
-                              flex: 5,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  tenurePeriod == 'Month' 
-                                      ? localTenureMonths.toString()
-                                      : (localTenureMonths / 12).toStringAsFixed(localTenureMonths % 12 == 0 ? 0 : 1),
-                                  style: TextStyle(color: Colors.grey.shade800, fontSize: 14),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            
-                            // Period switcher (50%)
-                            Expanded(
-                              flex: 5,
-                              child: Container(
-                                height: 39,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade200,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.grey.shade300),
-                                ),
-                                child: Row(
-                                  children: [
-                                    // Month option
-                                    Expanded(
-                                      child: GestureDetector(
-                                        onTap: () => setState(() => tenurePeriod = 'Month'),
-                                        child: Container(
-                                          alignment: Alignment.center,
-                                          decoration: BoxDecoration(
-                                            color: tenurePeriod == 'Month' ? Colors.blue : Colors.transparent,
-                                            borderRadius: BorderRadius.circular(7),
-                                          ),
-                                          child: Text(
-                                            'Month',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                              color: tenurePeriod == 'Month' ? Colors.white : Colors.black,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    // Year option
-                  Expanded(
-                    child: GestureDetector(
-                                        onTap: () => setState(() {
-                                          tenurePeriod = 'Year';
-                                        }),
-                      child: Container(
-                                          alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                                            color: tenurePeriod == 'Year' ? Colors.blue : Colors.transparent,
-                                            borderRadius: BorderRadius.circular(7),
-                                          ),
-                                          child: Text(
-                                            'Year', 
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                              color: tenurePeriod == 'Year' ? Colors.white : Colors.black,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                ),
-                              ],
-                            ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 8),
-                        
-                        // Second row - Quick tenure selection buttons
-                        Row(
-                          children: [
-                            _buildTenureButton(setState, 3, localTenureMonths),
-                            const SizedBox(width: 8),
-                            _buildTenureButton(setState, 6, localTenureMonths),
-                            const SizedBox(width: 8),
-                            _buildTenureButton(setState, 12, localTenureMonths),
-                          ],
-                        ),
-                      ],
-                      
-                      // Row with Note and Attachments - 75:25 ratio
-                            const SizedBox(height: 12),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Note section (75%)
-                          Expanded(
-                            flex: 75,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            const Text(
-                                  'Note (optional)',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                TextField(
-                                  controller: noteController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Add a note...',
-                                    hintStyle: TextStyle(fontSize: 13),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                    isDense: true,
-                                  ),
-                                  style: TextStyle(fontSize: 13),
-                                  maxLines: 3,
-                                ),
-                              ],
-                            ),
-                          ),
-                          
-                          const SizedBox(width: 8),
-                          
-                          // Attach Receipt/Bill section (25%)
-                          Expanded(
-                            flex: 25,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            const Text(
-                                  'Receipts',
-                              style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                GestureDetector(
-                                  onTap: () async {
-                                    try {
-                                      final imagePickerHelper = ImagePickerHelper();
-                                      final selectedImage = await imagePickerHelper.showImageSourceDialog(context);
-                                      if (selectedImage != null && mounted) {
-                                        setState(() {
-                                          imagePaths.add(selectedImage.path);
-                                        });
-                                      }
-                                    } catch (e) {
-                                      print('Error picking image: $e');
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Failed to get image: $e')),
-                                        );
-                                      }
-                                    }
-                                  },
-                                  child: Container(
-                                    width: double.infinity,
-                                    height: 70,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.grey.shade300),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.add_photo_alternate, size: 20, color: Colors.grey),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Add receipt',
-                                          style: TextStyle(color: Colors.grey, fontSize: 11),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-              ),
-            ],
-          ),
-        ),
-                        ],
-                      ),
-                      
-                      // Preview of attached images
-                      if (imagePaths.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          height: 70,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: imagePaths.length,
-                            itemBuilder: (context, index) {
-    return Container(
-                                width: 70,
-                                height: 70,
-                                margin: const EdgeInsets.only(right: 8),
-      decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.grey.shade300),
-      ),
-                                child: Stack(
-        children: [
-                                    // Image preview
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(7),
-                                      child: Image.file(
-                                        File(imagePaths[index]),
-                                        width: 70,
-                                        height: 70,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                    // Delete button
-                                    Positioned(
-                                      top: 0,
-                                      right: 0,
-                                      child: GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            imagePaths.removeAt(index);
-                                          });
-                                        },
-                                        child: Container(
-                                          padding: const EdgeInsets.all(2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(Icons.close, size: 12, color: Colors.white),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                      
-                      // "Are you paying interest?" toggle
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isGet ? 'Are you receiving interest?' : 'Are you paying interest?',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                    Text(
-                      isGet 
-                          ? 'Enable if you want to receive interest on ongoing loan amount as a lender'
-                          : 'Enable if you are paying interest on a loan you have taken',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Transform.scale(
-                scale: 0.8,
-                child: Switch(
-                  value: isPayingInterest,
-                  onChanged: (value) {
-                    setState(() {
-                      isPayingInterest = value;
-                      if (value) {
-                        hasInterest = false;
-                      }
-                    });
-                  },
-                  activeColor: Colors.deepPurple,
-                ),
-              ),
-            ],
-          ),
-                      
-                      const SizedBox(height: 8),
-                      
-                      // Bottom buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
-                              ),
-                              child: const Text('Cancel', style: TextStyle(fontSize: 13)),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () {
-                                if (amountController.text.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Please enter an amount')),
-                                  );
-        return;
-                                }
-                                
-                                final amount = double.tryParse(amountController.text) ?? 0.0;
-                                if (amount <= 0) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Amount must be greater than 0')),
-                                  );
-                                  return;
-                                }
-                                
-                                _addTransaction(
-                                  amount,
-                                  isGet,
-                                  noteController.text,
-                                  isPayingInterest || hasInterest,
-                                  interestRate,
-                                  interestPeriod,
-                                  localDueDate,
-                                  imagePaths,
-                                  isPayingInterest,
-                                  selectedTransaction,
-                                  localTenureMonths,
-                                );
-                                
-                                Navigator.pop(context);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
-                                backgroundColor: const Color(0xFF6750A4),
-                              ),
-                              child: const Text('Save', style: TextStyle(fontSize: 13)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-              ),
-            ),
-          );
-  }
-  
-  // Add methods for showing transaction options on long press
-  void _showTransactionOptions(Map<String, dynamic> transaction) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-            // Transaction details at the top
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  // Transaction icon
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: (transaction['isGet'] as bool? ?? true)
-                          ? Colors.green.shade100
-                          : Colors.red.shade100,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      (transaction['isGet'] as bool? ?? true)
-                          ? Icons.arrow_downward
-                          : Icons.arrow_upward,
-                      color: (transaction['isGet'] as bool? ?? true)
-                          ? Colors.green
-                          : Colors.red,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Transaction amount and date
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '₹ ${(transaction['amount'] as double? ?? 0.0).toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                        Text(
-                          DateFormat('dd MMM yyyy, hh:mm a')
-                              .format(transaction['date'] as DateTime? ?? DateTime.now()),
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
-                          ),
-                ),
-              ],
-            ),
-          ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Divider(),
-            // Edit option
-            ListTile(
-              leading: const Icon(Icons.edit, color: Colors.blue),
-              title: const Text('Edit Transaction'),
-              onTap: () {
-                Navigator.pop(context);
-                // Placeholder for edit functionality
-                // You would implement proper edit functionality here
-                  ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Edit functionality coming soon')),
-                );
-              },
-            ),
-            // Delete option
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Delete Transaction'),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmDeleteTransaction(transaction);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  // Edit transaction method
-  void _editTransaction(Map<String, dynamic> transaction) {
-    final id = transaction['id'] as String? ?? '';
-    final isGet = transaction['isGet'] as bool? ?? true;
-    
-    if (id.isEmpty) return;
-    
-    // Create controllers with initial values from transaction
-    final amountController = TextEditingController(
-      text: (transaction['amount'] as double? ?? 0.0).toStringAsFixed(2)
-    );
-    final noteController = TextEditingController(
-      text: transaction['note'] as String? ?? ''
-    );
-    
-    // Initialize variables with values from transaction
-    bool hasInterest = transaction['hasInterest'] as bool? ?? false;
-    double interestRate = transaction['interestRate'] as double? ?? 0.0;
-    String interestPeriod = transaction['interestPeriod'] as String? ?? 'Month';
-    int tenureMonths = transaction['tenureMonths'] as int? ?? 3;
-    DateTime dueDate = transaction['dueDate'] as DateTime? ?? DateTime.now().add(const Duration(days: 90));
-    DateTime transactionDate = transaction['date'] as DateTime? ?? DateTime.now();
-    
-    // Get image paths from transaction
-    List<String> imagePaths = [];
-    if (transaction.containsKey('imagePaths')) {
-      final paths = transaction['imagePaths'];
-      if (paths is List) {
-        imagePaths = List<String>.from(paths);
-      } else if (paths is String && paths.isNotEmpty) {
-        imagePaths = [paths];
-      }
-    } else if (transaction.containsKey('imagePath')) {
-      final path = transaction['imagePath'] as String?;
-      if (path != null && path.isNotEmpty) {
-        imagePaths = [path];
-      }
-    }
-    
-    // Reuse most of _showTransactionDialog's UI but pre-fill with transaction data
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => Container(
-          height: MediaQuery.of(context).size.height * 0.65,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
-          ),
-      child: Column(
-        children: [
-              // Handle indicator at top
-              Container(
-                width: 40,
-                height: 5,
-                margin: const EdgeInsets.only(top: 8, bottom: 6),
-                decoration: BoxDecoration(
-            color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              ),
-              
-              // Main content in scrollable area
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-                  children: [
-                    // Header with Edit Transaction title
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundColor: isGet ? Colors.green.shade100 : Colors.red.shade100,
-                          child: Icon(
-                            isGet ? Icons.arrow_downward : Icons.arrow_upward,
-                            color: isGet ? Colors.green : Colors.red,
-                            size: 16,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Edit ${isGet ? 'Received' : 'Paid'} Transaction',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-          const SizedBox(height: 16),
-                    
-                    // Amount field
-          const Text(
-                      'Amount',
-            style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    TextField(
-                      controller: amountController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        hintText: '0.00',
-                        prefixText: '₹ ',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Note field
-                    const Text(
-                      'Note (optional)',
-              style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    TextField(
-                      controller: noteController,
-                      decoration: InputDecoration(
-                        hintText: 'Add a note...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      maxLines: 3,
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Date picker
-                    const Text(
-                      'Transaction Date',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    InkWell(
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: transactionDate,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2030),
-                        );
-                        if (date != null && mounted) {
-                  setState(() {
-                            transactionDate = date;
-                          });
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
-                            const SizedBox(width: 8),
-                            Text(
-                              DateFormat('dd MMM yyyy').format(transactionDate),
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Bottom buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Cancel'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              final amount = double.tryParse(amountController.text);
-                              if (amount == null || amount <= 0) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Please enter a valid amount')),
-                                );
-                                return;
-                              }
-                              
-                              // Update the transaction
-                              final phone = widget.contact['phone'] as String? ?? '';
-                              if (phone.isEmpty) return;
-                              
-                              // Create updated transaction
-                              final updatedTransaction = Map<String, dynamic>.from(transaction);
-                              updatedTransaction['amount'] = amount;
-                              updatedTransaction['note'] = noteController.text;
-                              updatedTransaction['date'] = transactionDate;
-                              updatedTransaction['hasInterest'] = hasInterest;
-                              updatedTransaction['interestRate'] = interestRate;
-                              updatedTransaction['interestPeriod'] = interestPeriod;
-                              updatedTransaction['tenureMonths'] = tenureMonths;
-                              updatedTransaction['dueDate'] = dueDate;
-                              updatedTransaction['imagePaths'] = imagePaths;
-                              
-                              // Find index of the transaction
-                              final index = _transactions.indexWhere((tx) => tx['id'] == id);
-                              
-                              // Update in provider
-                              if (index != -1) {
-                                final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-                                transactionProvider.updateTransaction(phone, index, updatedTransaction);
-                                
-                                // Refresh transactions
-                                _loadTransactions();
-                                
-                                // Show success message and close
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Transaction updated successfully')),
-                                );
-                                Navigator.pop(context);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.deepPurple,
-                            ),
-                            child: const Text('Save Changes'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  
-  // Add missing _addTransaction method
-  void _addTransaction(
-    double amount,
-    bool isGet,
-    String note,
-    bool hasInterest,
-    double interestRate,
-    String interestPeriod,
-    DateTime dueDate,
-    List<String> imagePaths,
-    bool isPayingInterest,
-    [Map<String, dynamic>? relatedTransaction,
-    int? tenureMonths]
-  ) {
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    final phone = widget.contact['phone'] as String? ?? '';
-    
-    if (phone.isEmpty) return;
-    
-    // Create transaction map
-    final Map<String, dynamic> newTransaction = {
-      'id': DateTime.now().millisecondsSinceEpoch.toString(),
-      'amount': amount,
-      'isGet': isGet,
-      'date': DateTime.now(),
-      'note': note,
-      'hasInterest': hasInterest,
-      'interestRate': hasInterest ? interestRate : 0.0,
-      'interestPeriod': interestPeriod,
-      'tenureMonths': tenureMonths ?? 3, // Default to 3 months if not specified
-      'dueDate': dueDate,
-      'imagePaths': imagePaths,
-      'isPayingInterest': isPayingInterest,
-    };
-    
-    // If this is an interest payment related to another transaction, add that reference
-    if (isPayingInterest && relatedTransaction != null) {
-      newTransaction['relatedTransactionId'] = relatedTransaction['id'];
-      
-      // Add a note mentioning which transaction this interest is for
-      if (note.isEmpty) {
-        final relatedAmount = relatedTransaction['amount'] as double? ?? 0.0;
-        newTransaction['note'] = 'Interest payment for transaction of ₹${relatedAmount.toStringAsFixed(2)}';
-      }
-    }
-    
-    // Add transaction to provider
-    transactionProvider.addTransaction(phone, newTransaction);
-    
-    // Refresh transactions
-    _loadTransactions();
-    
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Transaction of ₹${amount.toStringAsFixed(2)} added')),
-    );
+        _syncContactsWithTransactions();
+        }
+      });
+    });
   }
 }

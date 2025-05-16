@@ -36,6 +36,7 @@ import 'package:my_byaj_book/utils/permission_handler.dart';
 import 'screens/settings/notification_settings_screen.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'widgets/safe_area_wrapper.dart';
+import 'providers/contact_provider.dart';
 
 // Global notification service
 final notificationService = NotificationService.instance;
@@ -204,6 +205,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => MilkSellerProvider()),
         ChangeNotifierProvider(create: (_) => CardProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => ContactProvider()),
       ],
       child: const MyApp(),
     ),
