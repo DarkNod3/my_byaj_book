@@ -263,59 +263,37 @@ class UserProvider with ChangeNotifier {
     try {
       await _loadUserData();
       debugPrint('UserProvider initialization complete: user = ${_user?.name} (${_user?.mobile})');
-      
-      // Add a persistence check to prevent auto-logout on reinstall
-      final prefs = await SharedPreferences.getInstance();
-      final isLoggedIn = prefs.getBool(_isLoggedInKey) ?? false;
-      final userId = prefs.getString(_userIdKey);
-      
-      debugPrint('Login state check: isLoggedIn=$isLoggedIn, userId=$userId');
-      
-      // If we have a user ID but no logged-in status, maintain the login
-      if (userId != null && userId.isNotEmpty && !isLoggedIn) {
-        debugPrint('Found user data but login state was lost - restoring login state');
-        await prefs.setBool(_isLoggedInKey, true);
-        
-        // Make sure user object is properly loaded
-        if (_user == null) {
-          final name = prefs.getString(_userNameKey) ?? 'User';
-          final mobile = prefs.getString(_userMobileKey);
-          final profileImagePath = prefs.getString(_userProfileImageKey);
-          
-          _user = User(
-            id: userId,
-            name: name,
-            mobile: mobile,
-            profileImagePath: profileImagePath,
-          );
-          
-          notifyListeners();
-        }
-      }
     } catch (e) {
       debugPrint('Error initializing UserProvider: $e');
       // Ensure we don't leave the user in a stuck state
       _user = null;
+    } finally {
+      // Always notify listeners even if there was an error
+      notifyListeners();
     }
   }
 
-  // Use this instead of direct logout
-  Future<bool> logoutUser() async {
+  // Logout user
+  Future<void> logout() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      // Save the mobile number before clearing the user
+      final mobile = _user?.mobile;
+      _user = null;
       
       // Clear login status but PRESERVE user data
-      debugPrint('Logging out user');
+      final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_isLoggedInKey, false);
       
-      // Only clear current user in memory
-      _user = null;
-      notifyListeners();
+      // Clear the current session keys but not the user-specific data
+      await prefs.remove(_userIdKey);
+      await prefs.remove(_userNameKey);
+      await prefs.remove(_userMobileKey);
+      await prefs.remove(_userProfileImageKey);
       
-      return true;
+      debugPrint("User logged out (mobile: $mobile)");
+      notifyListeners();
     } catch (e) {
-      debugPrint('Error during logout: $e');
-      return false;
+      debugPrint("Logout error: $e");
     }
   }
 } 

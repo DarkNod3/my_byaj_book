@@ -15,6 +15,7 @@ import 'screens/bill_diary/bill_diary_screen.dart';
 import 'screens/settings/nav_settings_screen.dart';
 import 'screens/profile/profile_edit_screen.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
+
 import 'package:my_byaj_book/screens/reminder/reminder_screen.dart';
 import 'services/notification_service.dart';
 import 'screens/loan/loan_details_screen.dart';
@@ -36,7 +37,6 @@ import 'package:my_byaj_book/utils/permission_handler.dart';
 import 'screens/settings/notification_settings_screen.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'widgets/safe_area_wrapper.dart';
-import 'providers/contact_provider.dart';
 
 // Global notification service
 final notificationService = NotificationService.instance;
@@ -205,7 +205,6 @@ void main() async {
         ChangeNotifierProvider(create: (_) => MilkSellerProvider()),
         ChangeNotifierProvider(create: (_) => CardProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
-        ChangeNotifierProvider(create: (_) => ContactProvider()),
       ],
       child: const MyApp(),
     ),
@@ -297,9 +296,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       await notificationService.scheduleLoanPaymentNotifications(loanProvider);
       await notificationService.scheduleCardDueNotifications(cardProvider);
       await notificationService.scheduleManualReminders(transactionProvider);
-      
-      // Schedule daily reminder notifications at set times (9AM, 12PM, 5PM)
-      await notificationService.scheduleDailyReminders();
     } catch (e) {
       // Handle errors silently
     }
@@ -543,6 +539,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               NotificationSettingsScreen.routeName: (ctx) => const NotificationSettingsScreen(),
               BillDiaryScreen.routeName: (ctx) => const BillDiaryScreen(),
               NavSettingsScreen.routeName: (ctx) => const NavSettingsScreen(),
+
               ProfileEditScreen.routeName: (ctx) => const ProfileEditScreen(),
               ReminderScreen.routeName: (ctx) => const ReminderScreen(),
               SpecialThanksScreen.routeName: (ctx) => const SpecialThanksScreen(),

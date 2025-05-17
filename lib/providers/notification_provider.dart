@@ -28,13 +28,7 @@ class NotificationProvider with ChangeNotifier {
 
   // Get unread notifications
   List<AppNotification> get unreadNotifications => 
-    _notifications.where((notification) => 
-      !notification.isRead && 
-      (notification.type == 'fcm' || 
-       notification.type == 'loan' || 
-       notification.type == 'card' || 
-       notification.type == 'bill' || 
-       notification.type == 'reminder')).toList();
+    _notifications.where((notification) => !notification.isRead).toList();
   
   // Get due notifications (not paid and not FCM)
   List<AppNotification> get dueNotifications => 
@@ -122,11 +116,6 @@ class NotificationProvider with ChangeNotifier {
     _loadNotifications();
     _loadCompletedTodayNotifications();
     _cleanupExpiredCompletedNotifications(); // Cleanup completed notifications from previous days
-    
-    // Also sync reminders at startup
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      syncAllReminders();
-    });
   }
 
   // Load notifications from SharedPreferences
@@ -679,7 +668,6 @@ class NotificationProvider with ChangeNotifier {
 
   // Sync all reminders and due dates from various sources
   Future<void> syncAllReminders() async {
-    // Only sync data that's needed for the notification badge
     await syncBillReminders();
     await syncCardDueDates();
     await syncLoanPaymentDates();
@@ -691,9 +679,6 @@ class NotificationProvider with ChangeNotifier {
       _shouldFilterNotification(notification)
     );
     
-    // Keep FCM notifications as they are from outside the app
-    
-    // Only update UI after all syncs are complete
     await _saveNotifications();
     notifyListeners();
   }

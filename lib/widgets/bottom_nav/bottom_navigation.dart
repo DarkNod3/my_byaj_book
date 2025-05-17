@@ -6,10 +6,11 @@ import 'package:my_byaj_book/screens/loan/loan_screen.dart';
 import 'package:my_byaj_book/screens/card/card_screen.dart';
 import 'package:my_byaj_book/providers/nav_preferences_provider.dart';
 import 'package:my_byaj_book/screens/settings/nav_settings_screen.dart';
-import 'package:my_byaj_book/screens/work_diary/work_diary_screen.dart';
+
+import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/sip_calculator_screen.dart';
 import 'package:my_byaj_book/screens/tools/tax_calculator_screen.dart';
-import 'package:my_byaj_book/screens/tools/emi_calculator_screen.dart';
+import 'package:my_byaj_book/screens/work_diary/work_diary_screen.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -175,6 +176,7 @@ class ToolsPopup extends StatelessWidget {
       {'icon': Icons.note_alt_rounded, 'title': 'Bills', 'color': Colors.blue.shade700, 'id': 'bill_diary'},
       {'icon': Icons.local_drink_rounded, 'title': 'Milk', 'color': Colors.amber.shade700, 'id': 'milk_diary'},
       {'icon': Icons.work_rounded, 'title': 'Work', 'color': Colors.blue, 'id': 'work_diary'},
+      
     ],
     'Other': [
       {'icon': Icons.account_balance_rounded, 'title': 'Loans', 'color': Colors.blue, 'id': 'loans'},
@@ -396,14 +398,15 @@ class ToolsPopup extends StatelessWidget {
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const TaxCalculatorScreen(showAppBar: true)));
         break;
       case 'bill_diary':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const BillDiaryScreen(showAppBar: true)));
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const BillDiaryScreen()));
         break;
       case 'milk_diary':
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const MilkDiaryScreen(showAppBar: true)));
         break;
       case 'work_diary':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const WorkDiaryScreen(showAppBar: true)));
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const WorkDiaryScreen()));
         break;
+      
       case 'loans':
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const LoanScreen(showAppBar: true)));
         break;

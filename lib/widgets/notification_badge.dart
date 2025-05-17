@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/notification_provider.dart';
 import '../screens/notification/notification_center_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationBadge extends StatefulWidget {
   const NotificationBadge({Key? key}) : super(key: key);
@@ -14,7 +13,6 @@ class NotificationBadge extends StatefulWidget {
 class _NotificationBadgeState extends State<NotificationBadge> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _animation;
-  static const String _lastSyncKey = 'last_notification_sync';
   
   @override
   void initState() {
@@ -35,49 +33,6 @@ class _NotificationBadgeState extends State<NotificationBadge> with SingleTicker
     
     // Make the animation repeat
     _animationController.repeat(reverse: true);
-    
-    // Check if we need to load notifications
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkNotifications();
-    });
-  }
-  
-  Future<void> _checkNotifications() async {
-    try {
-      // Check if we've synced recently to avoid excessive updates
-      final prefs = await SharedPreferences.getInstance();
-      final lastSync = prefs.getString(_lastSyncKey);
-      final now = DateTime.now();
-      
-      if (lastSync == null) {
-        // No sync has happened yet, do it immediately
-        _syncNotifications(now, prefs);
-        return;
-      }
-      
-      // Parse last sync time
-      final lastSyncTime = DateTime.parse(lastSync);
-      final difference = now.difference(lastSyncTime);
-      
-      // Only sync if it's been at least 30 minutes since last sync
-      if (difference.inMinutes >= 30) {
-        _syncNotifications(now, prefs);
-      }
-    } catch (e) {
-      // Ignore any errors during sync check
-    }
-  }
-  
-  void _syncNotifications(DateTime now, SharedPreferences prefs) {
-    if (!mounted) return;
-    
-    final provider = Provider.of<NotificationProvider>(context, listen: false);
-    
-    // Force sync of all notifications without UI refresh indicator
-    provider.syncAllReminders();
-    
-    // Save the timestamp
-    prefs.setString(_lastSyncKey, now.toIso8601String());
   }
   
   @override

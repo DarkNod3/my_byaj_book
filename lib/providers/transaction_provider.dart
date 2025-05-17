@@ -2,13 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
-import 'package:provider/provider.dart';
-import 'contact_provider.dart';
 
 class TransactionProvider extends ChangeNotifier {
   // Map of contactId -> list of transactions
   Map<String, List<Map<String, dynamic>>> _contactTransactions = {};
-  List<Map<String, dynamic>> _contacts = [];
   
   // UUID generator
   final _uuid = const Uuid();
@@ -24,9 +21,6 @@ class TransactionProvider extends ChangeNotifier {
     try {
       // First attempt to load data
       await _loadData();
-      
-      // Fix any inconsistent transaction data
-      await _fixInconsistentTransactionData();
       
       // Set up a delayed reload to ensure data is fully loaded
       // This helps when the app is first launched and SharedPreferences might be slow
@@ -49,59 +43,6 @@ class TransactionProvider extends ChangeNotifier {
       Future.delayed(const Duration(seconds: 1), () {
         _loadData(notifyChanges: true);
       });
-    }
-  }
-  
-  // Getter for contacts
-  List<Map<String, dynamic>> get contacts => _contacts;
-  
-  // Sync contacts from the ContactProvider
-  Future<void> syncContactsFromProvider(BuildContext context) async {
-    try {
-      // Get the ContactProvider and its contacts
-      final contactProvider = Provider.of<ContactProvider>(context, listen: false);
-      final providerContacts = contactProvider.contacts;
-      
-      // Debug info
-      print('syncContactsFromProvider: Found ${providerContacts.length} contacts in ContactProvider');
-      
-      // Always update our local contacts list to match the ContactProvider
-      if (providerContacts.isNotEmpty) {
-        _contacts = List.from(providerContacts);
-        await _ensureContactTransactionSynchronization();
-        notifyListeners();
-        print('syncContactsFromProvider: Updated with ${_contacts.length} contacts');
-      } else {
-        // Even if there are no contacts, we need to check if we have transaction data
-        final prefs = await SharedPreferences.getInstance();
-        final contactIds = prefs.getStringList('transaction_contacts') ?? [];
-        
-        // If we have transaction data but no contacts, try to restore contacts from backup
-        if (contactIds.isNotEmpty) {
-          print('Found transactions but no contacts - trying to restore contacts');
-          final contactsBackup = prefs.getStringList('contacts_backup') ?? [];
-          if (contactsBackup.isNotEmpty) {
-            try {
-              _contacts = contactsBackup.map((jsonStr) {
-                return Map<String, dynamic>.from(json.decode(jsonStr));
-              }).toList();
-              
-              // Save the restored contacts
-              await _saveContacts();
-              
-              // Ensure transaction data is linked
-              await _ensureContactTransactionSynchronization();
-              
-              notifyListeners();
-              print('Restored ${_contacts.length} contacts from backup');
-            } catch (e) {
-              print('Error restoring contacts from backup: $e');
-            }
-          }
-        }
-      }
-    } catch (e) {
-      print('Error syncing contacts from provider: $e');
     }
   }
   
@@ -133,12 +74,9 @@ class TransactionProvider extends ChangeNotifier {
   // Ensure contact transactions are synchronized
   Future<void> _ensureContactTransactionSynchronization({bool notifyChanges = true}) async {
     try {
-      print('TransactionProvider: Ensuring contact-transaction synchronization');
       // Get list of contacts and check if their transactions are loaded
       final prefs = await SharedPreferences.getInstance();
       final contactIds = prefs.getStringList('transaction_contacts') ?? [];
-      
-      print('Found ${contactIds.length} contact IDs with transactions in SharedPreferences');
       
       bool dataChanged = false;
       
@@ -149,12 +87,10 @@ class TransactionProvider extends ChangeNotifier {
         
         // If contact is not found but has transactions, try to reload transactions
         if (contactIndex < 0) {
-          print('Contact not found for ID $contactId but has transactions - loading transactions anyway');
           // Contact might be missing but transactions exist, load them anyway
           final serializedTransactions = prefs.getStringList('transactions_$contactId') ?? [];
           
           if (serializedTransactions.isNotEmpty) {
-            print('Found ${serializedTransactions.length} transactions for missing contact: $contactId');
             _contactTransactions[contactId] = serializedTransactions.map((txString) {
               final txMap = jsonDecode(txString) as Map<String, dynamic>;
               
@@ -173,24 +109,15 @@ class TransactionProvider extends ChangeNotifier {
               return dateB.compareTo(dateA); // Descending order (newest first)
             });
             
-            // Also create a basic contact record for this ID
-            _contacts.add({
-              'name': 'Contact $contactId',
-              'phone': contactId,
-              'lastEditedAt': DateTime.now(),
-            });
-            
             dataChanged = true;
           }
         } else {
           // Contact exists but check if transactions are loaded properly
           if (!_contactTransactions.containsKey(contactId)) {
-            print('Contact exists (${_contacts[contactIndex]['name']}) but transactions not loaded - loading now');
             // Transactions not loaded, load them now
             final serializedTransactions = prefs.getStringList('transactions_$contactId') ?? [];
             
             if (serializedTransactions.isNotEmpty) {
-              print('Found ${serializedTransactions.length} transactions for contact: ${_contacts[contactIndex]['name']}');
               _contactTransactions[contactId] = serializedTransactions.map((txString) {
                 final txMap = jsonDecode(txString) as Map<String, dynamic>;
                 
@@ -219,26 +146,17 @@ class TransactionProvider extends ChangeNotifier {
       for (final contact in _contacts) {
         final contactId = contact['phone'] as String?;
         if (contactId != null && contactId.isNotEmpty && !_contactTransactions.containsKey(contactId)) {
-          print('Creating empty transaction list for contact: ${contact['name']}');
           _contactTransactions[contactId] = [];
           dataChanged = true;
         }
-      }
-      
-      // Save any changes to contacts
-      if (dataChanged) {
-        await _saveContacts();
       }
       
       // Notify listeners if data changed and notifyChanges is true
       if (dataChanged && notifyChanges) {
         notifyListeners();
       }
-      
-      print('TransactionProvider: Completed contact-transaction synchronization');
     } catch (e) {
       // Handle error silently
-      print('Error in _ensureContactTransactionSynchronization: $e');
     }
   }
   
@@ -585,121 +503,29 @@ class TransactionProvider extends ChangeNotifier {
   
   // Add a transaction
   Future<void> addTransaction(String contactId, Map<String, dynamic> transaction) async {
-    print('Adding transaction for contact: $contactId');
-    
-    // First verify we have the contact in our contacts list
-    final contactIndex = _contacts.indexWhere((c) => c['phone'] == contactId);
-    if (contactIndex == -1) {
-      print('Contact not found in contacts list for ID: $contactId');
-      // Try to find this contact in SharedPreferences or other sources
-      final contact = await _tryToFindContact(contactId);
-      if (contact != null) {
-        // Add the contact to our list
-        _contacts.add(contact);
-        print('Added contact to contacts list: ${contact['name']}');
-      } else {
-        print('Could not find contact information for ID: $contactId');
-        // Create a minimal contact to prevent issues
-        _contacts.add({
-          'name': 'Unknown',
-          'phone': contactId,
-          'lastEditedAt': DateTime.now(),
-        });
-      }
+    // Ensure transaction has createdAt timestamp
+    if (!transaction.containsKey('createdAt')) {
+      transaction['createdAt'] = DateTime.now().millisecondsSinceEpoch;
     }
     
-    // Ensure the contact transactions list exists
+    // Initialize transaction list for this contact if needed
     if (!_contactTransactions.containsKey(contactId)) {
       _contactTransactions[contactId] = [];
     }
     
-    // Ensure transaction has all needed fields
-    if (!transaction.containsKey('id')) {
-      transaction['id'] = DateTime.now().millisecondsSinceEpoch.toString();
+    // Ensure note is never null
+    if (transaction['note'] == null) {
+      transaction['note'] = transaction['type'] == 'gave' ? 'Payment sent' : 'Payment received';
     }
     
-    if (!transaction.containsKey('date')) {
-      transaction['date'] = DateTime.now();
-    }
+    // Add to memory
+    _contactTransactions[contactId]!.add(transaction);
     
-    // Ensure transaction has both type and isGet fields for compatibility
-    if (transaction.containsKey('type') && !transaction.containsKey('isGet')) {
-      final type = transaction['type'] as String;
-      transaction['isGet'] = type == 'got';
-    } else if (transaction.containsKey('isGet') && !transaction.containsKey('type')) {
-      final isGet = transaction['isGet'] as bool;
-      transaction['type'] = isGet ? 'got' : 'gave';
-    }
-    
-    // Ensure the transaction has imagePaths field (not just imagePath)
-    if (transaction.containsKey('imagePath') && !transaction.containsKey('imagePaths')) {
-      final oldImagePath = transaction['imagePath'] as String?;
-      if (oldImagePath != null && oldImagePath.isNotEmpty) {
-        transaction['imagePaths'] = [oldImagePath];
-      } else {
-        transaction['imagePaths'] = [];
-      }
-    } else if (!transaction.containsKey('imagePaths')) {
-      transaction['imagePaths'] = [];
-    }
-    
-    // Add transaction
-    _contactTransactions[contactId]?.add(transaction);
-    
-    // Update last edited time for contact
-    _updateContactLastEdited(contactId);
-    
-    // Save to persistent storage
+    // Save to preferences immediately to ensure persistence
     await _saveTransactions();
     
-    // Ensure contacts list is updated in SharedPreferences
-    await _saveContacts();
-    
-    // Trigger listeners
+    // Notify listeners
     notifyListeners();
-    print('Transaction added successfully for contact: $contactId');
-  }
-  
-  // Helper to find a contact by ID from various sources
-  Future<Map<String, dynamic>?> _tryToFindContact(String contactId) async {
-    try {
-      // Try to load from SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      final contactsJson = prefs.getStringList('contacts');
-      
-      if (contactsJson != null) {
-        for (final jsonStr in contactsJson) {
-          try {
-            final contact = Map<String, dynamic>.from(json.decode(jsonStr));
-            if (contact['phone'] == contactId) {
-              return contact;
-            }
-          } catch (e) {
-            // Skip invalid entries
-          }
-        }
-      }
-      
-      // Try backup if not found
-      final backupContacts = prefs.getStringList('contacts_backup');
-      if (backupContacts != null) {
-        for (final jsonStr in backupContacts) {
-          try {
-            final contact = Map<String, dynamic>.from(json.decode(jsonStr));
-            if (contact['phone'] == contactId) {
-              return contact;
-            }
-          } catch (e) {
-            // Skip invalid entries
-          }
-        }
-      }
-      
-      return null;
-    } catch (e) {
-      print('Error finding contact: $e');
-      return null;
-    }
   }
   
   // Add a transaction with individual fields
@@ -716,16 +542,14 @@ class TransactionProvider extends ChangeNotifier {
     final double positiveAmount = amount.abs();
     
     Map<String, dynamic> transaction = {
-      'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'date': date,
       'amount': positiveAmount, // Always store as positive
       'type': type,             // 'gave' or 'got' determines the sign
-      'isGet': type == 'got',   // Add isGet flag for newer code compatibility
       'note': note,
     };
     
     if (imagePath != null) {
-      transaction['imagePaths'] = [imagePath];
+      transaction['imagePath'] = imagePath;
     }
     
     // Add any extra data
@@ -734,6 +558,8 @@ class TransactionProvider extends ChangeNotifier {
     }
     
     await addTransaction(contactId, transaction);
+    
+    // Removed debug print comments
   }
   
   // Update a transaction
@@ -764,54 +590,56 @@ class TransactionProvider extends ChangeNotifier {
     }
   }
   
-  // Delete a transaction by ID
-  Future<void> deleteTransaction(String contactId, String transactionId) async {
-    print("Attempting to delete transaction: $transactionId for contact: $contactId");
-    
-    if (contactId.isEmpty || transactionId.isEmpty) {
-      print("Error: Invalid contactId or transactionId");
-      return;
-    }
-    
-    bool transactionFound = false;
-    
-    if (_contactTransactions.containsKey(contactId)) {
-      // Find the transaction with the given ID
-      final index = _contactTransactions[contactId]!.indexWhere((tx) => tx['id'] == transactionId);
+  // Delete a transaction
+  Future<void> deleteTransaction(String contactId, int index) async {
+    if (_contactTransactions.containsKey(contactId) && 
+        index >= 0 && 
+        index < _contactTransactions[contactId]!.length) {
+      // Remove from memory immediately
+      _contactTransactions[contactId]!.removeAt(index);
       
-      if (index >= 0) {
-        print("Found transaction at index $index, removing...");
+      // Update lastEditedAt timestamp in the associated contact to keep it active
+      final contactIndex = _contacts.indexWhere((contact) => contact['phone'] == contactId);
+      if (contactIndex != -1) {
+        final contact = _contacts[contactIndex];
         
-        // Remove from memory immediately
-        _contactTransactions[contactId]!.removeAt(index);
-        transactionFound = true;
+        // Update lastEditedAt to current time
+        contact['lastEditedAt'] = DateTime.now();
         
-        // Save to preferences to ensure permanent deletion
-        await _saveTransactions();
-        
-        // Create automatic backup to ensure consistency
-        await createAutomaticBackup();
-        
-        // Update lastEditedAt for the contact
-        _updateContactLastEdited(contactId);
-        
-        print("Transaction deleted successfully");
-      } else {
-        print("Transaction with ID $transactionId not found for contact $contactId");
+        // Save the updated contact
+        _contacts[contactIndex] = contact;
+        await _saveContacts();
       }
-    } else {
-      print("No transactions found for contact $contactId");
+      
+      // Save to preferences to ensure permanent deletion
+      await _saveTransactions();
+      
+      // Create automatic backup to ensure consistency
+      await createAutomaticBackup();
+      
+      // Notify listeners
+      notifyListeners();
     }
-    
-    // Always notify listeners, even if transaction wasn't found
-    // This ensures the UI refreshes and shows current state
-    notifyListeners();
   }
   
   // Delete all transactions for a contact
   Future<void> deleteContactTransactions(String contactId) async {
     if (_contactTransactions.containsKey(contactId)) {
-      _contactTransactions.remove(contactId);
+      // Clear the transactions but keep an empty list to maintain the contact
+      _contactTransactions[contactId] = [];
+      
+      // Update lastEditedAt timestamp in the associated contact to keep it active
+      final contactIndex = _contacts.indexWhere((contact) => contact['phone'] == contactId);
+      if (contactIndex != -1) {
+        final contact = _contacts[contactIndex];
+        
+        // Update lastEditedAt to current time
+        contact['lastEditedAt'] = DateTime.now();
+        
+        // Save the updated contact
+        _contacts[contactIndex] = contact;
+        await _saveContacts();
+      }
       
       // Save to preferences
       await _saveTransactions();
@@ -821,393 +649,178 @@ class TransactionProvider extends ChangeNotifier {
     }
   }
   
-  // Save transactions to persistent storage
+  // Save transactions to SharedPreferences
   Future<void> _saveTransactions() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      
-      // Convert transactions to JSON-compatible format
-      final Map<String, List<Map<String, dynamic>>> serializedTransactions = {};
-      
-      _contactTransactions.forEach((contactId, transactions) {
-        // Convert each transaction to JSON-compatible format
-        serializedTransactions[contactId] = transactions.map((tx) {
-          // Create a clone of the transaction
-          final Map<String, dynamic> jsonTx = Map<String, dynamic>.from(tx);
-          
-          // Convert DateTime fields to ISO strings
-          if (jsonTx['date'] is DateTime) {
-            jsonTx['date'] = (jsonTx['date'] as DateTime).toIso8601String();
-          }
-          
-          // Also handle dueDate if present
-          if (jsonTx['dueDate'] is DateTime) {
-            jsonTx['dueDate'] = (jsonTx['dueDate'] as DateTime).toIso8601String();
-          }
-          
-          return jsonTx;
-        }).toList();
-      });
-      
-      // Save as a single JSON string
-      final String jsonString = json.encode(serializedTransactions);
-      await prefs.setString('transactions', jsonString);
-      
-      // Also create a backup format (legacy) for redundancy
-      // Get list of contacts with transactions
-      final contactIds = _contactTransactions.keys.toList();
-      await prefs.setStringList('transaction_contacts', contactIds);
-      
-      // Save each contact's transactions separately
-      for (final contactId in contactIds) {
-        final transactions = _contactTransactions[contactId] ?? [];
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Convert complex objects to strings
+    final Map<String, List<String>> serializedData = {};
+    
+          _contactTransactions.forEach((contactId, transactions) {
+      serializedData[contactId] = transactions.map((tx) {
+        // Convert DateTime to ISO string for easier serialization
+        final txCopy = Map<String, dynamic>.from(tx);
+        if (txCopy['date'] is DateTime) {
+          txCopy['date'] = txCopy['date'].toIso8601String();
+        }
         
-        // Convert each transaction to a JSON string
-        final List<String> serialized = transactions.map((tx) {
-          // Clone the transaction
-          final Map<String, dynamic> jsonTx = Map<String, dynamic>.from(tx);
-          
-          // Convert DateTime fields to ISO strings
-          if (jsonTx['date'] is DateTime) {
-            jsonTx['date'] = (jsonTx['date'] as DateTime).toIso8601String();
-          }
-          
-          // Also handle dueDate if present
-          if (jsonTx['dueDate'] is DateTime) {
-            jsonTx['dueDate'] = (jsonTx['dueDate'] as DateTime).toIso8601String();
-          }
-          
-          return json.encode(jsonTx);
-        }).toList();
+        // Ensure note is never null
+        if (txCopy['note'] == null) {
+          txCopy['note'] = '';
+        }
         
-        // Save to preferences
-        await prefs.setStringList('transactions_$contactId', serialized);
-      }
-    } catch (e) {
-      print('Error saving transactions: $e');
-    }
-  }
-  
-  // Helper method to convert transaction back from JSON
-  Map<String, dynamic> _convertDynamicTransaction(dynamic tx) {
-    Map<String, dynamic> txMap = Map<String, dynamic>.from(tx);
+        return jsonEncode(txCopy);
+      }).toList();
+    });
     
-    // Convert ISO string back to DateTime
-    if (txMap['date'] is String) {
-      txMap['date'] = DateTime.parse(txMap['date']);
+    // Save each contact's transactions as a separate preference entry
+    for (final contactId in serializedData.keys) {
+      await prefs.setStringList('transactions_$contactId', serializedData[contactId]!);
     }
     
-    // Convert dueDate if present
-    if (txMap['dueDate'] is String) {
-      txMap['dueDate'] = DateTime.parse(txMap['dueDate']);
-    }
+    // Save list of all contactIds that have transactions
+    await prefs.setStringList('transaction_contacts', serializedData.keys.toList());
     
-    return txMap;
+    // Create a backup immediately after saving transactions
+    await createAutomaticBackup();
   }
   
   // Load transactions from SharedPreferences
   Future<void> _loadTransactions() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final transactionsJson = prefs.getString('transactions') ?? '{}';
       
-      _contactTransactions = {};
-      
-      // Parse the JSON string
-      final Map<String, dynamic> decoded = json.decode(transactionsJson);
-      
-      // Convert the decoded map to the proper format
-      decoded.forEach((key, value) {
-        if (value is List) {
-          _contactTransactions[key] = List<Map<String, dynamic>>.from(
-            value.map((v) => _convertDynamicTransaction(v))
-          );
-        }
-      });
-      
-      // Convert any old single image path format to new array format
-      _updateImagePathsFormat();
-      
-      // Backup the data after loading it
-      _attemptDataBackup();
-    } catch (e) {
-      print('Error loading transactions: $e');
-      // If we failed to load, try to restore from backup
-      await _attemptRestoreFromBackup();
-    }
-  }
-  
-  // Create backup of transactions
-  Future<void> _createBackupOfTransactions() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      
-      // Get all contactIds from regular storage
+      // Get list of contactIds that have transactions
       final contactIds = prefs.getStringList('transaction_contacts') ?? [];
       
-      // For each contact, create a backup of their transactions
       for (final contactId in contactIds) {
-        final transactions = prefs.getStringList('transactions_$contactId');
-        if (transactions != null && transactions.isNotEmpty) {
-          await prefs.setStringList('backup_transactions_$contactId', transactions);
-        }
+        final serializedTransactions = prefs.getStringList('transactions_$contactId') ?? [];
+        
+        _contactTransactions[contactId] = serializedTransactions.map((txString) {
+          final txMap = jsonDecode(txString) as Map<String, dynamic>;
+          
+          // Convert ISO string back to DateTime
+          if (txMap['date'] is String) {
+            txMap['date'] = DateTime.parse(txMap['date']);
+          }
+          
+          // Ensure note is never null
+          if (txMap['note'] == null) {
+            txMap['note'] = '';
+          }
+          
+          return txMap;
+        }).toList();
+        
+        // Sort transactions by date (newest first)
+        _contactTransactions[contactId]!.sort((a, b) {
+          final dateA = a['date'] as DateTime;
+          final dateB = b['date'] as DateTime;
+          return dateB.compareTo(dateA); // Descending order (newest first)
+        });
       }
       
-      // Backup the list of contacts
-      await prefs.setStringList('backup_transaction_contacts', contactIds);
-      
+      // Removed notifyListeners() call from here to prevent multiple notifications
     } catch (e) {
-      print('Error creating transaction backup: $e');
+      // Log the error without using debug print
     }
   }
   
   // Calculate total balance for a contact
-  double calculateBalance(String contactId, {bool includeInterest = true}) {
+  double calculateBalance(String contactId) {
     double balance = 0;
-    
-    // Get transactions and sort by date (oldest first for proper running balance)
     final transactions = getTransactionsForContact(contactId);
-    if (transactions.isEmpty) {
-      return 0.0; // If no transactions, balance is zero
-    }
     
-    // Sort chronologically (oldest first) for correct balance calculation
-    transactions.sort((a, b) {
-      final dateA = a['date'] as DateTime;
-      final dateB = b['date'] as DateTime;
-      return dateA.compareTo(dateB); // Ascending order (oldest first)
-    });
-    
-    // Debug print for troubleshooting
-    print("Calculating balance for contact: $contactId with ${transactions.length} transactions");
-    
-    // Calculate running balance
     for (var tx in transactions) {
-      // Skip interest transactions if includeInterest is false
-      final hasInterest = tx['hasInterest'] as bool? ?? false;
-      final loanId = tx['loanId'] as String?; 
-      if (!includeInterest && (hasInterest || loanId != null)) {
-        continue; // Skip this transaction for home screen totals
-      }
+      final amount = (tx['amount'] as double).abs(); // Always get positive amount
       
-      final amount = (tx['amount'] as double?)?.abs() ?? 0.0; // Always get positive amount
-      
-      // Check transaction format and handle appropriately
-      if (tx.containsKey('isGet')) {
-        // New format: Use isGet boolean field
-        final isGet = tx['isGet'] as bool? ?? true;
-        if (isGet) {
-          // RECEIVED (isGet=true) - increases balance
-          balance += amount;
-          print("CREDIT: +$amount (isGet=true) → Balance: $balance");
-        } else {
-          // PAID (isGet=false) - decreases balance
-          balance -= amount;
-          print("DEBIT: -$amount (isGet=false) → Balance: $balance");
-        }
-      } else if (tx.containsKey('type')) {
-        // Old format: Use 'type' field ('got' or 'gave')
-        final type = tx['type'] as String? ?? '';
-        if (type == 'got') {
-          // RECEIVED (type='got') - increases balance
-          balance += amount;
-          print("CREDIT: +$amount (type='got') → Balance: $balance");
-        } else if (type == 'gave') {
-          // PAID (type='gave') - decreases balance
-          balance -= amount;
-          print("DEBIT: -$amount (type='gave') → Balance: $balance");
-        }
+      if (tx['type'] == 'gave') {
+        // If you GAVE money, it's a positive balance (you'll get it back)
+        balance += amount;
+      } else {
+        // If you GOT money, it's a negative balance (you'll give it back)
+        balance -= amount;
       }
     }
     
-    print("Final balance for contact $contactId: $balance");
     return balance;
   }
 
   // Add methods for contact management
   
+  // List of contacts (stored separately from transactions)
+  List<Map<String, dynamic>> _contacts = [];
+  
+  // Get all contacts
+  List<Map<String, dynamic>> get contacts => _contacts;
+  
   // Load contacts from SharedPreferences
   Future<void> _loadContacts() async {
     try {
-      print('TransactionProvider._loadContacts: Starting to load contacts');
       final prefs = await SharedPreferences.getInstance();
+      final contactsJson = prefs.getStringList('contacts') ?? [];
       
-      // First try loading as a string list (new format)
-      final contactsJsonList = prefs.getStringList('contacts');
-      
-      // Initialize contacts as an empty list first, ensuring we always have a valid list
-      _contacts = [];
-      
-      if (contactsJsonList != null && contactsJsonList.isNotEmpty) {
-        print('TransactionProvider: Found ${contactsJsonList.length} contacts in SharedPreferences');
-        // Process list of contact JSON strings
-        _contacts = contactsJsonList.map((jsonStr) {
-          try {
-            final Map<String, dynamic> contact = Map<String, dynamic>.from(jsonDecode(jsonStr));
-            
-            // Convert color value back to Color object
-            if (contact['color'] != null && contact['color'] is int) {
-              contact['color'] = Color(contact['color'] as int);
-            }
-            
-            // Convert lastEditedAt DateTime if it exists
-            if (contact.containsKey('lastEditedAt') && contact['lastEditedAt'] is String) {
-              try {
-                contact['lastEditedAt'] = DateTime.parse(contact['lastEditedAt']);
-              } catch (e) {
-                // If parsing fails, set to current time
-                contact['lastEditedAt'] = DateTime.now();
-              }
-            } else if (!contact.containsKey('lastEditedAt') || contact['lastEditedAt'] == null) {
-              // Ensure lastEditedAt exists
-              contact['lastEditedAt'] = DateTime.now();
-            }
-            
-            // Make sure tabType field exists for each contact
-            if (!contact.containsKey('tabType')) {
-              // Determine tabType based on interest rate or type
-              if (contact.containsKey('interestRate') || contact.containsKey('type')) {
-                contact['tabType'] = 'withInterest';
-              } else {
-                contact['tabType'] = 'withoutInterest';
-              }
-            }
-            
-            // Ensure interest fields are properly initialized
-            if (contact['tabType'] == 'withInterest') {
-              // Make sure interestRate exists and is a double
-              if (!contact.containsKey('interestRate') || contact['interestRate'] == null) {
-                contact['interestRate'] = 0.0;
-              } else if (contact['interestRate'] is int) {
-                contact['interestRate'] = (contact['interestRate'] as int).toDouble();
-              }
-              
-              // Make sure interestPeriod exists
-              if (!contact.containsKey('interestPeriod') || contact['interestPeriod'] == null) {
-                contact['interestPeriod'] = 'monthly';
-              }
-              
-              // Make sure relationship type exists
-              if (!contact.containsKey('type') || contact['type'] == null) {
-                contact['type'] = 'borrower';
-              }
-              
-              // Initialize interest due for display
-              if (!contact.containsKey('interestDue') || contact['interestDue'] == null) {
-                contact['interestDue'] = 0.0;
-              }
-            }
-            
-            return contact;
-          } catch (e) {
-            print('Error parsing contact JSON: $e');
-            // Return a minimal valid contact to prevent crashes
-            return <String, dynamic>{
-              'name': 'Error',
-              'phone': 'error-${DateTime.now().millisecondsSinceEpoch}',
-              'lastEditedAt': DateTime.now(),
-            };
-          }
-        }).toList();
-      } else {
-        // Try fallback to the old format (stored as a single JSON string)
-        print('TransactionProvider: No contacts in StringList format, checking old format');
-        final contactsJsonString = prefs.getString('contacts');
-        if (contactsJsonString != null && contactsJsonString.isNotEmpty && contactsJsonString != '[]') {
-          try {
-            final List<dynamic> decoded = json.decode(contactsJsonString);
-            print('TransactionProvider: Found ${decoded.length} contacts in old format');
-            _contacts = decoded.map((item) {
-              final Map<String, dynamic> contact = Map<String, dynamic>.from(item);
-              
-              // Process the contact as above
-              // Convert lastEditedAt DateTime if it exists
-              if (contact.containsKey('lastEditedAt') && contact['lastEditedAt'] is String) {
-                try {
-                  contact['lastEditedAt'] = DateTime.parse(contact['lastEditedAt']);
-                } catch (e) {
-                  contact['lastEditedAt'] = DateTime.now();
-                }
-              } else if (!contact.containsKey('lastEditedAt')) {
-                contact['lastEditedAt'] = DateTime.now();
-              }
-              
-              return contact;
-            }).toList();
-          } catch (e) {
-            print('Error parsing contacts from old format: $e');
-            // Keep _contacts as an empty list since parsing failed
-          }
-        } else {
-          print('TransactionProvider: No contacts found in either format');
+      _contacts = contactsJson.map((jsonStr) {
+        final Map<String, dynamic> contact = Map<String, dynamic>.from(jsonDecode(jsonStr));
+        
+        // Convert color value back to Color object
+        if (contact['color'] != null && contact['color'] is int) {
+          contact['color'] = Color(contact['color'] as int);
         }
-      }
-      
-      // If we still don't have any contacts, try to recover from transactions
-      if (_contacts.isEmpty) {
-        print('TransactionProvider: Attempting to recover contacts from transaction data');
-        await _recoverContactsFromTransactions();
-      }
-      
-      print('TransactionProvider: Loaded ${_contacts.length} contacts');
-      
-      // Print debug info for each contact
-      for (int i = 0; i < _contacts.length; i++) {
-        final contact = _contacts[i];
-        print('Contact ${i+1}: ${contact['name']} (${contact['phone']})');
-      }
+        
+        // Convert lastEditedAt DateTime if it exists
+        if (contact.containsKey('lastEditedAt') && contact['lastEditedAt'] is String) {
+          try {
+            contact['lastEditedAt'] = DateTime.parse(contact['lastEditedAt']);
+          } catch (e) {
+            // If parsing fails, set to current time
+            contact['lastEditedAt'] = DateTime.now();
+          }
+        } else if (!contact.containsKey('lastEditedAt') || contact['lastEditedAt'] == null) {
+          // Ensure lastEditedAt exists
+          contact['lastEditedAt'] = DateTime.now();
+        }
+        
+        // Make sure tabType field exists for each contact
+        if (!contact.containsKey('tabType')) {
+          // Determine tabType based on interest rate or type
+          if (contact.containsKey('interestRate') || contact.containsKey('type')) {
+            contact['tabType'] = 'withInterest';
+          } else {
+            contact['tabType'] = 'withoutInterest';
+          }
+        }
+        
+        // Ensure interest fields are properly initialized
+        if (contact['tabType'] == 'withInterest') {
+          // Make sure interestRate exists and is a double
+          if (!contact.containsKey('interestRate') || contact['interestRate'] == null) {
+            contact['interestRate'] = 0.0;
+          } else if (contact['interestRate'] is int) {
+            contact['interestRate'] = (contact['interestRate'] as int).toDouble();
+          }
+          
+          // Make sure interestPeriod exists
+          if (!contact.containsKey('interestPeriod') || contact['interestPeriod'] == null) {
+            contact['interestPeriod'] = 'monthly';
+          }
+          
+          // Make sure relationship type exists
+          if (!contact.containsKey('type') || contact['type'] == null) {
+            contact['type'] = 'borrower';
+          }
+          
+          // Initialize interest due for display
+          if (!contact.containsKey('interestDue') || contact['interestDue'] == null) {
+            contact['interestDue'] = 0.0;
+          }
+        }
+        
+        return contact;
+      }).toList();
     } catch (e) {
       // Log the error without using debug print
-      print('Error loading contacts in TransactionProvider: $e');
-      print(e.toString());
-      if (e is Error) {
-        print(e.stackTrace);
-      }
-      
-      // Ensure _contacts is initialized even after an error
-      _contacts = [];
-    }
-  }
-  
-  // New method to recover contacts from transaction data if contacts are missing
-  Future<void> _recoverContactsFromTransactions() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final contactIds = prefs.getStringList('transaction_contacts') ?? [];
-      
-      print('Found ${contactIds.length} contact IDs in transaction data');
-      
-      if (contactIds.isEmpty) return;
-      
-      // For each contact with transactions, try to recreate a contact entry
-      for (final contactId in contactIds) {
-        // Skip if contact already exists in our list
-        final existingIndex = _contacts.indexWhere((c) => c['phone'] == contactId);
-        if (existingIndex >= 0) continue;
-        
-        // Get transactions for this contact ID
-        final transactionsList = prefs.getStringList('transactions_$contactId') ?? [];
-        if (transactionsList.isEmpty) continue;
-        
-        print('Found ${transactionsList.length} transactions for contact ID: $contactId');
-        
-        // Create a basic contact with this ID
-        final newContact = {
-          'name': 'Contact $contactId',
-          'phone': contactId,
-          'lastEditedAt': DateTime.now(),
-        };
-        
-        // Add to contacts list
-        _contacts.add(newContact);
-      }
-      
-      // If we found contacts, save them
-      if (_contacts.isNotEmpty) {
-        await _saveContacts();
-      }
-    } catch (e) {
-      print('Error recovering contacts from transactions: $e');
+      print('Error loading contacts: $e');
     }
   }
   
@@ -1503,105 +1116,28 @@ class TransactionProvider extends ChangeNotifier {
   // Delete a contact and optionally its transactions
   Future<bool> deleteContact(String contactId) async {
     try {
-      print("Starting contact deletion for ID: $contactId");
-      
-      // Safety check for empty contactId
-      if (contactId.isEmpty) {
-        print("Error: Empty contactId provided for deletion");
-        return false;
-      }
-      
-      // Find the contact index with exact matching
+      // Find the contact index
       final index = _contacts.indexWhere((c) => c['phone'] == contactId);
       if (index < 0) {
-        print("Contact not found in _contacts list");
         return false; // Contact not found
       }
       
-      print("Found contact to delete at index $index: ${_contacts[index]['name']}");
+      // Remove the contact
+      _contacts.removeAt(index);
       
-      // Make a copy of the list before modification to avoid concurrent modification issues
-      List<Map<String, dynamic>> updatedContacts = List.from(_contacts);
-      
-      // Remove only the specific contact from the copied list
-      updatedContacts.removeAt(index);
-      
-      // Update the main contacts list
-      _contacts = updatedContacts;
-      
-      print("Contact removed from memory, remaining contacts: ${_contacts.length}");
-      
-      // Remove the contact's transactions from memory
-      if (_contactTransactions.containsKey(contactId)) {
-        _contactTransactions.remove(contactId);
-        print("Removed transactions for contact: $contactId");
-      }
-      
-      // Delete associated transactions from storage
+      // Delete associated transactions
       await deleteContactTransactions(contactId);
       
       // Delete entries from milk diary
       await _cleanupMilkDiaryEntries(contactId);
       
-      // Get direct access to SharedPreferences for immediate writes
-      final prefs = await SharedPreferences.getInstance();
+      // Save to SharedPreferences
+      await _saveContacts();
       
-      // Save the updated contacts list directly to SharedPreferences
-      final List<String> contactJsons = _contacts.map((contact) {
-        final Map<String, dynamic> contactCopy = Map<String, dynamic>.from(contact);
-        
-        // Convert lastEditedAt to string
-        if (contactCopy['lastEditedAt'] is DateTime) {
-          contactCopy['lastEditedAt'] = contactCopy['lastEditedAt'].toIso8601String();
-        }
-        
-        return jsonEncode(contactCopy);
-      }).toList();
-      
-      print("Saving ${contactJsons.length} contacts to SharedPreferences");
-      
-      // Save contacts in all formats to ensure redundancy
-      await prefs.setStringList('contacts', contactJsons);
-      
-      // Also save as a backup with timestamp for recovery purposes
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      await prefs.setString('contacts_backup_$timestamp', jsonEncode(_contacts.map((contact) {
-        final Map<String, dynamic> contactCopy = Map<String, dynamic>.from(contact);
-        if (contactCopy['lastEditedAt'] is DateTime) {
-          contactCopy['lastEditedAt'] = contactCopy['lastEditedAt'].toIso8601String();
-        }
-        return contactCopy;
-      }).toList()));
-      
-      // Force commit to ensure data is persisted immediately
-      await prefs.commit();
-      
-      // Also clear this contact from transaction_contacts list
-      final contactList = prefs.getStringList('transaction_contacts') ?? [];
-      if (contactList.contains(contactId)) {
-        contactList.remove(contactId);
-        await prefs.setStringList('transaction_contacts', contactList);
-        await prefs.commit();
-      }
-      
-      // Remove transaction storage for this contact
-      await prefs.remove('transactions_$contactId');
-      
-      // If this was the last contact, ensure we have a valid empty array saved
-      if (_contacts.isEmpty) {
-        await prefs.setStringList('contacts', []);
-        await prefs.commit();
-      }
-      
-      print("Contact deleted successfully, remaining contacts: ${_contacts.length}");
       notifyListeners();
       return true;
     } catch (e) {
-      print("Error deleting contact: $e");
-      print(e.toString());
-      if (e is Error) {
-        print(e.stackTrace);
-      }
+      // Log the error without using debug print
       return false;
     }
   }
@@ -1973,195 +1509,6 @@ class TransactionProvider extends ChangeNotifier {
       }
     } catch (e) {
       print('Error recalculating interest: $e');
-    }
-  }
-
-  // Update contact phone number and migrate transactions
-  void updateContactPhone(String oldPhone, String newPhone) {
-    try {
-      // Ensure transactions exist for the old phone
-      if (_contactTransactions.containsKey(oldPhone)) {
-        // Get the transactions
-        final transactions = _contactTransactions[oldPhone] ?? [];
-        
-        // Move transactions to the new phone
-        _contactTransactions[newPhone] = transactions;
-        
-        // Remove the old entry
-        _contactTransactions.remove(oldPhone);
-        
-        // Update contact in contacts list
-        for (int i = 0; i < _contacts.length; i++) {
-          if (_contacts[i]['phone'] == oldPhone) {
-            _contacts[i]['phone'] = newPhone;
-            break;
-          }
-        }
-        
-        // Save changes
-        _saveContacts();
-        _saveTransactions();
-        
-        // Notify listeners
-        notifyListeners();
-      }
-    } catch (e) {
-      // Handle error silently
-      print('Error updating contact phone: $e');
-    }
-  }
-
-  // Method to update old single imagePath format to new imagePaths array format
-  void _updateImagePathsFormat() {
-    _contactTransactions.forEach((phone, transactions) {
-      for (final tx in transactions) {
-        if (tx.containsKey('imagePath') && !tx.containsKey('imagePaths')) {
-          final oldImagePath = tx['imagePath'] as String?;
-          if (oldImagePath != null && oldImagePath.isNotEmpty) {
-            // Create new array format and store the old path
-            tx['imagePaths'] = [oldImagePath];
-          } else {
-            // Create empty array
-            tx['imagePaths'] = [];
-          }
-        } else if (!tx.containsKey('imagePaths')) {
-          // If neither format exists, add empty array for new format
-          tx['imagePaths'] = [];
-        }
-      }
-    });
-  }
-
-  // Update last edited time for contact
-  void _updateContactLastEdited(String contactId) {
-    try {
-      // Find the contact index
-      final index = _contacts.indexWhere((c) => c['phone'] == contactId);
-      if (index != -1) {
-        final contact = _contacts[index];
-        
-        // Update lastEditedAt to current time (edited just now)
-        contact['lastEditedAt'] = DateTime.now();
-        
-        // Save the updated contact
-        _contacts[index] = contact;
-        _saveContacts();
-      }
-    } catch (e) {
-      // Handle error silently
-      print('Error updating contact last edited time: $e');
-    }
-  }
-  
-  // Attempt to backup data after loading
-  Future<void> _attemptDataBackup() async {
-    try {
-      if (_contactTransactions.isNotEmpty) {
-        // Create backup asynchronously but don't await
-        _createBackupOfTransactions();
-      }
-    } catch (e) {
-      print('Error during automatic backup: $e');
-    }
-  }
-  
-  // Attempt to restore from backup if primary data loading failed
-  Future<void> _attemptRestoreFromBackup() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      
-      // Get the list of contacts that have transactions
-      final contactIds = prefs.getStringList('backup_transaction_contacts') ?? [];
-      
-      // Clear existing transaction data to ensure clean load
-      _contactTransactions.clear();
-      
-      // Load transactions for each contact from backup
-      for (final contactId in contactIds) {
-        List<String>? serializedTransactions = prefs.getStringList('backup_transactions_$contactId');
-        
-        // Final check - if still no data, use empty list
-        serializedTransactions ??= [];
-        
-        // Convert serialized strings back to transaction objects
-        if (serializedTransactions.isNotEmpty) {
-          _contactTransactions[contactId] = serializedTransactions.map((txString) {
-            final txMap = jsonDecode(txString) as Map<String, dynamic>;
-            
-            // Convert ISO string back to DateTime
-            if (txMap['date'] is String) {
-              try {
-                txMap['date'] = DateTime.parse(txMap['date']);
-              } catch (e) {
-                // If date parsing fails, use current time as fallback
-                txMap['date'] = DateTime.now();
-              }
-            }
-            
-            // Also handle dueDate field
-            if (txMap['dueDate'] is String) {
-              try {
-                txMap['dueDate'] = DateTime.parse(txMap['dueDate']);
-              } catch (e) {
-                // If parsing fails, set dueDate to a reasonable default
-                txMap['dueDate'] = DateTime.now().add(const Duration(days: 90)); // 3 months in future
-              }
-            }
-            
-            return txMap;
-          }).toList();
-        } else {
-          // Initialize with empty list
-          _contactTransactions[contactId] = [];
-        }
-      }
-      
-      // Convert any old format image paths
-      _updateImagePathsFormat();
-      
-      print('Restored data from backup');
-    } catch (e) {
-      print('Error restoring from backup: $e');
-      // Initialize with empty map to avoid null errors
-      _contactTransactions = {};
-    }
-  }
-
-  // Add a method to fix inconsistent transaction data
-  Future<void> _fixInconsistentTransactionData() async {
-    bool dataChanged = false;
-    
-    // Go through each contact's transactions and ensure they have correct fields
-    for (final contactId in _contactTransactions.keys) {
-      final transactions = _contactTransactions[contactId] ?? [];
-      
-      for (int i = 0; i < transactions.length; i++) {
-        final transaction = transactions[i];
-        bool transactionChanged = false;
-        
-        // Ensure transaction has both type and isGet fields
-        if (transaction.containsKey('type') && !transaction.containsKey('isGet')) {
-          final type = transaction['type'] as String;
-          transaction['isGet'] = type == 'got';
-          transactionChanged = true;
-        } else if (transaction.containsKey('isGet') && !transaction.containsKey('type')) {
-          final isGet = transaction['isGet'] as bool;
-          transaction['type'] = isGet ? 'got' : 'gave';
-          transactionChanged = true;
-        }
-        
-        // If transaction changed, update it in the list
-        if (transactionChanged) {
-          transactions[i] = transaction;
-          dataChanged = true;
-        }
-      }
-    }
-    
-    // If any data was changed, save the transactions
-    if (dataChanged) {
-      await _saveTransactions();
-      notifyListeners();
     }
   }
 } 

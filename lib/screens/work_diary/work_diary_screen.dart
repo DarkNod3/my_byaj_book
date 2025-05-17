@@ -522,6 +522,15 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
           appBar: widget.showAppBar ? AppBar(
             title: const Text('Work Diary'),
             backgroundColor: AppColors.primary,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: () {
+                  _animationController.reset();
+                  _loadClients();
+                },
+              ),
+            ],
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () => Navigator.of(context).pop(),
@@ -1242,7 +1251,12 @@ class _WorkDiaryScreenState extends State<WorkDiaryScreen> with SingleTickerProv
           deleteClient: _deleteClient,
         ),
       ),
-    );
+    ).then((_) {
+      // Refresh client list when returning from detail screen
+      setState(() {
+        _filterClients();
+      });
+    });
   }
 
   Widget _buildEmptyState() {

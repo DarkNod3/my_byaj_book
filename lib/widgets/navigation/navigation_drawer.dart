@@ -10,7 +10,6 @@ import '../../resources/help_resources.dart';
 import 'dart:io';
 import '../../resources/privacy_policy.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:my_byaj_book/screens/home/home_screen.dart';
 
 class AppNavigationDrawer extends StatefulWidget {
   const AppNavigationDrawer({super.key});
@@ -150,7 +149,7 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
                   style: TextStyle(color: Colors.grey, fontSize: 10),
                 ),
                 Text(
-                  '© 2025 My Byaj Book',
+                  '© 2023 My Byaj Book',
                   style: TextStyle(color: Colors.grey, fontSize: 10),
                 ),
               ],
@@ -350,32 +349,14 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // Show confirmation dialog
-              showDialog(
-                context: context,
-                builder: (context) => ConfirmDialog(
-                  title: 'Log Out',
-                  content: 'Are you sure you want to log out?',
-                  confirmText: 'Log Out',
-                  onConfirm: () {
-                    // Use the new logout method that properly maintains user data
-                    Provider.of<UserProvider>(context, listen: false).logoutUser().then((success) {
-                      if (success) {
-                        // Navigate to login screen after successful logout
-                        Navigator.of(context).pushNamedAndRemoveUntil(
-                          '/login',
-                          (route) => false,
-                        );
-                      } else {
-                        // Show error if logout failed
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Logout failed. Please try again.')),
-                        );
-                      }
-                    });
-                  },
-                ),
-              );
+              // Implement actual logout
+              Provider.of<UserProvider>(context, listen: false).logout().then((_) {
+                // Navigate to login screen after successful logout
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/login',
+                  (route) => false,
+                );
+              });
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Logout'),
@@ -828,45 +809,4 @@ class _AppNavigationDrawerState extends State<AppNavigationDrawer> {
   //     return null; // Return null instead of false to match FutureOr<Null>
   //   });
   // }
-}
-
-class ConfirmDialog extends StatelessWidget {
-  final String title;
-  final String content;
-  final String confirmText;
-  final VoidCallback onConfirm;
-  final String cancelText;
-
-  const ConfirmDialog({
-    Key? key,
-    required this.title,
-    required this.content,
-    this.confirmText = 'Confirm',
-    required this.onConfirm,
-    this.cancelText = 'Cancel',
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(title),
-      content: Text(content),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(cancelText),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-            onConfirm();
-          },
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.red,
-          ),
-          child: Text(confirmText),
-        ),
-      ],
-    );
-  }
 }
