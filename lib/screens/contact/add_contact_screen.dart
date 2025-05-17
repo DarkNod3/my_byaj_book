@@ -105,41 +105,52 @@ class _AddContactScreenState extends State<AddContactScreen> {
       if (name.isNotEmpty) {
         // Use a Builder to get the correct context that has access to ContactProvider
         final contactProvider = Provider.of<ContactProvider>(context, listen: false);
-        contactProvider.addContact(name, phone, true, 0.0); // Default to "will receive"
         
-        // Create contact data for the callback
-        final contactData = {
-          'name': name,
-          'phone': phone,
-          'isGet': true,
-          'amount': 0.0,
-          'lastEditedAt': DateTime.now(),
-        };
-        
-        // Call the callback if provided
-        if (widget.onContactAdded != null) {
-          widget.onContactAdded!(contactData);
-        }
-        
-        // Force refresh of home screen contacts
-        Future.delayed(Duration.zero, () {
-          try {
-            // Find home screen context and call static refresh method
-            BuildContext? homeContext = Navigator.of(context).context;
-            HomeScreen.refreshHomeContent(homeContext);
-          } catch (_) {}
-        });
-        
-        // Navigate to contact detail screen immediately
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ContactDetailScreen(
-              contact: contactData,
-              showTransactionDialogOnLoad: false,
+        // Add contact and wait for it to complete
+        contactProvider.addContact(name, phone, true, 0.0).then((_) {
+          print("Contact added successfully: $name ($phone)");
+          
+          // Force a save operation to ensure persistence
+          Future.delayed(const Duration(milliseconds: 100), () {
+            contactProvider.saveContactsNow();
+          });
+          
+          // Create contact data for the callback
+          final contactData = {
+            'name': name,
+            'phone': phone,
+            'isGet': true,
+            'amount': 0.0,
+            'lastEditedAt': DateTime.now(),
+          };
+          
+          // Call the callback if provided
+          if (widget.onContactAdded != null) {
+            widget.onContactAdded!(contactData);
+          }
+          
+          // Force refresh of home screen contacts
+          Future.delayed(Duration.zero, () {
+            try {
+              // Find home screen context and call static refresh method
+              BuildContext? homeContext = Navigator.of(context).context;
+              HomeScreen.refreshHomeContent(homeContext);
+            } catch (e) {
+              print("Error refreshing home content: $e");
+            }
+          });
+          
+          // Navigate to contact detail screen immediately
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ContactDetailScreen(
+                contact: contactData,
+                showTransactionDialogOnLoad: false,
+              ),
             ),
-          ),
-        );
+          );
+        });
       }
     } catch (e) {
       // Show error message if something goes wrong

@@ -1543,7 +1543,7 @@ class TransactionProvider extends ChangeNotifier {
       // Delete entries from milk diary
       await _cleanupMilkDiaryEntries(contactId);
       
-      // Get direct access to SharedPreferences
+      // Get direct access to SharedPreferences for immediate writes
       final prefs = await SharedPreferences.getInstance();
       
       // Save the updated contacts list directly to SharedPreferences
@@ -1559,13 +1559,29 @@ class TransactionProvider extends ChangeNotifier {
       }).toList();
       
       print("Saving ${contactJsons.length} contacts to SharedPreferences");
+      
+      // Save contacts in all formats to ensure redundancy
       await prefs.setStringList('contacts', contactJsons);
+      
+      // Also save as a backup with timestamp for recovery purposes
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      await prefs.setString('contacts_backup_$timestamp', jsonEncode(_contacts.map((contact) {
+        final Map<String, dynamic> contactCopy = Map<String, dynamic>.from(contact);
+        if (contactCopy['lastEditedAt'] is DateTime) {
+          contactCopy['lastEditedAt'] = contactCopy['lastEditedAt'].toIso8601String();
+        }
+        return contactCopy;
+      }).toList()));
+      
+      // Force commit to ensure data is persisted immediately
+      await prefs.commit();
       
       // Also clear this contact from transaction_contacts list
       final contactList = prefs.getStringList('transaction_contacts') ?? [];
       if (contactList.contains(contactId)) {
         contactList.remove(contactId);
         await prefs.setStringList('transaction_contacts', contactList);
+        await prefs.commit();
       }
       
       // Remove transaction storage for this contact
@@ -1574,6 +1590,7 @@ class TransactionProvider extends ChangeNotifier {
       // If this was the last contact, ensure we have a valid empty array saved
       if (_contacts.isEmpty) {
         await prefs.setStringList('contacts', []);
+        await prefs.commit();
       }
       
       print("Contact deleted successfully, remaining contacts: ${_contacts.length}");

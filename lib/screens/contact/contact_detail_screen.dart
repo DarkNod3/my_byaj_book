@@ -22,6 +22,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:my_byaj_book/screens/home/home_screen.dart';
 import 'package:my_byaj_book/providers/loan_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 class ContactDetailScreen extends StatefulWidget {
   final Map<String, dynamic> contact;
@@ -67,14 +69,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _transactionProvider = Provider.of<TransactionProvider>(context);
-    _loadTransactions();
-    
-    // Add a delayed reload to ensure we have the latest data
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) {
         _loadTransactions();
-      }
-    });
   }
 
   void _loadTransactions() {
@@ -90,6 +85,16 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         final dateB = b['date'] as DateTime? ?? DateTime.now();
         return dateB.compareTo(dateA); // Descending order (newest first)
       });
+      
+      // Update transaction display to include interest rate info in all views
+      for (var tx in freshTransactions) {
+        if (tx['hasInterest'] == true && tx['interestRate'] != null) {
+          // Make sure any interest-related transaction displays its rate
+          final interestRate = tx['interestRate'] as double? ?? 0.0;
+          final interestPeriod = tx['interestPeriod'] as String? ?? 'Month';
+          tx['interestRateDisplay'] = '$interestRate% per $interestPeriod';
+        }
+      }
       
       // Separate normal and interest transactions
       final normalTransactions = freshTransactions.where(
@@ -186,66 +191,66 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           // Toggle for Normal/Interest mode
                 Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Container(
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+              ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
+                    child: GestureDetector(
                       onTap: () {
       setState(() {
                           _showInterestMode = false;
+                          _loadTransactions();
                         });
                       },
-                      borderRadius: BorderRadius.circular(30),
             child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                          color: !_showInterestMode ? Colors.grey.shade400 : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(30),
+                          color: !_showInterestMode ? Colors.grey.shade400 : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
                         ),
+                        alignment: Alignment.center,
                         child: Text(
                           'Normal',
-                          textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
                             color: !_showInterestMode ? Colors.black : Colors.grey.shade700,
-                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
                 Expanded(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
+                    child: GestureDetector(
                       onTap: () {
                         setState(() {
                           _showInterestMode = true;
+                          _loadTransactions();
                         });
                       },
-                      borderRadius: BorderRadius.circular(30),
                     child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                          color: _showInterestMode ? Colors.blue : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(30),
+                          color: _showInterestMode ? Colors.grey.shade400 : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
                         ),
+                        alignment: Alignment.center,
                         child: Text(
                           'Interest',
-                          textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                            color: _showInterestMode ? Colors.white : Colors.grey.shade700,
-                          ),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: _showInterestMode ? Colors.black : Colors.grey.shade700,
                         ),
                       ),
                                     ),
                                   ),
                                 ),
                               ],
+              ),
               ),
             ),
 
@@ -372,6 +377,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     double normalBalance = 0.0;
     double interestBalance = 0.0;
     double totalInterestAmount = 0.0;
+    double effectiveInterestRate = 0.0;
     
     if (phone.isNotEmpty) {
       // Calculate balances separately for normal and interest transactions
@@ -389,19 +395,18 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       // Calculate interest transactions balance
       interestBalance = _calculateBalanceFromTransactions(interestTransactions);
       
-      // Calculate total interest amount (sum of all interest transactions)
-      totalInterestAmount = interestTransactions.fold(0.0, (sum, tx) {
-        final amount = tx['amount'] as double? ?? 0.0;
-        return sum + amount;
-      });
+      // Calculate total interest based on principal, interest rate and time period
+      totalInterestAmount = _calculateTotalInterestAccrued(normalTransactions, interestTransactions);
+      
+      // Calculate effective interest rate if we have a positive principal
+      if (normalBalance.abs() > 0) {
+        effectiveInterestRate = (totalInterestAmount / normalBalance.abs()) * 100;
+      }
       
       // Use the appropriate balance based on current tab
       final calculatedBalance = _showInterestMode ? interestBalance : normalBalance;
       _totalAmount = calculatedBalance.abs(); // Keep abs() only for display amount
       _isGet = calculatedBalance >= 0; // Positive balance means you will receive
-      
-      print("Summary card balance: $calculatedBalance (_isGet: $_isGet)");
-      print("Normal balance: $normalBalance, Interest balance: $interestBalance");
     }
     
     return Container(
@@ -448,7 +453,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     _isGet ? Icons.arrow_downward : Icons.arrow_upward,
                     color: _isGet ? Colors.green.shade700 : Colors.red.shade700,
                     size: 16
-                  ),
+          ),
                   const SizedBox(width: 4),
           Text(
                     _isGet ? 'RECEIVE MONEY' : 'PAY MONEY',
@@ -463,17 +468,20 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
             ],
           ),
           
-          // Display total interest amount in Interest tab
+          // Display total interest amount and rate in Interest tab
           if (_showInterestMode)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                 children: [
                   Icon(
                     Icons.percent, 
                     color: Colors.blue.shade600,
                     size: 14,
-                  ),
+          ),
                   const SizedBox(width: 4),
             Text(
                     'Total Interest: ${currencyFormat.format(totalInterestAmount)}',
@@ -483,9 +491,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       color: Colors.blue.shade700,
                     ),
                   ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+
                 ],
-              ),
             ),
+          ),
           
           const SizedBox(height: 12),
           Row(
@@ -536,6 +548,63 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       }
     }
     return balance;
+  }
+  
+  // Helper method to calculate total interest accrued based on principal, rate and time
+  double _calculateTotalInterestAccrued(List<Map<String, dynamic>> normalTransactions, List<Map<String, dynamic>> interestTransactions) {
+    double totalInterest = 0.0;
+    
+    // First, get all loan transactions with interest
+    List<Map<String, dynamic>> loanTransactions = normalTransactions.where((tx) => 
+      (tx['hasInterest'] == true || tx['interestRate'] != null) && 
+      tx['amount'] != null && 
+      tx['date'] != null
+    ).toList();
+    
+    // Add explicit interest transactions too
+    loanTransactions.addAll(interestTransactions);
+    
+    // Sort by date (oldest first)
+    loanTransactions.sort((a, b) {
+      final dateA = a['date'] as DateTime? ?? DateTime.now();
+      final dateB = b['date'] as DateTime? ?? DateTime.now();
+      return dateA.compareTo(dateB);
+    });
+    
+    // Calculate interest for each transaction
+    final now = DateTime.now();
+    
+    for (final tx in loanTransactions) {
+      final amount = tx['amount'] as double? ?? 0.0;
+      final isGet = tx['isGet'] as bool? ?? true;
+      final interestRate = tx['interestRate'] as double? ?? 0.0;
+      final interestPeriod = tx['interestPeriod'] as String? ?? 'Month';
+      final date = tx['date'] as DateTime? ?? DateTime.now();
+      
+      // Skip if no interest rate
+      if (interestRate <= 0) continue;
+      
+      // Skip interest transactions themselves
+      if (tx['hasInterest'] == true && tx['loanId'] != null) continue;
+      
+      // Calculate time period (in months)
+      int daysDifference = now.difference(date).inDays;
+      double monthsDifference = daysDifference / 30;
+      
+      // Convert interest rate to monthly if needed
+      double monthlyRate = interestPeriod == 'Year' 
+          ? interestRate / 12 / 100  // Convert annual rate to monthly decimal
+          : interestRate / 100;      // Convert monthly rate to decimal
+      
+      // Calculate interest amount
+      double principal = isGet ? amount : -amount; // Negate if it's a payment
+      double interest = principal * monthlyRate * monthsDifference;
+      
+      // Add to total
+      totalInterest += interest;
+    }
+    
+    return totalInterest;
     }
   
   Widget _buildActionButton(IconData icon, String label, Color color, Function() onTap) {
@@ -594,109 +663,61 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   }
 
   Widget _buildTransactionList() {
-    // Filter transactions based on the selected mode (normal or interest)
-    final filteredTransactions = _showInterestMode 
-        ? _transactions.where((tx) => tx['hasInterest'] == true || tx['loanId'] != null).toList()
-        : _transactions.where((tx) => tx['hasInterest'] != true && tx['loanId'] == null).toList();
-    
-    // Sort transactions by date (newest first)
-    final sortedTransactions = List<Map<String, dynamic>>.from(filteredTransactions);
-    sortedTransactions.sort((a, b) {
-      final dateA = a['date'] as DateTime? ?? DateTime.now();
-      final dateB = b['date'] as DateTime? ?? DateTime.now();
-      return dateB.compareTo(dateA); // Descending order (newest first)
-    });
-    
-    // Pre-calculate running balances (working chronologically from oldest to newest)
-    // First, create a chronologically sorted copy (oldest first) for balance calculation
-    final chronologicalTransactions = List<Map<String, dynamic>>.from(filteredTransactions);
-    chronologicalTransactions.sort((a, b) {
-      final dateA = a['date'] as DateTime? ?? DateTime.now();
-      final dateB = b['date'] as DateTime? ?? DateTime.now();
-      return dateA.compareTo(dateB); // Ascending order (oldest first)
-    });
-    
-    // Calculate running balances based on chronological order
+    // Filter transactions based on the current mode (Normal or Interest)
+    final sortedTransactions = _transactions.where((tx) {
+      final hasInterest = tx['hasInterest'] as bool? ?? false;
+      final loanId = tx['loanId'] as String?;
+      
+                          if (_showInterestMode) {
+                      // In Interest mode, show all transactions but calculate interest for each
+                      if (hasInterest || loanId != null) {
+                        return true; // Show transactions explicitly marked as interest
+                      } else {
+                        // For transactions not marked as interest, check if they have an interest rate defined
+                        final interestRate = tx['interestRate'] as double?;
+                        return interestRate != null && interestRate > 0;
+                      }
+                    } else {
+                      // In Normal mode, show all non-interest transactions
+                      return !hasInterest && loanId == null;
+                    }
+    }).toList();
+
+    // Pre-calculate running balances for all transactions
     final Map<String, double> transactionBalances = {};
     double runningBalance = 0.0;
     
-    for (final tx in chronologicalTransactions) {
+    for (int i = sortedTransactions.length - 1; i >= 0; i--) {
+      final tx = sortedTransactions[i];
       final amount = tx['amount'] as double? ?? 0.0;
       final isGet = tx['isGet'] as bool? ?? true;
-      final id = tx['id'] as String? ?? '';
+      final txId = tx['id'] as String? ?? '';
       
-      // Update running balance based on transaction type
-      if (isGet) {
-        runningBalance += amount; // Credit increases balance
-          } else {
-        runningBalance -= amount; // Debit decreases balance
-      }
-      
-      // Store the balance for this transaction ID
-      transactionBalances[id] = runningBalance;
-    }
-    
-    // Show a message if no transactions are found in interest mode
-    if (_showInterestMode && sortedTransactions.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.info_outline, size: 48, color: Colors.blue.shade200),
-            const SizedBox(height: 16),
-            const Text(
-              'No interest transactions found',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Add a transaction with interest enabled',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Show a message if no normal transactions are found
-    if (!_showInterestMode && sortedTransactions.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.receipt_long, size: 48, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            const Text(
-              'No regular transactions found',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Add a transaction using the buttons below',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-          ],
-        ),
-      );
+      // Update running balance
+      runningBalance += isGet ? amount : -amount;
+      transactionBalances[txId] = runningBalance;
     }
 
     return Column(
                 children: [
-        // Ledger header
+        // Header row
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
                       decoration: BoxDecoration(
-            color: Colors.grey.shade200,
+            color: Colors.grey.shade100,
             border: Border(
-              bottom: BorderSide(color: Colors.grey.shade400, width: 1),
+              bottom: BorderSide(color: Colors.grey.shade300, width: 1),
                       ),
                     ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-              // Date column (with space for icon)
-              SizedBox(width: 90, 
-                child: Text(
+              // Date column
+              SizedBox(
+                width: 110,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
                   'Date',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
@@ -704,14 +725,25 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     color: Colors.grey.shade800,
                   ),
                 ),
+                    if (_showInterestMode)
+                      Text(
+                        '& Calculated Interest',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                          color: Colors.purple.shade700,
+                    ),
+                  ),
+                  ],
+                ),
               ),
               
               // Vertical dotted line
               _buildDottedLine(),
               
-              // Debit column
+              // Debit column - Adjusted width
               Expanded(
-                flex: 1,
+                flex: 4,
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Text(
@@ -728,9 +760,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               // Vertical dotted line
               _buildDottedLine(),
               
-              // Credit column
+              // Credit column - Adjusted width
               Expanded(
-                flex: 1,
+                flex: 4,
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Text(
@@ -739,25 +771,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                       color: Colors.green.shade700,
-                    ),
-                  ),
-                ),
-              ),
-              
-              // Vertical dotted line
-              _buildDottedLine(),
-              
-              // Balance column
-              Expanded(
-                flex: 1,
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    'Balance',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Colors.blue.shade700,
                     ),
                   ),
                                   ),
@@ -777,10 +790,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               final isGet = transaction['isGet'] as bool? ?? true;
               final date = transaction['date'] as DateTime? ?? DateTime.now();
               final note = transaction['note'] as String? ?? '';
-              final hasInterest = transaction['hasInterest'] as bool? ?? false;
-              final interestRate = transaction['interestRate'] as double? ?? 0.0;
-              final interestPeriod = transaction['interestPeriod'] as String? ?? 'Month';
-              final loanId = transaction['loanId'] as String?;
               final id = transaction['id'] as String? ?? '';
               
               // Update to handle multiple images
@@ -800,10 +809,10 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               final runningBalance = transactionBalances[id] ?? 0.0;
               
               // Format amounts with the Indian Rupee symbol
-              final formattedAmount = '₹ ${amount.toStringAsFixed(2)}';
+              final formattedAmount = '₹${amount.toStringAsFixed(2)}';
               final formattedBalance = runningBalance >= 0 
-                  ? '₹ ${runningBalance.toStringAsFixed(2)}' 
-                  : '₹ -${runningBalance.abs().toStringAsFixed(2)}';
+                  ? '₹${runningBalance.toStringAsFixed(2)}' 
+                  : '₹-${runningBalance.abs().toStringAsFixed(2)}';
               
               // Alternating row background for better readability
               final rowColor = index % 2 == 0 ? Colors.white : Colors.grey.shade50;
@@ -814,103 +823,88 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           children: [
                   // Main transaction row with ledger columns
                   Container(
-                    color: rowColor,
-                    padding: EdgeInsets.fromLTRB(12, 8, 12, note.isNotEmpty || imagePaths.isNotEmpty ? 0 : 8),
-                    child: Row(
+                                            margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: rowColor,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.withOpacity(0.1), width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.5),
+                            spreadRadius: 3,
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      child: Column(
+                        children: [
+                          Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                        // Date column with 45-degree arrow icon
+                              // Date column
                         SizedBox(
-                          width: 90,
+                                width: 110,
                           child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-                              // 45-degree arrow icon
+                                    // Arrow icon
                     Container(
-                                width: 24,
-                                height: 24,
-                                margin: const EdgeInsets.only(top: 2),
+                                      width: 18,
+                                      height: 18,
+                                      margin: const EdgeInsets.only(right: 4, top: 1),
                       decoration: BoxDecoration(
-                                  color: isGet 
-                                      ? const Color(0xFFE8F5E9) 
-                                      : const Color(0xFFFFEBEE),
-                                  shape: BoxShape.circle,
+                                        color: isGet ? Colors.green.shade50 : Colors.red.shade50,
+                                        borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Center(
-                                  child: Transform.rotate(
-                                    angle: isGet ? -0.785 : 0.785, // 45 degrees in radians (π/4)
                       child: Icon(
                                       isGet ? Icons.arrow_downward : Icons.arrow_upward,
-                                      color: isGet 
-                                          ? const Color(0xFF4CAF50) 
-                                          : const Color(0xFFE57373),
-                                      size: 14,
+                                          color: isGet ? Colors.green : Colors.red,
+                                          size: 12,
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
                               
-                              // Date and details in a column
+                                    // Date info
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                                      // Date in format: 15 Jan 25
                             Text(
                                       DateFormat('dd MMM yy').format(date),
                               style: TextStyle(
-                                        fontSize: 12,
+                                              fontSize: 11,
                                         fontWeight: FontWeight.w500,
                                         color: Colors.grey.shade800,
                                       ),
                                     ),
-                                    // Time in 12-hour format with AM/PM
                                   Text(
                                       DateFormat('hh:mm a').format(date),
                                       style: TextStyle(
-                                        fontSize: 10,
+                                              fontSize: 9,
                                         color: Colors.grey.shade600,
                                       ),
                                     ),
-                                    
-                                    // Add "online" text if available
+                                          if (note.isNotEmpty) 
                                     Text(
-                                      'online',
+                                              note,
                                           style: TextStyle(
-                                            fontSize: 10,
+                                                fontSize: 9,
                                         color: Colors.grey.shade600,
                                             fontStyle: FontStyle.italic,
                                         ),
-                                      ),
-                                    
-                                    // Interest badge if applicable - shown only in interest tab
-                                    if (_showInterestMode && (hasInterest || loanId != null))
-            Container(
-                                        margin: const EdgeInsets.only(top: 2),
-                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                                          color: const Color(0xFFE3F2FD),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          loanId != null 
-                                            ? 'Loan Interest' 
-                                            : 'Interest ${interestRate.toStringAsFixed(1)}% ${interestPeriod == 'Month' ? '/month' : '/year'}',
-                                          style: TextStyle(
-                                            fontSize: 9,
-                                            color: Colors.blue.shade700,
-                                          ),
-                                        ),
-                  ),
-                                      
-                                  // Receipt count if available
-                                  if (imagePaths.isNotEmpty)
-                                    Text(
-                                      'Receipts (${imagePaths.length})',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey.shade600,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          // Interest info shown in a different section
+                                    if (imagePaths.isNotEmpty)
+                                      Text(
+                                        'Receipts (${imagePaths.length})',
+                                        style: TextStyle(
+                                                fontSize: 9,
+                                                color: Colors.blue.shade700,
                                         ),
                   ),
                 ],
@@ -923,9 +917,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         // Vertical dotted line
                         _buildDottedLine(),
                         
-                        // Debit column (show amount if it's a payment/debit)
+                              // Debit column - Decreased width
                         Expanded(
-                          flex: 1,
+                                flex: 4,
                           child: Align(
                             alignment: Alignment.centerRight,
                             child: !isGet 
@@ -944,9 +938,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         // Vertical dotted line
                         _buildDottedLine(),
                         
-                        // Credit column (show amount if it's a receipt/credit)
+                              // Credit column - Decreased width
                         Expanded(
-                          flex: 1,
+                                flex: 4,
                           child: Align(
                             alignment: Alignment.centerRight,
                             child: isGet 
@@ -960,132 +954,168 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                                   )
                                 : const Text(''),
                           ),
-                        ),
-                        
-                        // Vertical dotted line
-                        _buildDottedLine(),
-                        
-                        // Balance column
-                        Expanded(
-                          flex: 1,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-      child: Text(
-                              formattedBalance,
-        style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: runningBalance >= 0 
-                                    ? Colors.blue.shade700 
-                                    : Colors.orange.shade800,
+                              ),
+                            ],
+                          ),
+                          
+                                                    // Balance row without divider - moved to left
+                          Padding(
+                            padding: const EdgeInsets.only(left: 12, top: 4, bottom: 4),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Balance: ',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  transaction['hasInterest'] == true && transaction['interestRate'] != null
+                                    ? Text(
+                                        _calculateTotalWithInterest(transaction),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.teal.shade600,
+                                        ),
+                                      )
+                                    : Text(
+                                        formattedBalance,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: runningBalance >= 0 
+                                              ? Colors.teal.shade600
+                                              : Colors.deepOrange.shade600,
+                                        ),
+                                      ),
+                                ],
                               ),
                             ),
                           ),
-                  ),
                       ],
                 ),
                   ),
                   
-                  // Update image preview to handle multiple images
-                  if (imagePaths.isNotEmpty)
+                                          // Display interest details or receipt images if available
+                    if (transaction['hasInterest'] == true && transaction['interestRate'] != null)
                     Container(
-                      color: rowColor,
-                      padding: const EdgeInsets.only(left: 44, right: 16, bottom: 8),
-                      child: SizedBox(
-                            height: 40,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: imagePaths.length,
-                              itemBuilder: (context, imgIndex) {
-                                return GestureDetector(
-                                  onTap: () {
-                                    // Show full-screen image view
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => Dialog(
-                                        insetPadding: EdgeInsets.zero,
-                                        child: Stack(
-              children: [
-                                            InteractiveViewer(
-                                              boundaryMargin: const EdgeInsets.all(20),
-                                              minScale: 0.5,
-                                              maxScale: 3.0,
-                                              child: Image.file(
-                                                File(imagePaths[imgIndex]),
-                                                fit: BoxFit.contain,
-                                                height: double.infinity,
                                                 width: double.infinity,
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.05),
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(10),
+                            bottomRight: Radius.circular(10),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            const Divider(height: 1, thickness: 1),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              'Rate: ${transaction['interestRate']}%',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                color: Colors.purple.shade700,
+                                                fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                            Positioned(
-                                              top: 10,
-                                              right: 10,
-                                              child: CircleAvatar(
-                                                backgroundColor: Colors.black54,
-                                                radius: 20,
-                                                child: IconButton(
-                                                  icon: const Icon(Icons.close, color: Colors.white),
-                                                  onPressed: () => Navigator.pop(context),
-                                                ),
+                                            Text(
+                                              ' • ',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                color: Colors.grey.shade700,
                                               ),
                                             ),
-                                            Positioned(
-                                              bottom: 10,
-                                              right: 10,
-                                              child: CircleAvatar(
-                                                backgroundColor: Colors.black54,
-                                                radius: 20,
-                                                child: IconButton(
-                                                  icon: const Icon(Icons.download, color: Colors.white),
-                                                  onPressed: () {
-                                                    _downloadImage(imagePaths[imgIndex]);
-                                                    Navigator.pop(context);
-                                                  },
-                                                ),
+                                            Text(
+                                              _getTimeDurationString(transaction['date']),
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                color: Colors.green.shade700,
+                                                fontWeight: FontWeight.bold,
                                               ),
                 ),
               ],
             ),
-                                      ),
-                                    );
-                                  },
-                                  child: Container(
-                                    height: 40,
-                                    width: 40,
-                                    margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(4),
-                                      image: DecorationImage(
-                                        image: FileImage(File(imagePaths[imgIndex])),
-                                        fit: BoxFit.cover,
-                                      ),
-                                      border: Border.all(color: Colors.grey.shade300),
+                                        Text(
+                                          'Interest amount: ${_calculateInterestForTransaction(transaction)}',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            color: Colors.purple.shade700,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                );
-                              },
+                                  // Right-aligned text
+                                  Expanded(
+                                    flex: 1,
+                                    child: Text(
+                                      'TOTAL: ${_calculateTotalWithInterest(transaction)}',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue.shade800,
+                                      ),
+                                      textAlign: TextAlign.right,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  
-                  // Add note display if there's a note
-                  if (note.isNotEmpty)
+                    
+                    // Display receipt images in a compact row if available
+                    if (imagePaths.isNotEmpty)
                     Container(
-                      color: rowColor,
-                      padding: const EdgeInsets.only(left: 44, right: 16, bottom: 8),
+                        width: double.infinity,
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.05),
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(10),
+                            bottomRight: Radius.circular(10),
+                          ),
+                        ),
+                        padding: const EdgeInsets.only(left: 44, bottom: 8),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
                       child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              note,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                                fontStyle: FontStyle.italic,
+                            children: imagePaths.map((path) => GestureDetector(
+                              onTap: () => _showImageViewer(path),
+                              child: Container(
+                                height: 32,
+                                width: 32,
+                                margin: const EdgeInsets.only(right: 4),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.grey.shade300, width: 1),
+                                  image: DecorationImage(
+                                    image: FileImage(File(path)),
+                                    fit: BoxFit.cover,
                               ),
                             ),
             ),
-          ],
+                            )).toList(),
+                          ),
         ),
                     ),
                 ],
@@ -1106,8 +1136,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     double interestRate,
     String interestPeriod,
     DateTime selectedDate,
-    String? imagePath,
-    String? loanId,  // Add loanId parameter
+    List<String> imagePaths,
+    String? loanId,
+    [Map<String, dynamic>? additionalData]
   ) {
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     final phone = widget.contact['phone'] as String? ?? '';
@@ -1117,13 +1148,15 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     try {
       // Verify image exists if path is provided
       List<String> imageList = [];
-      if (imagePath != null && imagePath.isNotEmpty) {
-        final file = File(imagePath);
+      if (imagePaths.isNotEmpty) {
+        for (final path in imagePaths) {
+          final file = File(path);
         if (file.existsSync()) {
-          imageList.add(imagePath);
-          print("Added image to transaction: $imagePath");
+            imageList.add(path);
+            print("Added image to transaction: $path");
         } else {
-          print("Image file doesn't exist: $imagePath");
+            print("Image file doesn't exist: $path");
+          }
         }
       }
       
@@ -1143,6 +1176,23 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       // Add loan ID if present
       if (loanId != null && loanId.isNotEmpty) {
         newTransaction['loanId'] = loanId;
+      }
+      
+      // Add interest relationship data if present
+      if (additionalData != null) {
+        // Add interest source/payment flags
+        if (additionalData.containsKey('isInterestSource')) {
+          newTransaction['isInterestSource'] = additionalData['isInterestSource'];
+        }
+        
+        if (additionalData.containsKey('isInterestPayment')) {
+          newTransaction['isInterestPayment'] = additionalData['isInterestPayment'];
+        }
+        
+        // Add relationship ID if present
+        if (additionalData.containsKey('interestRelatedToId')) {
+          newTransaction['interestRelatedToId'] = additionalData['interestRelatedToId'];
+        }
       }
       
       // Add transaction to provider
@@ -1350,8 +1400,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         ],
       ),
     );
-  }
-  
+              }
+                
   // Build PDF footer with page numbers
   pw.Widget _buildPdfFooter(pw.Context context) {
     return pw.Container(
@@ -1637,21 +1687,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     }
   }
 
-  // Helper method to create a dotted vertical line
+  // Helper method to build a vertical dotted line divider
   Widget _buildDottedLine() {
     return Container(
       height: 20,
       width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        border: Border(
-          left: BorderSide(
-            color: Colors.grey.shade400,
-            width: 1,
-            style: BorderStyle.solid,
-          ),
-        ),
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      color: Colors.grey.shade300,
     );
   }
 
@@ -1662,11 +1704,30 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     double interestRate = 0.0;
     String interestPeriod = 'Month'; // 'Month' or 'Year'
     DateTime selectedDate = DateTime.now();
-    String? imagePath;
+    List<String> selectedImagePaths = []; // List to store multiple image paths
     bool isPayingInterest = false; // Variable for interest checkbox
     String? selectedLoanId; // New variable to store selected loan ID
-    // Add an error text state variable
     String? amountErrorText;
+    
+    // For interest relationship tracking
+    bool isInterestSource = false;
+    String? interestRelatedToId;
+    List<Map<String, dynamic>> interestRelatedTransactions = [];
+    
+    // Load potential related transactions
+    if (isGet) {
+      // For received transactions, show paid transactions marked as interest payments
+      interestRelatedTransactions = _transactions.where((tx) => 
+        tx['isGet'] == false && // Only show payments
+        tx['isInterestPayment'] == true // Only interest payments
+      ).toList();
+    } else {
+      // For paid transactions, show received transactions marked as interest sources
+      interestRelatedTransactions = _transactions.where((tx) => 
+        tx['isGet'] == true && // Only show receipts
+        tx['isInterestSource'] == true // Only interest sources
+      ).toList();
+    }
     
     showModalBottomSheet(
       context: context,
@@ -1731,23 +1792,29 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               color: !hasInterest ? Colors.black : Colors.grey,
-                            ),
-                          ),
+                                  ),
+                                ),
                           Switch(
                             value: hasInterest,
                             onChanged: (value) {
                 setState(() {
                                 hasInterest = value;
+                                // Reset interest relationship if toggling off interest mode
+                                if (!value) {
+                                  isPayingInterest = false;
+                                  isInterestSource = false;
+                                  interestRelatedToId = null;
+                                }
                 });
               },
                             activeColor: Colors.blue,
-                          ),
+                                ),
                           Text(
-                                  'Interest',
+                                  'Interest Calc',
                         style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: hasInterest ? Colors.blue : Colors.grey,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                    color: _showInterestMode ? Colors.black : Colors.grey.shade700,
                               ),
                       ),
                     ],
@@ -1782,10 +1849,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       ),
                             prefixText: '₹ ',
                             contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                            // Display error text if amount exceeds 1 crore
                             errorText: amountErrorText,
                   ),
-                          // Add onChanged to validate max amount
                           onChanged: (value) {
                             final amount = double.tryParse(value) ?? 0.0;
                             if (amount > 10000000) { // 1 crore = 10,000,000
@@ -1949,27 +2014,22 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     
                     const SizedBox(height: 16),
                   ],
-                  
-                  // Note and Receipt fields with 75:25 ratio
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Note field - with 75% width
-                      Expanded(
-                        flex: 75,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                    
+                  // Note field
                   const Text(
                               'Note (optional)',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                                 fontSize: 12,
-                              ),
-                            ),
+                      ),
+                    ),
                             const SizedBox(height: 4),
-                            SizedBox(
-                              height: 90, // Same height as receipt container
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Note field - 70% width
+                      Expanded(
+                        flex: 7,
                               child: TextField(
                                 controller: noteController,
                                 decoration: InputDecoration(
@@ -1979,20 +2039,15 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                                 ),
-                                maxLines: 4,
+                          maxLines: 3,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      
                       const SizedBox(width: 8),
-                      
-                      // Receipt field - with 25% width
+                      // Receipt button - 30% width
                       Expanded(
-                        flex: 25,
+                        flex: 3,
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                   const Text(
                               'Receipts',
@@ -2002,8 +2057,10 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     ),
                   ),
                             const SizedBox(height: 4),
-                  GestureDetector(
-                              onTap: () async {
+                            Container(
+                              height: 42,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
                                 try {
                                   final picker = ImagePicker();
                                   final pickedFile = await picker.pickImage(
@@ -2013,10 +2070,10 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                                   
                                   if (pickedFile != null) {
                         setState(() {
-                                      imagePath = pickedFile.path;
-                                    });
-                                    print("Image selected: ${pickedFile.path}");
-                                  }
+                                        selectedImagePaths.add(pickedFile.path);
+                        });
+                                      print("Image added: ${pickedFile.path}");
+                        }
                                 } catch (e) {
                                   print('Image picker error: $e');
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -2024,64 +2081,78 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                                   );
                                 }
                     },
-                    child: Container(
-                      width: double.infinity,
-                                height: 90,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(6),
-                      ),
-                                child: imagePath != null && File(imagePath!).existsSync()
-                          ? Stack(
-                              children: [
-                                ClipRRect(
-                                          borderRadius: BorderRadius.circular(5),
-                                  child: Image.file(
-                                    File(imagePath!),
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    fit: BoxFit.cover,
+                                icon: Icon(Icons.add_photo_alternate, size: 16),
+                                label: Text('Add Receipt', style: TextStyle(fontSize: 12)),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                  backgroundColor: Colors.grey.shade200,
+                                  foregroundColor: Colors.black87,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(24),
                                   ),
                                 ),
-                                Positioned(
-                                  top: 4,
-                                  right: 4,
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        imagePath = null;
-                                      });
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.all(2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.7),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(Icons.close, size: 16, color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            )
-                                  : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Icon(Icons.add_photo_alternate, size: 24, color: Colors.grey),
-                                  SizedBox(height: 4),
-                                Text(
-                                          'Add receipt',
-                                          style: TextStyle(color: Colors.grey, fontSize: 10),
-                                          textAlign: TextAlign.center,
-                                ),
-                              ],
+                              ),
                             ),
-                    ),
-                  ),
                           ],
                         ),
                       ),
                     ],
+                  ),
+                  
+                  const SizedBox(height: 8),
+                  
+                  // Display selected images
+                  if (selectedImagePaths.isNotEmpty)
+                    Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.all(8),
+                        itemCount: selectedImagePaths.length,
+                        itemBuilder: (context, index) {
+                          return Stack(
+                              children: [
+                              Container(
+                                width: 60,
+                                height: 60,
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  image: DecorationImage(
+                                    image: FileImage(File(selectedImagePaths[index])),
+                                    fit: BoxFit.cover,
+                                  ),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                ),
+                                Positioned(
+                                top: 0,
+                                right: 8,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                      selectedImagePaths.removeAt(index);
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    child: const Icon(Icons.close, size: 14, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                          );
+                        },
+                      ),
                   ),
                   
                   const SizedBox(height: 16),
@@ -2122,6 +2193,16 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                             if (value) {
                               // When interest toggle is enabled, force interest mode
                               hasInterest = true;
+                              
+                              // Add interest relationship flags based on transaction type
+                              if (isGet) {
+                                isInterestSource = true;
+                              } else {
+                                // For payments, it's an interest payment
+                              }
+                            } else {
+                              isInterestSource = false;
+                              interestRelatedToId = null;
                             }
                           });
                         },
@@ -2129,6 +2210,60 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       ),
                     ],
                   ),
+                  
+                  // Show related transactions selection if in interest mode
+                  if ((isPayingInterest || hasInterest) && interestRelatedTransactions.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      isGet 
+                        ? 'Select payment this interest relates to:' 
+                        : 'Select loan this interest payment is for:',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                    Container(
+                      height: 150,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(4),
+                        itemCount: interestRelatedTransactions.length,
+                        itemBuilder: (context, index) {
+                          final tx = interestRelatedTransactions[index];
+                          final amount = tx['amount'] as double? ?? 0.0;
+                          final date = tx['date'] as DateTime? ?? DateTime.now();
+                          final id = tx['id'] as String? ?? '';
+                          
+                          return RadioListTile<String>(
+                            title: Text(
+                              '${DateFormat('dd MMM yyyy').format(date)} - ₹${amount.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            subtitle: Text(
+                              tx['note'] as String? ?? 'No note',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            value: id,
+                            groupValue: interestRelatedToId,
+                            onChanged: (value) {
+                              setState(() {
+                                interestRelatedToId = value;
+                              });
+                            },
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                   
                   // Display loans section when isPayingInterest is true
                   if (isPayingInterest) ...[
@@ -2206,8 +2341,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                           ),
                     ),
                   ],
-                    
-                    const SizedBox(height: 16),
+                  
+                  const SizedBox(height: 16),
                   
                   // Buttons
                   Row(
@@ -2245,10 +2380,21 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                               return;
                             }
                             
-                            // Use isPayingInterest to set hasInterest
+                            // Determine interest flags
                             final finalHasInterest = isPayingInterest || hasInterest;
                             
-                            // Add transaction
+                            // Add transaction with interest relationship flags
+                            Map<String, dynamic> additionalData = {
+                              'isInterestSource': isGet && (isPayingInterest || hasInterest),
+                              'isInterestPayment': !isGet && (isPayingInterest || hasInterest),
+                            };
+                            
+                            // Add interest relation if selected
+                            if (interestRelatedToId != null) {
+                              additionalData['interestRelatedToId'] = interestRelatedToId;
+                            }
+                            
+                            // Pass the multiple image paths to the addTransaction method
                             _addTransaction(
                               amount,
                               isGet,
@@ -2257,8 +2403,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                               interestRate,
                               interestPeriod,
                               selectedDate,
-                              imagePath,
-                              selectedLoanId,  // Pass selected loan ID 
+                              selectedImagePaths,
+                              selectedLoanId,
+                              additionalData,
                             );
                             
                             Navigator.pop(context);
@@ -2342,7 +2489,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     final amountController = TextEditingController(text: amount.toString());
     final noteController = TextEditingController(text: note);
     DateTime selectedDate = date;
-    String? editedImagePath = imagePaths.isNotEmpty ? imagePaths.first : null;
+    List<String> selectedImagePaths = List.from(imagePaths);
     
     // Show edit dialog
     showModalBottomSheet(
@@ -2374,8 +2521,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Header with Paid/Received toggle
-                    Row(
-                      children: [
+                  Row(
+                    children: [
                       CircleAvatar(
                         backgroundColor: isGet ? Colors.green.shade100 : Colors.red.shade100,
                         radius: 16,
@@ -2385,7 +2532,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                           size: 16,
                         ),
                       ),
-                        const SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
                         'Edit ${isGet ? 'Received' : 'Paid'} Transaction',
                         style: TextStyle(
@@ -2420,8 +2567,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                           decoration: InputDecoration(
                             hintText: '0.00',
                             border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                             prefixText: '₹ ',
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                           ),
@@ -2459,27 +2606,33 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                                     DateFormat('dd MMM yyyy').format(selectedDate),
                                     style: TextStyle(color: Colors.grey.shade700),
                                     overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
+            ),
+          ),
                               ],
-                            ),
-                            ),
-                    ),
-                  ),
+        ),
+      ),
+                        ),
+                      ),
                     ],
                   ),
                   
                   const SizedBox(height: 16),
                   
                   // Note field
-                    const Text(
+                  const Text(
                     'Note',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
                     ),
+                  ),
                   const SizedBox(height: 6),
-                  TextField(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Note field - 70% width
+                      Expanded(
+                        flex: 7,
+                        child: TextField(
                     controller: noteController,
                     decoration: InputDecoration(
                       hintText: 'Add a note...',
@@ -2489,6 +2642,118 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                     ),
                     maxLines: 3,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Receipt button - 30% width
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'Receipts',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              height: 42,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  try {
+                                    final picker = ImagePicker();
+                                    final pickedFile = await picker.pickImage(
+                                      source: ImageSource.gallery,
+                                      imageQuality: 70,
+                                    );
+                                    
+                                    if (pickedFile != null) {
+                                      setState(() {
+                                        selectedImagePaths.add(pickedFile.path);
+                                      });
+                                    }
+                                  } catch (e) {
+                                    print('Image picker error: $e');
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Error selecting image: $e')),
+                                    );
+                                  }
+                                },
+                                icon: Icon(Icons.add_photo_alternate, size: 16),
+                                label: Text('Add Receipt', style: TextStyle(fontSize: 12)),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                  backgroundColor: Colors.grey.shade200,
+                                  foregroundColor: Colors.black87,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Display selected images
+                  if (selectedImagePaths.isNotEmpty)
+                    Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.all(8),
+                        itemCount: selectedImagePaths.length,
+                        itemBuilder: (context, index) {
+                          return Stack(
+                            children: [
+                              Container(
+                                width: 60,
+                                height: 60,
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  image: DecorationImage(
+                                    image: FileImage(File(selectedImagePaths[index])),
+                                    fit: BoxFit.cover,
+                                  ),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                              ),
+                              Positioned(
+                                top: 0,
+                                right: 8,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      selectedImagePaths.removeAt(index);
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.close, size: 14, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                   ),
                   
                   const SizedBox(height: 16),
@@ -2509,10 +2774,10 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                             if (amountController.text.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Please enter an amount')),
-                              );
+    );
                               return;
-                            }
-                            
+  }
+  
                             final newAmount = double.tryParse(amountController.text) ?? 0.0;
                             if (newAmount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2526,6 +2791,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                             updatedTransaction['amount'] = newAmount;
                             updatedTransaction['date'] = selectedDate;
                             updatedTransaction['note'] = noteController.text;
+                            updatedTransaction['imagePaths'] = selectedImagePaths;
                             
                             // Update transaction through provider
                             _updateTransaction(updatedTransaction);
@@ -2540,13 +2806,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         ),
                       ),
                     ],
-                      ),
+                  ),
                   
                   const SizedBox(height: 12),
-                    ],
-        ),
-      ),
-    );
+                ],
+              ),
+            ),
+          );
         },
       ),
     );
@@ -2570,7 +2836,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     // Show success message
                             ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Transaction updated successfully')),
-        );
+      );
       } else {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error: Transaction not found')),
@@ -2579,7 +2845,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     } catch (e) {
     ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating transaction: $e')),
-      );
+    );
     }
   }
   
@@ -2640,46 +2906,218 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
 
                 print('Deleting contact with ID: $contactId');
                 
-                // First delete from ContactProvider
-                final contactProvider = Provider.of<ContactProvider>(context, listen: false);
-                await contactProvider.deleteContact(contactId);
+                // Close dialog immediately to improve user experience
+                Navigator.pop(context);
                 
-                // Then delete from TransactionProvider
+                // Show a loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const AlertDialog(
+                    content: Row(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(width: 20),
+                        Text("Deleting contact..."),
+                      ],
+                    ),
+                  ),
+                );
+
+                // Get providers
                 final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+                final contactProvider = Provider.of<ContactProvider>(context, listen: false);
+                
+                // First delete from TransactionProvider (which handles transactions and more data)
                 final success = await transactionProvider.deleteContact(contactId);
                 
-                Navigator.pop(context); // Close dialog
+                // Only if the transaction deletion was successful, delete from ContactProvider
+                if (success) {
+                  await contactProvider.deleteContact(contactId);
+                  
+                  // Ensure contact is properly saved immediately
+                  await contactProvider.saveContactsNow();
+                  
+                  // Add a delay to ensure the change is persisted
+                  await Future.delayed(const Duration(milliseconds: 300));
+                }
+                
+                // Dismiss the progress dialog
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
                 
                 if (success) {
-                  // Force the home screen to refresh
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    HomeScreen.refreshHomeContent(context);
-                  });
-                  
-                  // Navigate back to home
-                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  // Navigate back to home screen
+                  if (context.mounted) {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    
+                    // Schedule a delayed refresh after navigation
+                    // This ensures the home screen is fully mounted before refreshing
+                    Future.delayed(const Duration(milliseconds: 500), () {
+                      if (context.mounted) {
+                        try {
+                          final rootContext = Navigator.of(context, rootNavigator: true).context;
+                          HomeScreen.refreshHomeContent(rootContext);
+                          print("Home screen refreshed after contact deletion");
+                        } catch (e) {
+                          print("Error refreshing home screen: $e");
+                        }
+                      }
+                    });
+                  }
                   
                   // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Contact deleted successfully')),
-                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Contact deleted successfully')),
+                    );
+                  }
                 } else {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Error deleting contact')),
+                    );
+                  }
+                }
+              } catch (e) {
+                print('Error deleting contact: $e');
+                if (context.mounted) {
+                  Navigator.pop(context); // Close dialog if still open
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Error deleting contact')),
-        );
-      }
-    } catch (e) {
-                print('Error during contact deletion: $e');
-                Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Delete'),
           ),
         ],
       ),
     );
+  }
+
+  // Method to show a full-screen image viewer
+  void _showImageViewer(String imagePath) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: EdgeInsets.zero,
+        backgroundColor: Colors.black.withOpacity(0.85),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              boundaryMargin: const EdgeInsets.all(20),
+              minScale: 0.5,
+              maxScale: 3.0,
+              child: Center(
+                child: Image.file(
+                  File(imagePath),
+                  fit: BoxFit.contain,
+                  height: double.infinity,
+                  width: double.infinity,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: CircleAvatar(
+                backgroundColor: Colors.black54,
+                radius: 18,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 18),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: CircleAvatar(
+                backgroundColor: Colors.black54,
+                radius: 18,
+                child: IconButton(
+                  icon: const Icon(Icons.download, color: Colors.white, size: 18),
+                  onPressed: () {
+                    _downloadImage(imagePath);
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper method to get a formatted time duration string
+  String _getTimeDurationString(DateTime? date) {
+    if (date == null) return '0 days';
+    
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    final days = difference.inDays;
+    final months = days ~/ 30;
+    final remainingDays = days % 30;
+    
+    if (months > 0) {
+      return '$months months, $remainingDays days';
+    } else {
+      return '$days days';
+    }
+  }
+  
+  // Helper method to calculate interest amount for a single transaction
+  String _calculateInterestForTransaction(Map<String, dynamic> transaction) {
+    final amount = transaction['amount'] as double? ?? 0.0;
+    final interestRate = transaction['interestRate'] as double? ?? 0.0;
+    final interestPeriod = transaction['interestPeriod'] as String? ?? 'Month';
+    final date = transaction['date'] as DateTime? ?? DateTime.now();
+    final now = DateTime.now();
+    
+    // Calculate time period (in months)
+    int daysDifference = now.difference(date).inDays;
+    double monthsDifference = daysDifference / 30.0;
+    
+    // Convert interest rate to monthly if needed
+    double monthlyRate = interestPeriod == 'Year' 
+        ? interestRate / 12 / 100  // Convert annual rate to monthly decimal
+        : interestRate / 100;      // Convert monthly rate to decimal
+    
+    // Calculate interest amount
+    double interestAmount = amount * monthlyRate * monthsDifference;
+    
+    // Format the interest amount with the currency formatter only
+    return currencyFormat.format(interestAmount);
+  }
+  
+  // Helper method to calculate total amount (principal + interest)
+  String _calculateTotalWithInterest(Map<String, dynamic> transaction) {
+    final amount = transaction['amount'] as double? ?? 0.0;
+    final interestRate = transaction['interestRate'] as double? ?? 0.0;
+    final interestPeriod = transaction['interestPeriod'] as String? ?? 'Month';
+    final date = transaction['date'] as DateTime? ?? DateTime.now();
+    final now = DateTime.now();
+    
+    // Calculate time period (in months)
+    int daysDifference = now.difference(date).inDays;
+    double monthsDifference = daysDifference / 30.0;
+    
+    // Convert interest rate to monthly if needed
+    double monthlyRate = interestPeriod == 'Year' 
+        ? interestRate / 12 / 100  // Convert annual rate to monthly decimal
+        : interestRate / 100;      // Convert monthly rate to decimal
+    
+    // Calculate interest amount
+    double interestAmount = amount * monthlyRate * monthsDifference;
+    
+    // Calculate total amount (principal + interest)
+    double totalAmount = amount + interestAmount;
+    
+    // Format with currency formatter
+    return currencyFormat.format(totalAmount);
   }
 } 

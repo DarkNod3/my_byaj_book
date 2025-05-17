@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 class ContactProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _contacts = [];
@@ -12,15 +13,58 @@ class ContactProvider extends ChangeNotifier {
   // Constructor with initialization
   ContactProvider() {
     loadContacts();
+    
+    // Set up auto-save timer to ensure contacts are persisted regularly
+    Timer.periodic(const Duration(minutes: 2), (_) {
+      if (_contacts.isNotEmpty) {
+        print('ContactProvider: Auto-saving ${_contacts.length} contacts');
+        _saveContacts();
+      }
+    });
   }
   
   // Public method to load contacts (to be called from outside)
   Future<void> loadContacts() async {
-    if (_isLoading) return; // Prevent multiple simultaneous loads
+    if (_isLoading) {
+      print('ContactProvider: Already loading contacts, waiting...');
+      // Wait a short time and then check if contacts are loaded
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (_contacts.isEmpty) {
+        // If still empty, force a reload anyway
+        _isLoading = false;
+      } else {
+        // Contacts loaded while waiting, just return
+        return;
+      }
+    }
     
     _isLoading = true;
-    await _loadContacts();
-    _isLoading = false;
+    print('ContactProvider: Starting to load contacts');
+    
+    try {
+      await _loadContacts();
+      
+      // Verify we actually loaded something
+      if (_contacts.isEmpty) {
+        print('ContactProvider: Warning - No contacts loaded, trying recovery methods');
+        // Try recovery method - check for transaction data
+        await _recoverContactsFromTransactions();
+        
+        // If still no contacts, check for backup format
+        if (_contacts.isEmpty) {
+          print('ContactProvider: No contacts found after recovery attempt, checking backup format');
+          await _loadFromBackupFormat();
+        }
+      }
+    } catch (e) {
+      print('ContactProvider: Error in loadContacts: $e');
+    } finally {
+      _isLoading = false;
+    }
+    
+    // Log the final state
+    print('ContactProvider: Completed loading contacts, found ${_contacts.length} contacts');
+    notifyListeners();
   }
   
   // Load contacts from shared preferences
@@ -29,7 +73,7 @@ class ContactProvider extends ChangeNotifier {
       print('ContactProvider._loadContacts: Starting to load contacts');
       final prefs = await SharedPreferences.getInstance();
       
-      // First try loading as a string list (new format)
+      // Always reload from disk to ensure we have the most recent data
       final contactsStringList = prefs.getStringList('contacts');
       
       // Clear existing contacts before loading to prevent duplicates
@@ -51,6 +95,20 @@ class ContactProvider extends ChangeNotifier {
             };
           }
         }).toList();
+        
+        // Print contact details for debugging
+        for (int i = 0; i < _contacts.length; i++) {
+          final contact = _contacts[i];
+          print('Contact ${i+1}: ${contact['name']} (${contact['phone']})');
+        }
+        
+        // Immediately save back to ensure we're using the most current format
+        if (_contacts.isNotEmpty) {
+          // Schedule a save to make sure data is in the correct format
+          Future.delayed(Duration.zero, () {
+            _saveContacts();
+          });
+        }
       } else {
         // Try fallback to the old format (stored as a single JSON string)
         print('ContactProvider: No contacts in StringList format, checking old format');
@@ -62,11 +120,16 @@ class ContactProvider extends ChangeNotifier {
             _contacts = contactsList.map((item) {
               return _convertDynamicContact(Map<String, dynamic>.from(item));
             }).toList();
+            
+            // Immediately save back in new format
+            _saveContacts();
           } catch (e) {
             print('Error parsing contacts from old format: $e');
           }
         } else {
-          print('ContactProvider: No contacts found in either format');
+          // Try to load from the backup with timestamp
+          print('ContactProvider: No contacts found in standard formats, checking backups');
+          await _loadMostRecentBackup(prefs);
         }
       }
       
@@ -83,12 +146,6 @@ class ContactProvider extends ChangeNotifier {
       
       print('ContactProvider: Successfully loaded ${_contacts.length} contacts');
       
-      // Print contact details for debugging
-      for (int i = 0; i < _contacts.length; i++) {
-        final contact = _contacts[i];
-        print('Contact ${i+1}: ${contact['name']} (${contact['phone']})');
-      }
-      
       // Notify listeners that contacts have been loaded
       notifyListeners();
     } catch (e) {
@@ -100,6 +157,56 @@ class ContactProvider extends ChangeNotifier {
       // Always ensure we have a valid list
       _contacts = [];
       notifyListeners();
+    }
+  }
+  
+  // Load contacts from the most recent backup
+  Future<void> _loadMostRecentBackup(SharedPreferences prefs) async {
+    try {
+      // Get all keys that match the backup pattern
+      final allKeys = prefs.getKeys();
+      final backupKeys = allKeys.where((key) => key.startsWith('contacts_backup_')).toList();
+      
+      if (backupKeys.isEmpty) {
+        print('ContactProvider: No backup keys found');
+        return;
+      }
+      
+      // Sort keys by timestamp (newest first)
+      backupKeys.sort((a, b) {
+        final timestampA = int.tryParse(a.split('_').last) ?? 0;
+        final timestampB = int.tryParse(b.split('_').last) ?? 0;
+        return timestampB.compareTo(timestampA);
+      });
+      
+      // Try to load from each backup until we find one that works
+      for (final key in backupKeys) {
+        final backupJson = prefs.getString(key);
+        if (backupJson != null && backupJson.isNotEmpty && backupJson != '[]') {
+          try {
+            final List<dynamic> contactsList = json.decode(backupJson);
+            print('ContactProvider: Found ${contactsList.length} contacts in backup $key');
+            
+            _contacts = contactsList.map((item) {
+              return _convertDynamicContact(Map<String, dynamic>.from(item));
+            }).toList();
+            
+            if (_contacts.isNotEmpty) {
+              print('ContactProvider: Successfully loaded ${_contacts.length} contacts from backup');
+              
+              // Save back in the standard format
+              await _saveContacts();
+              return;
+            }
+          } catch (e) {
+            print('Error parsing contacts from backup $key: $e');
+          }
+        }
+      }
+      
+      print('ContactProvider: No valid backups found');
+    } catch (e) {
+      print('Error loading from backup: $e');
     }
   }
   
@@ -188,9 +295,18 @@ class ContactProvider extends ChangeNotifier {
       print('ContactProvider: Converted ${serializedContacts.length} contacts to JSON strings');
       
       // Save as a StringList (new format)
-      await prefs.setStringList('contacts', serializedContacts);
+      final result = await prefs.setStringList('contacts', serializedContacts);
       
-      // Also save a backup in the old format for compatibility
+      // Add additional error checking
+      if (!result) {
+        print('ContactProvider: WARNING - Failed to save contacts to SharedPreferences');
+        // Try again with a delay
+        await Future.delayed(const Duration(milliseconds: 200));
+        await prefs.setStringList('contacts', serializedContacts);
+      }
+      
+      // Save redundant contacts in multiple formats for recovery
+      // Keep a backup in the old format for compatibility
       final String oldFormatJson = json.encode(_contacts.map((contact) {
         final Map<String, dynamic> jsonContact = Map<String, dynamic>.from(contact);
         
@@ -203,6 +319,13 @@ class ContactProvider extends ChangeNotifier {
       }).toList());
       
       await prefs.setString('contacts_backup', oldFormatJson);
+      
+      // Save an additional backup with timestamp
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      await prefs.setString('contacts_backup_$timestamp', oldFormatJson);
+      
+      // Force an immediate commit to ensure data is written to disk
+      await prefs.commit();
       
       print('ContactProvider: Successfully saved contacts to SharedPreferences');
     } catch (e) {
@@ -296,38 +419,74 @@ class ContactProvider extends ChangeNotifier {
       return;
     }
     
-    // Find the contact index
-    final index = _contacts.indexWhere((c) => c['phone'] == phone);
-    if (index < 0) {
-      print('ContactProvider: Contact not found for deletion: $phone');
-      return;
-    }
-    
-    print('ContactProvider: Found contact at index $index: ${_contacts[index]['name']}');
-    
-    // Create a new list without the contact to be deleted
-    final updatedContacts = List<Map<String, dynamic>>.from(_contacts);
-    updatedContacts.removeAt(index);
-    
-    // Update the contacts list
-    _contacts = updatedContacts;
-    
-    print('ContactProvider: Contact removed from memory, remaining contacts: ${_contacts.length}');
-    
-    // Save changes to SharedPreferences
-    await _saveContacts();
-    
-    // If contacts list is now empty, ensure we save an empty array
-    if (_contacts.isEmpty) {
+    try {
+      // Find the contact index
+      final index = _contacts.indexWhere((c) => c['phone'] == phone);
+      if (index < 0) {
+        print('ContactProvider: Contact not found for deletion: $phone');
+        return;
+      }
+      
+      print('ContactProvider: Found contact at index $index: ${_contacts[index]['name']}');
+      
+      // Create a new list without the contact to be deleted
+      final updatedContacts = List<Map<String, dynamic>>.from(_contacts);
+      updatedContacts.removeAt(index);
+      
+      // Update the contacts list
+      _contacts = updatedContacts;
+      
+      print('ContactProvider: Contact removed from memory, remaining contacts: ${_contacts.length}');
+      
+      // Get shared preferences instance only once
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList('contacts', []);
-      print('ContactProvider: Saved empty contacts list to SharedPreferences');
+      
+      // Save changes to SharedPreferences
+      await _saveContacts();
+      
+      // Ensure the deletion is immediately persistent by using explicit key saving
+      final contactsStringList = _contacts.map((contact) {
+        final Map<String, dynamic> jsonContact = Map<String, dynamic>.from(contact);
+        if (jsonContact['lastEditedAt'] is DateTime) {
+          jsonContact['lastEditedAt'] = (jsonContact['lastEditedAt'] as DateTime).toIso8601String();
+        }
+        return json.encode(jsonContact);
+      }).toList();
+      
+      // Save directly and force commit
+      await prefs.setStringList('contacts', contactsStringList);
+      await prefs.commit();
+      
+      // If contacts list is now empty, ensure we save an empty array
+      if (_contacts.isEmpty) {
+        await prefs.setStringList('contacts', []);
+        print('ContactProvider: Saved empty contacts list to SharedPreferences');
+      }
+      
+      // Save backup with timestamp to ensure we have a recovery point
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final backupJson = json.encode(_contacts.map((contact) {
+        final Map<String, dynamic> jsonContact = Map<String, dynamic>.from(contact);
+        if (jsonContact['lastEditedAt'] is DateTime) {
+          jsonContact['lastEditedAt'] = (jsonContact['lastEditedAt'] as DateTime).toIso8601String();
+        }
+        return jsonContact;
+      }).toList());
+      await prefs.setString('contacts_backup_$timestamp', backupJson);
+      
+      print('ContactProvider: Contact deletion completed successfully');
+      
+      // Notify listeners
+      notifyListeners();
+    } catch (e) {
+      print('Error in ContactProvider.deleteContact: $e');
+      if (e is Error) {
+        print(e.stackTrace);
+      }
+      
+      // Attempt to reload contacts in case of error to ensure consistency
+      await loadContacts();
     }
-    
-    print('ContactProvider: Contact deletion completed successfully');
-    
-    // Notify listeners
-    notifyListeners();
   }
   
   // Get a contact by phone number
@@ -337,5 +496,43 @@ class ContactProvider extends ChangeNotifier {
       return _contacts[index];
     }
     return null;
+  }
+  
+  // Try to load contacts from backup format
+  Future<void> _loadFromBackupFormat() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final backupJson = prefs.getString('contacts_backup');
+      
+      if (backupJson != null && backupJson.isNotEmpty && backupJson != '[]') {
+        print('ContactProvider: Found backup contacts json');
+        try {
+          final List<dynamic> contactsList = json.decode(backupJson);
+          print('ContactProvider: Parsed ${contactsList.length} contacts from backup');
+          
+          _contacts = contactsList.map((item) {
+            return _convertDynamicContact(Map<String, dynamic>.from(item));
+          }).toList();
+          
+          // If we successfully loaded from backup, save in current format
+          await _saveContacts();
+        } catch (e) {
+          print('ContactProvider: Error parsing backup contacts: $e');
+        }
+      }
+    } catch (e) {
+      print('ContactProvider: Error in _loadFromBackupFormat: $e');
+    }
+  }
+  
+  // Public method to force contact saving now
+  Future<void> saveContactsNow() async {
+    print('ContactProvider.saveContactsNow: Forcing immediate save of ${_contacts.length} contacts');
+    return _saveContacts();
+  }
+  
+  // Method to clear loading flag to force a reload
+  void clearLoadingFlag() {
+    _isLoading = false;
   }
 } 

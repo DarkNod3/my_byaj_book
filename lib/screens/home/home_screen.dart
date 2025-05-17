@@ -68,15 +68,13 @@ class HomeScreen extends StatefulWidget {
   
   // Add a static method that can be called from other files to refresh the home screen
   static void refreshHomeContent(BuildContext context) {
-    print("HomeScreen.refreshHomeContent: Refreshing home screen content");
-    
     // First, force the providers to rebuild their contacts lists
     try {
       final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
       final contactProvider = Provider.of<ContactProvider>(context, listen: false);
       
-      // Clear cached data in providers
-      print("Reloading providers data");
+      // Clear loading flag to force reload
+      contactProvider.clearLoadingFlag();
       
       // Reset sync attempts counter in any HomeContent states
       void resetSyncCounter(Element element) {
@@ -84,6 +82,8 @@ class HomeScreen extends StatefulWidget {
           final state = (element as StatefulElement).state;
           if (state is _HomeContentState) {
             state._syncAttempts = 0;
+            state._isSyncing = false; // Clear syncing lock
+            state._contacts.clear(); // Force refresh by clearing contacts
           }
         }
         element.visitChildElements(resetSyncCounter);
@@ -96,42 +96,70 @@ class HomeScreen extends StatefulWidget {
           app.visitChildElements(resetSyncCounter);
         }
       } catch (e) {
-        print('Error resetting sync counters: $e');
+        // Silent error handling
       }
       
-      // Force reload of contacts in both providers
-      contactProvider.loadContacts().then((_) {
-        transactionProvider.syncContactsFromProvider(context).then((_) {
-          // Ensure the home content widgets refresh their content
-          // Find all instances of HomeContent states and refresh them
-          void visitor(Element element) {
-            if (element.widget is HomeContent) {
-              final state = (element as StatefulElement).state;
-              if (state is _HomeContentState) {
-                state.setState(() {
-          // Force a complete refresh
-                  state._contacts.clear();
-                  state._syncContactsWithTransactions();
-        });
-      }
-    }
-            element.visitChildElements(visitor);
-          }
-          
-          // Start visiting from the root to find all HomeContent widgets
-          try {
-            final app = WidgetsBinding.instance.renderViewElement;
-            if (app != null) {
-              app.visitChildElements(visitor);
-              print("HomeScreen.refreshHomeContent: Finished refreshing home content");
+      // Schedule the reloads with a short delay
+      Future.delayed(const Duration(milliseconds: 200), () async {
+        try {
+          // Force reload of contacts in both providers with robust error handling and retry
+          await contactProvider.loadContacts().then((_) {
+            // Verify contacts were actually loaded
+            print('Contact provider loaded ${contactProvider.contacts.length} contacts');
+            
+            // Retry after a short delay if needed
+            if (contactProvider.contacts.isEmpty && transactionProvider.contacts.isNotEmpty) {
+              print('Warning: ContactProvider still has no contacts after reload but TransactionProvider has ${transactionProvider.contacts.length}');
+              // Retry with delay
+              Future.delayed(const Duration(milliseconds: 300), () {
+                contactProvider.loadContacts().then((_) {
+                  // After retry, process with transaction provider sync
+                  transactionProvider.syncContactsFromProvider(context).then((_) {
+                    print('Completed transaction provider sync after retry');
+                    _refreshHomeContentStates(context);
+                  });
+                });
+              });
+            } else {
+              // Normal flow if contacts were loaded successfully
+              transactionProvider.syncContactsFromProvider(context).then((_) {
+                print('Completed initial transaction provider sync');
+                _refreshHomeContentStates(context);
+              });
             }
-          } catch (e) {
-            print('Error finding HomeContent: $e');
-          }
-        });
+          });
+        } catch (e) {
+          print('Error in refreshHomeContent delayed processing: $e');
+        }
       });
     } catch (e) {
-      print('Error refreshing providers: $e');
+      print('Error refreshing home content: $e');
+    }
+  }
+
+  // Helper method to refresh HomeContent states
+  static void _refreshHomeContentStates(BuildContext context) {
+    // Find the active HomeContent and refresh just it, not all instances
+    void visitor(Element element) {
+      if (element.widget is HomeContent) {
+        final state = (element as StatefulElement).state;
+        if (state is _HomeContentState) {
+          state._contacts.clear();
+          state._isLoading = true;
+          state._syncContactsWithTransactions();
+        }
+      }
+      element.visitChildElements(visitor);
+    }
+    
+    // Only search in the current context subtree to be more efficient
+    try {
+      if (context is BuildContext && context.mounted) {
+        context.visitChildElements(visitor);
+      }
+    } catch (e) {
+      // Silent error handling
+      print('Error in _refreshHomeContentStates: $e');
     }
   }
 }
@@ -150,10 +178,14 @@ class _HomeScreenState extends State<HomeScreen> {
     
     // Immediately start loading data to prevent blank screens
     _loadInitialData();
+    _forceLoadContactsAfterDelay();
     
     // Add app lifecycle listener to refresh data when app resumes
     _lifecycleObserver = AppLifecycleObserver(
       onResume: () {
+        // Always force a reload when app resumes
+        _forceLoadContactsAfterDelay();
+        
         // Find the HomeContent state and refresh its data
         final homeContentState = _findHomeContentState(context);
         if (homeContentState != null) {
@@ -170,9 +202,67 @@ class _HomeScreenState extends State<HomeScreen> {
   void _loadInitialData() {
     // Find the HomeContent state and refresh its data
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final homeContentState = _findHomeContentState(context);
-      if (homeContentState != null) {
-        homeContentState.refresh();
+      // First ensure providers are loaded
+      try {
+        final contactProvider = Provider.of<ContactProvider>(context, listen: false);
+        final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+        
+        // Force reload contacts to ensure we have fresh data
+        contactProvider.loadContacts().then((_) {
+          if (contactProvider.contacts.isEmpty) {
+            // If still empty, try another approach to recover contacts
+            transactionProvider.syncContactsFromProvider(context);
+          }
+          
+          // Find and refresh HomeContent state
+          final homeContentState = _findHomeContentState(context);
+          if (homeContentState != null) {
+            homeContentState.refresh();
+          }
+        });
+      } catch (e) {
+        print('Error in _loadInitialData: $e');
+      }
+    });
+  }
+  
+  // Force load contacts after a delay
+  void _forceLoadContactsAfterDelay() {
+    // Add a delayed forced reload to ensure contacts are loaded after app initialization
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        try {
+          final contactProvider = Provider.of<ContactProvider>(context, listen: false);
+          final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+          
+          // First, clear any existing data to prevent stale data
+          contactProvider.clearLoadingFlag();
+          
+          // Force reload contacts with await to ensure it completes
+          contactProvider.loadContacts().then((_) {
+            if (mounted) {
+              // Force sync transactions with contacts - passing the context for real-time updates
+              transactionProvider.syncContactsFromProvider(context).then((_) {
+                if (mounted) {
+                  // Find and refresh all HomeContent states
+                  final homeContentState = _findHomeContentState(context);
+                  if (homeContentState != null) {
+                    homeContentState.refresh();
+                  }
+                  
+                  // Force another reload after a delay to ensure data persistence
+                  Future.delayed(const Duration(seconds: 1), () {
+                    if (mounted) {
+                      HomeScreen.refreshHomeContent(context);
+                    }
+                  });
+                }
+              });
+            }
+          });
+        } catch (e) {
+          print('Error in _forceLoadContactsAfterDelay: $e');
+        }
       }
     });
   }
@@ -391,6 +481,9 @@ class _HomeContentState extends State<HomeContent> {
   String _sortMode = 'Recent';  // 'Recent', 'High to Low', 'Low to High', 'By Name'
   String _filterMode = 'All';   // 'All', 'You received', 'You paid'
   
+  // Add debounce timer for search
+  Timer? _searchDebounce;
+  
   // Cached total values
   double _cachedTotalToGive = 0.0;
   double _cachedTotalToGet = 0.0;
@@ -400,15 +493,25 @@ class _HomeContentState extends State<HomeContent> {
   bool _isInitialized = false;
   int _syncAttempts = 0;
   bool _isLoading = true;
+  
+  // Add a lock to prevent concurrent synchronization
+  bool _isSyncing = false;
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
 
   // Method to refresh contacts and totals
   void refresh() {
     if (mounted) {
       setState(() {
-        // Clear existing contacts to ensure fresh data
-        _contacts.clear();
-        _syncContactsWithTransactions();
+        // Only set loading state, don't clear contacts immediately
+        // This prevents the "no contacts" screen from flashing
+        _isLoading = true;
       });
+      _syncContactsWithTransactions();
     }
   }
 
@@ -416,146 +519,113 @@ class _HomeContentState extends State<HomeContent> {
   void initState() {
     super.initState();
     
-    // Delay to ensure the provider is available
+    // Load data once after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Clear any existing data first
-      _contacts.clear();
-      
-      // Load fresh data
-      _syncContactsWithTransactions();
-      
-      // Set up a second delayed load to ensure data is properly loaded
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted && _contacts.isEmpty) {
-          setState(() {
-            _syncContactsWithTransactions();
-          });
-        }
-      });
+      _ensureContactsLoaded();
     });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Sync contacts when dependencies change
+    // Only sync on first initialization
     if (!_isInitialized) {
-      // Clear any existing data first
-      _contacts.clear();
-      
-      // Load fresh data
-      _syncContactsWithTransactions();
       _isInitialized = true;
-      
-      // Set up a delayed second load if needed
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted && _contacts.isEmpty) {
-          setState(() {
-            _syncContactsWithTransactions();
-          });
-        }
-      });
+      _syncContactsWithTransactions();
     }
   }
 
   @override
   void didUpdateWidget(HomeContent oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Force a refresh of data when the widget updates
-    _syncContactsWithTransactions();
+    // No need to refresh on every update
   }
 
   // Sync method to load contacts and transactions
   Future<void> _syncContactsWithTransactions() async {
     if (!mounted) return;
     
+    // If already syncing, avoid starting another sync operation
+    if (_isSyncing) {
+      print('HomeContent: Sync already in progress, skipping');
+      return;
+    }
+    
+    // Set syncing lock to prevent concurrent syncs
+    setState(() {
+      _isSyncing = true;
+      // Don't set _isLoading = true here if we already have contacts
+      // This prevents UI flicker when refreshing
+      if (_contacts.isEmpty) {
+        _isLoading = true;
+      }
+    });
+    
     try {
+      // Add slight delay to ensure SharedPreferences has been updated
+      await Future.delayed(const Duration(milliseconds: 100));
+      
       // Get transaction provider and contact provider
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
       final contactProvider = Provider.of<ContactProvider>(context, listen: false);
       
-      print('===== DEBUG: HOME SCREEN SYNC START =====');
-      print('Sync attempt #: $_syncAttempts');
-      
       // Safety check to prevent infinite loops
-      if (_syncAttempts > 3) {
-        print('Too many sync attempts, stopping to prevent infinite loop');
-          setState(() {
+      if (_syncAttempts > 2) {
+        setState(() {
           _isLoading = false;
+          _isSyncing = false;
         });
         return;
       }
       _syncAttempts++;
       
-      // CRITICAL FIX: First make sure we load the contacts directly from SharedPreferences
-      // This ensures we have the most up-to-date list regardless of provider state
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final contactsList = prefs.getStringList('contacts') ?? [];
-      print('Raw contacts in SharedPreferences: ${contactsList.length}');
+      // Use the providers' existing data instead of forcing reloads
+      final contactProviderContacts = contactProvider.contacts;
+      final transactionProviderContacts = transactionProvider.contacts;
       
-      // Force both providers to reload their contacts
-      await contactProvider.loadContacts();
-      print('ContactProvider contacts count after reload: ${contactProvider.contacts.length}');
-      
-      // Ensure the transaction provider is in sync with the contact provider
-      await transactionProvider.syncContactsFromProvider(context);
-      print('TransactionProvider contacts count after sync: ${transactionProvider.contacts.length}');
-      
-      // Now get a combined list from both providers to ensure we have all contacts
-      Set<String> contactIds = {};
-      final combinedContacts = <Map<String, dynamic>>[];
-      
-      // First add all contacts from the ContactProvider
-      for (var contact in contactProvider.contacts) {
-        if (!contactIds.contains(contact['phone'])) {
-          contactIds.add(contact['phone'] as String);
-          combinedContacts.add(Map<String, dynamic>.from(contact));
-        }
+      // Force a reload if either provider has empty contacts
+      if (contactProviderContacts.isEmpty && _contacts.isNotEmpty) {
+        print('HomeContent: ContactProvider empty but home has contacts, forcing reload');
+        await contactProvider.loadContacts();
       }
       
-      // Then add any contacts from the TransactionProvider that aren't already in the list
-      for (var contact in transactionProvider.contacts) {
+      // Log for debugging
+      print('HomeContent: Found ${contactProviderContacts.length} contacts in ContactProvider');
+      print('HomeContent: Found ${transactionProviderContacts.length} contacts in TransactionProvider');
+      
+      // Create efficient map for lookup
+      Map<String, Map<String, dynamic>> contactsMap = {};
+      
+      // Process ContactProvider contacts
+      for (var contact in contactProviderContacts) {
         final phone = contact['phone'] as String?;
-        if (phone != null && !contactIds.contains(phone)) {
-          contactIds.add(phone);
-          combinedContacts.add(Map<String, dynamic>.from(contact));
+        if (phone != null && phone.isNotEmpty) {
+          contactsMap[phone] = Map<String, dynamic>.from(contact);
         }
       }
       
-      // Also check for any contacts with transactions that might be missing
-      final transactionContactIds = prefs.getStringList('transaction_contacts') ?? [];
-      for (var contactId in transactionContactIds) {
-        if (!contactIds.contains(contactId)) {
-          // Create a minimal contact for this ID
-          combinedContacts.add({
-            'name': 'Contact $contactId',
-            'phone': contactId,
-            'lastEditedAt': DateTime.now(),
-          });
-          contactIds.add(contactId);
+      // Add any additional contacts from TransactionProvider
+      for (var contact in transactionProviderContacts) {
+        final phone = contact['phone'] as String?;
+        if (phone != null && phone.isNotEmpty && !contactsMap.containsKey(phone)) {
+          contactsMap[phone] = Map<String, dynamic>.from(contact);
         }
       }
       
-      print('Combined contacts total: ${combinedContacts.length}');
-    
       // Reset totals
-    _cachedTotalToGive = 0.0;
-    _cachedTotalToGet = 0.0;
+      _cachedTotalToGive = 0.0;
+      _cachedTotalToGet = 0.0;
       
-      // Clear existing contacts to ensure we have a clean slate
-      _contacts.clear();
-    
+      // Create new contacts list
+      List<Map<String, dynamic>> newContacts = [];
+      
       // Process all contacts
-      for (final contact in combinedContacts) {
+      for (final contact in contactsMap.values) {
         final phone = contact['phone'] as String?;
-        if (phone == null || phone.isEmpty) {
-          print('Skipping contact with empty phone number');
-          continue;
-        }
+        if (phone == null || phone.isEmpty) continue;
         
         // Calculate balance with the latest transactions
         final balance = transactionProvider.calculateBalance(phone, includeInterest: false);
-        print('Contact: ${contact['name']}, Phone: $phone, Balance: $balance');
         
         // Update totals based on the calculated balance
         if (balance >= 0) {
@@ -582,100 +652,114 @@ class _HomeContentState extends State<HomeContent> {
           final amountStr = amount.toStringAsFixed(2);
           
           if (!nameLower.contains(searchLower) && !amountStr.contains(_searchQuery)) {
-            print('Contact ${contact['name']} filtered out by search query: $_searchQuery');
             continue; // Skip this contact if not matching search
           }
         }
         
-        // Add this contact to our display list regardless of balance
-        _contacts.add(updatedContact);
-        print('Added ${updatedContact['name']} to visible contacts list');
+        // Add this contact to our new contacts list
+        newContacts.add(updatedContact);
       }
       
-      print('Final contacts count to display: ${_contacts.length}');
+      // Apply sort to the new contacts list
+      _applySortToContacts(newContacts);
       
-      // Apply sort logic
-      _applySearchAndFilter();
-      
-      // Update the UI
-      setState(() {
-        _isLoading = false;
-      });
-      print('Updated home with ${_contacts.length} contacts to display');
-      print('Totals: Pay=${_cachedTotalToGive}, Receive=${_cachedTotalToGet}');
-      print('===== DEBUG: HOME SCREEN SYNC END =====');
+      // Now update the state with the new contacts list
+      if (mounted) {
+        setState(() {
+          // Clear and replace all at once to prevent flicker
+          _contacts.clear();
+          _contacts.addAll(newContacts);
+          _isLoading = false;
+          _isSyncing = false;
+        });
+        
+        print('HomeContent: Updated UI with ${_contacts.length} contacts');
+        
+        // Force a commit of contact data to ensure it's persisted
+        if (contactProviderContacts.isNotEmpty) {
+          contactProvider.saveContactsNow();
+        }
+      }
     } catch (e) {
       // Handle any errors
       print('Error syncing contacts: $e');
-      print(e.toString());
-      if (e is Error) {
-        print(e.stackTrace);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isSyncing = false;
+        });
       }
-      setState(() {
-        _isLoading = false;
-      });
+    } finally {
+      // Make absolutely sure we reset the syncing lock
+      if (mounted && _isSyncing) {
+        setState(() {
+          _isSyncing = false;
+        });
+      }
     }
   }
   
-  // Method to apply search and filtering
-  void _applySearchAndFilter() {
+  // Method to apply sort to a contacts list
+  void _applySortToContacts(List<Map<String, dynamic>> contactsList) {
     // Sort contacts based on the selected sort mode
     switch (_sortMode) {
       case 'Recent':
         // Sort by lastEditedAt (newest first)
-    _contacts.sort((a, b) {
-      final aTime = a['lastEditedAt'] as DateTime?;
-      final bTime = b['lastEditedAt'] as DateTime?;
-      if (aTime == null || bTime == null) {
-        return 0;
-      }
-      return bTime.compareTo(aTime);
-    });
+        contactsList.sort((a, b) {
+          final aTime = a['lastEditedAt'] as DateTime?;
+          final bTime = b['lastEditedAt'] as DateTime?;
+          if (aTime == null && bTime == null) {
+            return 0;
+          } else if (aTime == null) {
+            return 1; // null dates go last
+          } else if (bTime == null) {
+            return -1;
+          }
+          return bTime.compareTo(aTime);
+        });
         break;
       case 'High to Low':
         // Sort by amount (highest first)
-        _contacts.sort((a, b) {
+        contactsList.sort((a, b) {
           final aAmount = a['amount'] as double? ?? 0.0;
           final bAmount = b['amount'] as double? ?? 0.0;
-          return bAmount.compareTo(aAmount);
+          final result = bAmount.compareTo(aAmount);
+          // If amounts are equal, sort by name for stable order
+          return result != 0 ? result : (a['name'] as String? ?? '').compareTo(b['name'] as String? ?? '');
         });
         break;
       case 'Low to High':
         // Sort by amount (lowest first)
-        _contacts.sort((a, b) {
+        contactsList.sort((a, b) {
           final aAmount = a['amount'] as double? ?? 0.0;
           final bAmount = b['amount'] as double? ?? 0.0;
-          return aAmount.compareTo(bAmount);
+          final result = aAmount.compareTo(bAmount);
+          // If amounts are equal, sort by name for stable order
+          return result != 0 ? result : (a['name'] as String? ?? '').compareTo(b['name'] as String? ?? '');
         });
         break;
       case 'By Name':
         // Sort alphabetically by name
-        _contacts.sort((a, b) {
-          final aName = a['name'] as String? ?? '';
-          final bName = b['name'] as String? ?? '';
+        contactsList.sort((a, b) {
+          final aName = (a['name'] as String? ?? '').toLowerCase();
+          final bName = (b['name'] as String? ?? '').toLowerCase();
           return aName.compareTo(bName);
         });
         break;
     }
   }
   
-  // Update cached totals
-  void _updateCachedTotals() {
-    _cachedTotalToGive = 0.0;
-    _cachedTotalToGet = 0.0;
-    
-    for (final contact in _contacts) {
-      final amount = contact['amount'] as double? ?? 0.0;
-      final isGet = contact['isGet'] as bool? ?? true;
-      
-      if (isGet) {
-        _cachedTotalToGet += amount;
-    } else {
-        _cachedTotalToGive += amount;
+  // Method to apply search and filtering
+  void _applySearchAndFilter() {
+    // Add the debounce for searches
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _syncContactsWithTransactions();
       }
-    }
+    });
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -697,10 +781,29 @@ class _HomeContentState extends State<HomeContent> {
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: Container(
+        height: 50,
+        width: 50,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.deepPurple.withOpacity(0.3),
+              blurRadius: 8,
+              spreadRadius: 0,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
         onPressed: _showAddContactDialog,
         backgroundColor: Colors.deepPurple,
-        child: const Icon(Icons.person_add, color: Colors.white),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: const Icon(Icons.person_add, color: Colors.white, size: 22),
+        ),
           ),
     );
   }
@@ -710,8 +813,20 @@ class _HomeContentState extends State<HomeContent> {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       decoration: BoxDecoration(
-        color: Colors.deepPurple,
-              borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF7D3AC1), Color(0xFF6A2FBA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6A2FBA).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+            spreadRadius: 2,
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -734,12 +849,13 @@ class _HomeContentState extends State<HomeContent> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                        spreadRadius: 0,
                       ),
                     ],
                       ),
@@ -777,12 +893,13 @@ class _HomeContentState extends State<HomeContent> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                        spreadRadius: 0,
                       ),
                     ],
                       ),
@@ -805,33 +922,64 @@ class _HomeContentState extends State<HomeContent> {
   
   Widget _buildSearchBar() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      height: 46,
         decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(30),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 6,
+            spreadRadius: 0,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
                 child: TextField(
                   onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-            _contacts.clear();
-            _syncContactsWithTransactions();
-                    });
+                    // Set the query immediately
+                    _searchQuery = value;
+                    
+                    // Apply the search and filter with debounce
+                    _applySearchAndFilter();
                   },
         decoration: InputDecoration(
           hintText: 'Find person by name or amount...',
-          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+          hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 12, right: 6),
+            child: Icon(Icons.search, color: Colors.grey.shade500, size: 20),
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 30, minHeight: 30),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 15),
+          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+          isDense: true,
           suffixIcon: Row(
             mainAxisSize: MainAxisSize.min,
         children: [
-              IconButton(
-                icon: const Icon(Icons.sort, color: Colors.grey),
-                onPressed: _showSortOptions,
+              Container(
+                height: 24,
+                width: 1,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                color: Colors.grey.shade300,
               ),
               IconButton(
-                icon: const Icon(Icons.qr_code_scanner, color: Colors.grey),
+                icon: Icon(Icons.sort, color: Colors.grey.shade600, size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                onPressed: _showSortOptions,
+              ),
+              Container(
+                height: 24,
+                width: 1,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                color: Colors.grey.shade300,
+              ),
+              IconButton(
+                icon: Icon(Icons.qr_code_scanner, color: Colors.grey.shade600, size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 onPressed: () {
                   // Implement QR code scanning functionality
                 },
@@ -848,19 +996,56 @@ class _HomeContentState extends State<HomeContent> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_alt_outlined, size: 80, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            'No contacts yet',
-            style: TextStyle(fontSize: 18, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
-                    ),
-                      const SizedBox(height: 8),
-          Text(
-            'Add a contact to track your payments',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade300,
+                  blurRadius: 15,
+                  spreadRadius: 5,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.people_alt_outlined, 
+              size: 80, 
+              color: Colors.grey.shade400,
+            ),
           ),
           const SizedBox(height: 24),
-          ElevatedButton.icon(
+          Text(
+            'No contacts yet',
+            style: TextStyle(
+              fontSize: 20, 
+              color: Colors.grey.shade700, 
+              fontWeight: FontWeight.bold,
+            ),
+                    ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+            'Add a contact to track your payments',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+            ),
+          ),
+          const SizedBox(height: 32),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.deepPurple.withOpacity(0.3),
+                  blurRadius: 10,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ElevatedButton.icon(
             onPressed: _showAddContactDialog,
             icon: const Icon(Icons.person_add),
             label: const Text('Add Contact'),
@@ -868,6 +1053,11 @@ class _HomeContentState extends State<HomeContent> {
               backgroundColor: Colors.deepPurple,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
               ),
             ),
           ],
@@ -876,8 +1066,6 @@ class _HomeContentState extends State<HomeContent> {
   }
   
   Widget _buildContactsList() {
-    print('Building contacts list with ${_contacts.length} contacts');
-    
     return ListView.builder(
       itemCount: _contacts.length,
       padding: const EdgeInsets.only(bottom: 80), // Space for FAB
@@ -888,80 +1076,148 @@ class _HomeContentState extends State<HomeContent> {
         final isGet = contact['isGet'] as bool? ?? true;
         final lastEditedAt = contact['lastEditedAt'] as DateTime?;
         
-        print('Rendering contact: $name with amount: $amount');
-        
         // Create initials for avatar
         final initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
         
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        // Get different colors for avatar background based on name
+        final avatarColor = _getAvatarColor(name);
+        final buttonColor = isGet ? Colors.green.shade100 : Colors.red.shade100;
+        final textColor = isGet ? Colors.green.shade700 : Colors.red.shade700;
+        final iconData = isGet ? Icons.arrow_downward : Icons.arrow_upward;
+        
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 6,
+                spreadRadius: 0,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: InkWell(
             onTap: () => _navigateToContactDetails(contact),
             borderRadius: BorderRadius.circular(12),
             child: Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 children: [
-                  // Avatar
-                  CircleAvatar(
-                    backgroundColor: Colors.deepPurple,
-                    child: Text(initials, style: const TextStyle(color: Colors.white)),
+                  // Avatar with 3D effect
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: avatarColor.withOpacity(0.3),
+                          blurRadius: 4,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      backgroundColor: avatarColor,
+                      radius: 18,
+                      child: Text(
+                        initials, 
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   
                   // Contact details
-              Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
                           name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                         if (lastEditedAt != null)
                           Text(
                             '${_getTimeAgo(lastEditedAt)}',
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                          ),
+                      ],
                     ),
-                  ],
-                ),
                   ),
                   
-                  // Amount
-                    Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                      color: isGet ? Colors.green.shade100 : Colors.red.shade100,
-                      borderRadius: BorderRadius.circular(20),
+                  // Amount with 3D effect
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: buttonColor,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: buttonColor.withOpacity(0.5),
+                          blurRadius: 4,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                    children: [
+                      children: [
                         Icon(
-                          isGet ? Icons.arrow_downward : Icons.arrow_upward,
-                          size: 16,
-                          color: isGet ? Colors.green : Colors.red,
+                          iconData,
+                          size: 14,
+                          color: textColor,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 2),
                         Text(
                           '₹${amount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                            color: isGet ? Colors.green : Colors.red,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: textColor,
                           ),
                         ),
-                  ],
-                ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
             ),
-                        ),
-                      );
-                    },
+          ),
+        );
+      },
     );
   }
+  
+  // Helper method to generate consistent colors based on name
+  Color _getAvatarColor(String name) {
+    if (name.isEmpty) return Colors.deepPurple;
+    
+    // Use a hash of the first character to determine a color
+    final colorIndex = name.toLowerCase().codeUnitAt(0) % _avatarColors.length;
+    return _avatarColors[colorIndex];
+  }
+  
+  // List of colors for avatars
+  final List<Color> _avatarColors = [
+    Colors.deepPurple,
+    Colors.blue,
+    Colors.teal,
+    Colors.indigo,
+    Colors.green,
+    Colors.orange,
+    Colors.pink,
+    Colors.blueGrey,
+    Colors.amber.shade800,
+    Colors.cyan.shade700,
+  ];
   
   String _getTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
@@ -1037,27 +1293,20 @@ class _HomeContentState extends State<HomeContent> {
       MaterialPageRoute(
         builder: (context) => AddContactScreen(
           onContactAdded: (contact) {
-            // This callback is called when a contact is successfully added
-            // Clear the contacts list first to ensure we get fresh data
+            // Simply refresh contacts when a contact is added
             setState(() {
               _contacts.clear();
+              _isLoading = true;
             });
-            
-            // Use Future.microtask to ensure this runs after the current frame
-            Future.microtask(() {
-              if (mounted) {
-                // Refresh contacts and update totals
-              _syncContactsWithTransactions();
+            _syncContactsWithTransactions();
             
             // Show success message
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('${contact['name']} added successfully')),
             );
-              }
-            });
-                  },
-                ),
-              ),
+          },
+        ),
+      ),
     );
   }
   
@@ -1069,17 +1318,33 @@ class _HomeContentState extends State<HomeContent> {
       ),
     ).then((_) {
       // Refresh contacts when returning from details page
-      // Clear contacts first to ensure we get fresh data
       setState(() {
         _contacts.clear();
+        _isLoading = true;
       });
-      
-      // Use Future.microtask to ensure this runs after the current frame
-      Future.microtask(() {
-                                      if (mounted) {
-        _syncContactsWithTransactions();
-        }
-      });
+      _syncContactsWithTransactions();
     });
+  }
+
+  // New method to ensure contacts are properly loaded
+  Future<void> _ensureContactsLoaded() async {
+    if (!mounted) return;
+    
+    // Check both providers to see if contacts exist
+    final contactProvider = Provider.of<ContactProvider>(context, listen: false);
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    
+    // If contact provider is empty but transaction provider has contacts, sync them
+    if (contactProvider.contacts.isEmpty && transactionProvider.contacts.isNotEmpty) {
+      await contactProvider.loadContacts();
+    }
+    
+    // If transaction provider is empty but contact provider has contacts, sync them
+    if (transactionProvider.contacts.isEmpty && contactProvider.contacts.isNotEmpty) {
+      await transactionProvider.syncContactsFromProvider(context);
+    }
+    
+    // Finally, sync contacts with transactions to update the UI
+    _syncContactsWithTransactions();
   }
 }
