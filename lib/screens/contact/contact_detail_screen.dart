@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:my_byaj_book/services/pdf_template_service.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:my_byaj_book/screens/contact/edit_contact_screen.dart';
@@ -20,6 +21,8 @@ import 'package:my_byaj_book/providers/notification_provider.dart';
 import 'package:my_byaj_book/utils/permission_handler.dart';
 import 'package:my_byaj_book/screens/home/home_screen.dart';
 import 'package:my_byaj_book/utils/image_picker_helper.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
 
 class ContactDetailScreen extends StatefulWidget {
   final Map<String, dynamic> contact;
@@ -48,10 +51,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
   late TransactionProvider _transactionProvider;
   String _contactId = '';
 
+  // Track currently active filter
+  String _filterType = 'all'; // Possible values: 'all', 'received', 'paid'
+
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(_filterTransactions);
+    _searchController.addListener(_applyFilters);
     // Initialize contact ID
     _contactId = widget.contact['phone'] ?? '';
     
@@ -75,7 +81,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
     super.didChangeDependencies();
     _transactionProvider = Provider.of<TransactionProvider>(context);
     
-    _filterTransactions();
+    _applyFilters();
   }
 
   @override
@@ -102,16 +108,18 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
     super.dispose();
   }
 
-  void _filterTransactions() {
+  // Apply both search filtering and tab filtering
+  void _applyFilters() {
     final query = _searchController.text.toLowerCase();
     setState(() {
       final transactions = _transactionProvider.getTransactionsForContact(_contactId);
       
-      // First filter the transactions
+      // Step 1: Apply text search filter
+      List<Map<String, dynamic>> searchFiltered;
       if (query.isEmpty) {
-        _filteredTransactions = List.from(transactions);
+        searchFiltered = List.from(transactions);
       } else {
-        _filteredTransactions = transactions.where((tx) {
+        searchFiltered = transactions.where((tx) {
           // Safely handle 'note' field which might be null
           String note = (tx['note'] as String?) ?? '';
           return note.toLowerCase().contains(query) ||
@@ -119,7 +127,16 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
         }).toList();
       }
       
-      // Then sort them by date, newest first
+      // Step 2: Apply tab filter
+      if (_filterType == 'all') {
+        _filteredTransactions = searchFiltered;
+      } else if (_filterType == 'received') {
+        _filteredTransactions = searchFiltered.where((tx) => tx['type'] == 'got').toList();
+      } else if (_filterType == 'paid') {
+        _filteredTransactions = searchFiltered.where((tx) => tx['type'] == 'gave').toList();
+      }
+      
+      // Step 3: Sort by date (newest first)
       _filteredTransactions.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
     });
   }
@@ -167,12 +184,16 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
           else
             _buildBasicSummaryCard(),
 
-          // Transactions header
+          // Transactions header with search and filter tabs
+          Column(
+            children: [
+
+              
+              // Filter tabs row
           Container(
             margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
+                  color: Colors.grey.shade100,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -182,30 +203,29 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                 ),
               ],
             ),
+                                child: Padding(
+                  padding: const EdgeInsets.all(1),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.receipt_long,
-                      size: 18,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                    const SizedBox(width: 8),
-                const Text(
-                  'TRANSACTIONS',
-                  style: TextStyle(
-                        fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                    ),
-                  ],
-                ),
+                      // All tab
+                      _buildFilterTab('All', _filterType == 'all'),
+                      
+                      // Received tab
+                      _buildFilterTab('Received', _filterType == 'received'),
+                      
+                      // Paid tab
+                      _buildFilterTab('Paid', _filterType == 'paid'),
+                      
+                                            const Spacer(),
+                      
+                      // Search icon
                     IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                   icon: Icon(
                     _isSearching ? Icons.close : Icons.search,
-                    size: 22,
+                          size: 20,
+                          color: Colors.grey.shade700,
                   ),
                       onPressed: () {
                         setState(() {
@@ -216,7 +236,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                         });
                       },
                 ),
+                      const SizedBox(width: 4),
               ],
+                  ),
             ),
           ),
 
@@ -252,12 +274,118 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                   filled: true,
                 ),
               ),
+                ),
+            ],
             ),
 
           // Transactions list
           Expanded(
             child: _filteredTransactions.isEmpty
                 ? const Center(child: Text('No transactions found'))
+                : !(widget.contact['type']?.toString().isNotEmpty == true)
+                    // Use the new table style UI for standard entries
+                    ? Column(
+                        children: [
+                          // Header row
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              border: Border(
+                                bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                              ),
+                            ),
+                            padding: const EdgeInsets.all(1),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: Text(
+                                    'Date',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ),
+                                
+                                // Vertical line
+                                Container(
+                                  height: 24,
+                                  width: 0.5,
+                                  color: Colors.grey.shade400,
+                                ),
+                                
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    'Debit',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: Colors.red.shade700,
+                                    ),
+                                    textAlign: TextAlign.end,
+                                  ),
+                                ),
+                                
+                                // Vertical line
+                                Container(
+                                  height: 24,
+                                  width: 0.5,
+                                  color: Colors.grey.shade400,
+                                ),
+                                
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    'Credit',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: Colors.green.shade700,
+                                    ),
+                                    textAlign: TextAlign.end,
+                                  ),
+                                ),
+                                
+                                // Vertical line
+                                Container(
+                                  height: 24,
+                                  width: 0.5,
+                                  color: Colors.grey.shade400,
+                                ),
+                                
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    'Balance',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                    textAlign: TextAlign.end,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Transaction rows
+                          Expanded(
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(1),
+                              itemCount: _filteredTransactions.length,
+                              itemBuilder: (context, index) {
+                                final tx = _filteredTransactions[index];
+                                final runningBalance = _calculateRunningBalance(index);
+                                return _buildTableTransactionItem(tx, runningBalance, index);
+                              },
+                            ),
+                          ),
+                        ],
+                      )
+                    // Use the original card style for interest entries
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     itemCount: _filteredTransactions.length,
@@ -520,6 +648,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                 icon: const Icon(Icons.close),
                 onPressed: () => Navigator.pop(context),
               ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.download),
+                  onPressed: () => _downloadImage(imagePath),
+                  tooltip: 'Download image',
+                ),
+              ],
             ),
             Container(
               constraints: BoxConstraints(
@@ -535,6 +670,53 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
         ),
       ),
     );
+  }
+  
+  Future<void> _downloadImage(String imagePath) async {
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saving image...'))
+      );
+      
+      // Create a unique filename
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final fileName = 'receipt_$timestamp.jpg';
+      
+      // Get the destination directory path
+      final directory = await getExternalStorageDirectory();
+      final downloadPath = '${directory?.path}/Download/$fileName';
+      
+      // Ensure the download directory exists
+      final downloadDir = Directory('${directory?.path}/Download');
+      if (!await downloadDir.exists()) {
+        await downloadDir.create(recursive: true);
+      }
+      
+      // Copy the file
+      final File originalFile = File(imagePath);
+      await originalFile.copy(downloadPath);
+      
+      // Show success message
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Image saved to Downloads/$fileName'),
+          action: SnackBarAction(
+            label: 'OK',
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      // Show error message
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving image: $e')),
+      );
+    }
   }
 
   void _showContactInfo() {
@@ -1028,7 +1210,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                             
                             // Refresh transactions
                             setState(() {
-                            _filterTransactions();
+                            _applyFilters();
                             });
                             
                             Navigator.pop(context);
@@ -1863,59 +2045,59 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // Amount section (left-aligned)
-                Row(
+                    Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
-                  children: [
+                      children: [
                     const Text(
                       '₹ ',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                          color: Colors.white,
+                        ),
                     ),
-                    Text(
+                Text(
                       NumberFormat('#,##0.00').format(balance.abs()),
                       style: TextStyle(
                         // Adjust font size based on amount
                         fontSize: _getAdaptiveFontSize(balance.abs()),
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                  ),
+                      ],
                 ),
                 
                 // Action label (right-aligned)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
+                        decoration: BoxDecoration(
                     color: isPositive ? Colors.green.shade800 : Colors.red.shade800,
                     borderRadius: BorderRadius.circular(4),
-                  ),
+                        ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: [
+                  children: [
                       Icon(
                         isPositive ? Icons.arrow_downward : Icons.arrow_upward,
                         color: Colors.white,
                         size: 14,
-                      ),
+                    ),
                       const SizedBox(width: 4),
                       Text(
-                        isPositive ? 'RECEIVE MONEY' : 'PAY MONEY',
+                        isPositive ? 'Receive' : 'Pay',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ],
             ),
+        ),
+              ],
+      ),
           ),
           
           // Statistics section
@@ -1942,7 +2124,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                     colors: [Color(0xFF6A74CC), Color(0xFF3B5AC0)],
                   ),
                   onTap: _handleCallButton,
-                ),
+            ),
                 _buildActionButtonCompact(
                   context,
                   Icons.picture_as_pdf,
@@ -1954,7 +2136,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                     colors: [Color(0xFFE57373), Color(0xFFC62828)],
                   ),
                   onTap: _handlePdfReport,
-                ),
+            ),
                 _buildActionButtonCompact(
                   context,
                   Icons.notifications,
@@ -1981,11 +2163,11 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            ),
+          ],
+        ),
+      );
+    }
   
   // Helper widget for compact action buttons in the summary card
   Widget _buildActionButtonCompact(
@@ -2091,6 +2273,15 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
       
       // Get transactions
       final transactions = _transactionProvider.getTransactionsForContact(_contactId);
+      
+      // Check if transactions are empty
+      if (transactions.isEmpty) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No transactions to generate report')),
+        );
+        return;
+      }
       
       // Prepare data for PDF summary card
       final balance = _calculateBalance();
@@ -2214,73 +2405,275 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
         ]);
       }
       
-      // Prepare data for transaction table
-      final List<String> tableColumns = ['Date', 'Note', 'Amount', 'Type'];
+      // ===== TRADITIONAL LEDGER FORMAT =====
+      
+      // Prepare data for traditional ledger style transaction table
+      final List<String> tableColumns = ['Date', 'Description', 'Debit', 'Credit', 'Balance'];
       final List<List<String>> tableRows = [];
       
-      // Sort transactions by date (newest first)
+      // Sort transactions by date (oldest first) for traditional ledger
       final sortedTransactions = List<Map<String, dynamic>>.from(transactions);
-      sortedTransactions.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+      sortedTransactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+      
+      // Calculate running balance for each transaction
+      double runningBalance = 0.0;
       
       for (var transaction in sortedTransactions) {
         final date = transaction['date'] != null
-            ? DateFormat('dd MMM yyyy').format(transaction['date'] as DateTime)
+            ? DateFormat('dd/MM/yyyy').format(transaction['date'] as DateTime)
             : 'N/A';
         
-        String note = transaction['note'] ?? '';
-        if (note.isEmpty) {
-          note = transaction['type'] == 'gave' ? 'Payment sent' : 'Payment received';
+        final String description = transaction['note'] != null && transaction['note'].toString().isNotEmpty
+            ? transaction['note'].toString()
+            : (transaction['type'] == 'gave' ? 'Payment sent' : 'Payment received');
+        
+        final double amount = transaction['amount'] as double;
+        final bool isDebit = transaction['type'] == 'gave';
+        
+        // Update running balance
+        if (isDebit) {
+          runningBalance += amount; // Debit increases what they owe to you
+        } else {
+          runningBalance -= amount; // Credit decreases what they owe to you
         }
         
-        final amount = 'Rs. ${PdfTemplateService.formatCurrency(transaction['amount'] as double)}';
-        final type = transaction['type'] == 'gave' ? 'You Paid' : 'You Received';
+        // Format amounts properly
+        final debitAmount = isDebit ? 'Rs. ${PdfTemplateService.formatCurrency(amount)}' : '';
+        final creditAmount = !isDebit ? 'Rs. ${PdfTemplateService.formatCurrency(amount)}' : '';
+        final balanceAmount = 'Rs. ${PdfTemplateService.formatCurrency(runningBalance.abs())}';
+        final balanceAmountWithSign = runningBalance >= 0 
+            ? balanceAmount // Positive means they owe you
+            : "($balanceAmount)"; // Negative means you owe them
         
-        tableRows.add([date, note, amount, type]);
+        tableRows.add([date, description, debitAmount, creditAmount, balanceAmountWithSign]);
       }
       
-      // Create PDF content
-      final content = [
-        // Contact Summary Section
-        PdfTemplateService.buildSummaryCard(
-          title: 'Contact Summary',
-          items: summaryItems,
-        ),
-        pw.SizedBox(height: 20),
-        
-        // Transaction Table
-        PdfTemplateService.buildDataTable(
-          title: 'Transaction History',
-          columns: tableColumns,
-          rows: tableRows,
-          columnWidths: [
-            const pw.FlexColumnWidth(2),    // Date
-            const pw.FlexColumnWidth(3.5),  // Note
-            const pw.FlexColumnWidth(2),    // Amount
-            const pw.FlexColumnWidth(1.5),  // Type
-          ],
-        ),
-      ];
+      // Create PDF manually to ensure it works
+      final pdf = pw.Document();
       
-      // Generate the PDF document
       final contactName = widget.contact['name'].toString().replaceAll(RegExp(r'[^\w\s]+'), '').replaceAll(' ', '_');
       final date = DateFormat('yyyy_MM_dd').format(DateTime.now());
       final timestamp = DateFormat('HH_mm_ss').format(DateTime.now());
       final random = DateTime.now().millisecondsSinceEpoch % 10000; // Add random component
-      final fileName = '${contactName}_report_${date}_${timestamp}_$random.pdf';
+      final fileName = '${contactName}_ledger_${date}_${timestamp}_$random.pdf';
       
-      final pdf = await PdfTemplateService.createDocument(
-        title: widget.contact['name'],
-        subtitle: 'Transaction Report',
-        content: content,
-        metadata: {
-          'keywords': 'transaction, report, ${widget.contact['name']}, balance, my byaj book',
-        },
+      // Add page with content
+      pdf.addPage(
+        pw.Page(
+          margin: const pw.EdgeInsets.all(24),
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Add the header
+                PdfTemplateService.buildHeader(
+                  title: widget.contact['name'],
+                  subtitle: 'Account Ledger',
+                ),
+                pw.SizedBox(height: 20),
+                
+                // Contact Summary Section
+                PdfTemplateService.buildSummaryCard(
+                  title: 'Account Statement',
+                  items: summaryItems,
+                ),
+                pw.SizedBox(height: 20),
+                
+                // Traditional Ledger Style Transaction Table
+                pw.Text(
+                  'Transaction Ledger',
+                  style: pw.TextStyle(
+                    fontSize: 16, 
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfTemplateService.primaryColor,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                
+                // Build table directly
+                pw.Table(
+                  border: pw.TableBorder.all(
+                    color: PdfTemplateService.separatorColor,
+                    width: 0.5,
+                  ),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(1.5),    // Date
+                    1: const pw.FlexColumnWidth(4),      // Description
+                    2: const pw.FlexColumnWidth(1.5),    // Debit
+                    3: const pw.FlexColumnWidth(1.5),    // Credit
+                    4: const pw.FlexColumnWidth(1.5),    // Balance
+                  },
+                  children: [
+                    // Header row
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(
+                        color: PdfTemplateService.tableHeaderColor,
+                      ),
+                      children: tableColumns.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final column = entry.value;
+                        
+                        // Different alignment for different columns
+                        pw.TextAlign alignment = pw.TextAlign.left;
+                        if (index >= 2 && index <= 4) {
+                          alignment = pw.TextAlign.right;
+                        } else if (index == 0) {
+                          alignment = pw.TextAlign.center;
+                        }
+                        
+                        return pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(
+                            column,
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                            textAlign: alignment,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    
+                    // Data rows
+                    ...tableRows.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final row = entry.value;
+                      
+                      return pw.TableRow(
+                        decoration: index % 2 == 1
+                            ? const pw.BoxDecoration(color: PdfTemplateService.tableAlternateColor)
+                            : const pw.BoxDecoration(color: PdfColors.white),
+                        children: row.asMap().entries.map((cellEntry) {
+                          final cellIndex = cellEntry.key;
+                          final cell = cellEntry.value;
+                          
+                          pw.TextAlign alignment = pw.TextAlign.left;
+                          if (cellIndex >= 2 && cellIndex <= 4) {
+                            alignment = pw.TextAlign.right;
+                          } else if (cellIndex == 0) {
+                            alignment = pw.TextAlign.center;
+                          }
+                          
+                          PdfColor textColor = PdfColors.black;
+                          pw.FontWeight fontWeight = pw.FontWeight.normal;
+                          
+                          if (cellIndex == 4) {
+                            fontWeight = pw.FontWeight.bold;
+                            if (cell.contains('(')) {
+                              textColor = PdfTemplateService.dangerColor;
+                            } else {
+                              textColor = PdfTemplateService.successColor;
+                            }
+                          }
+                          
+                          return pw.Padding(
+                            padding: const pw.EdgeInsets.all(8),
+                            child: pw.Text(
+                              cell,
+                              textAlign: alignment,
+                              style: pw.TextStyle(
+                                fontWeight: fontWeight,
+                                color: textColor,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    }).toList(),
+                    
+                    // Total row
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(
+                        color: PdfTemplateService.tableHeaderColor,
+                      ),
+                      children: List.generate(tableColumns.length, (index) {
+                        String content = '';
+                        pw.TextAlign alignment = pw.TextAlign.left;
+                        
+                        if (index == 1) {
+                          content = 'CLOSING BALANCE';
+                          alignment = pw.TextAlign.right;
+                        } else if (index == 4 && tableRows.isNotEmpty) {
+                          content = tableRows.last[4];
+                          alignment = pw.TextAlign.right;
+                        }
+                        
+                        return pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(
+                            content,
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                              color: index == 4 ? PdfTemplateService.primaryColor : PdfColors.black,
+                            ),
+                            textAlign: alignment,
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+                
+                // Footer
+                PdfTemplateService.buildFooter(context),
+              ],
+            );
+          },
+        ),
       );
       
-      // Save and open the PDF
-      await PdfTemplateService.saveAndOpenPdf(pdf, fileName);
+      try {
+        // Get app's directory for saving the PDF
+        final directory = await getApplicationDocumentsDirectory();
+        final filePath = '${directory.path}/$fileName';
+        
+        // Save PDF directly to file system
+        final file = File(filePath);
+        await file.writeAsBytes(await pdf.save());
+        
+        // Try to open the PDF
+        final result = await OpenFile.open(filePath);
+        
+        // Log the status
+        print('OpenFile Result: ${result.type.toString()} - ${result.message}');
+        
+        // Show success message
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Ledger PDF generated successfully'),
+                Text(
+                  'Saved to: $filePath',
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'OK',
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      } catch (e) {
+        print('Error saving or opening PDF: $e');
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving PDF: $e'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      // Show detailed error message with stack trace
+      print('PDF Generation error: $e');
+      print('Stack trace: $stackTrace');
       
-      // Show success message
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -2288,29 +2681,22 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('PDF report generated successfully'),
+              const Text('Error generating PDF report'),
               Text(
-                'Filename: $fileName',
+                e.toString(),
                 style: const TextStyle(fontSize: 12, color: Colors.white70),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 5),
           action: SnackBarAction(
-            label: 'OK',
+            label: 'Dismiss',
             onPressed: () {
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
             },
           ),
-        ),
-      );
-    } catch (e) {
-      // Show error message
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error generating PDF report: $e'),
-          duration: const Duration(seconds: 5),
         ),
       );
     }
@@ -2681,7 +3067,7 @@ ${_getAppUserName()} 📱
   // Load transactions for the current contact
   void _loadTransactions() {
     _filteredTransactions = _transactionProvider.getTransactionsForContact(_contactId);
-    _filterTransactions();
+    _applyFilters();
   }
 
   // Method to show the add transaction dialog
@@ -3483,7 +3869,7 @@ ${_getAppUserName()} 📱
                             
                             // Refresh the UI
                             setState(() {
-                              _filterTransactions();
+                              _applyFilters();
                             });
                             
                             Navigator.pop(context);
@@ -3537,7 +3923,318 @@ ${_getAppUserName()} 📱
     if (mounted) {
       _transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
       // Reload transactions for this contact
-      _filterTransactions();
+      _applyFilters();
     }
+  }
+
+  // Helper method to format currency without decimal places unless needed
+  String _formatCurrencyWithoutTrailingZeros(double value) {
+    // Check if the value has decimal places
+    if (value == value.roundToDouble()) {
+      // No decimal places, use integer format
+      return NumberFormat('#,##0').format(value);
+    } else {
+      // Has decimal places, use decimal format
+      return NumberFormat('#,##0.00').format(value);
+    }
+  }
+
+  // Table style transaction item for standard entries
+  Widget _buildTableTransactionItem(Map<String, dynamic> tx, double runningBalance, int index) {
+    final isGave = tx['type'] == 'gave';
+    final amount = tx['amount'] as double;
+    final date = tx['date'] as DateTime;
+    final hasNote = (tx['note'] as String?) != null && (tx['note'] as String).isNotEmpty;
+    final hasImage = tx['imagePath'] != null;
+    final hasImages = tx['imagePaths'] != null && (tx['imagePaths'] as List).isNotEmpty;
+    
+    // Use the legacy single image path or the new multi-image paths
+    final List<String> imagePaths = hasImages 
+        ? List<String>.from(tx['imagePaths'] as List)
+        : (hasImage ? [tx['imagePath'] as String] : []);
+    
+    // Get the original index in the unfiltered list for delete/edit operations
+    final allTransactions = _transactionProvider.getTransactionsForContact(_contactId);
+    final originalIndex = allTransactions.indexOf(tx);
+    
+    // Format the date in the style shown in the UI reference (day month year)
+    final formattedDate = DateFormat('dd MMM yy').format(date);
+    final formattedTime = DateFormat('hh:mm a').format(date);
+    
+    return GestureDetector(
+      // Edit transaction on tap
+      onTap: () => _editTransaction(tx, originalIndex),
+      // Delete transaction on long press
+      onLongPress: () => _confirmDeleteTransaction(tx, originalIndex),
+      child: Container(
+        decoration: BoxDecoration(
+          color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
+          border: Border(
+            bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 1),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                // Date column
+                Expanded(
+                  flex: 3,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Icon showing transaction direction
+                      Container(
+                        width: 20,
+                        height: 20,
+                        margin: const EdgeInsets.only(right: 6),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isGave ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                        ),
+                        child: Icon(
+                          isGave ? Icons.arrow_upward : Icons.arrow_downward,
+                          size: 12,
+                          color: isGave ? Colors.red : Colors.green,
+                        ),
+                      ),
+                      // Date stacked on time
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            formattedDate,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            formattedTime,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Vertical line after Date column
+                Container(
+                  height: 40,
+                  width: 0.5,
+                  color: Colors.grey.shade300,
+                ),
+                
+                // Debit column (only show if payment was made)
+                Expanded(
+                  flex: 2,
+                  child: isGave ? Container(
+                    constraints: const BoxConstraints(maxWidth: 100),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Text(
+                        '₹ ${_formatCurrencyWithoutTrailingZeros(amount)}',
+                        style: TextStyle(
+                          fontSize: amount > 1000000 ? 12 : 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.red,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ) : const SizedBox(),
+                ),
+                
+                // Vertical line after Debit column
+                Container(
+                  height: 40,
+                  width: 0.5,
+                  color: Colors.grey.shade300,
+                ),
+                
+                // Credit column (only show if payment was received)
+                Expanded(
+                  flex: 2,
+                  child: !isGave ? Container(
+                    constraints: const BoxConstraints(maxWidth: 100),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Text(
+                        '₹ ${_formatCurrencyWithoutTrailingZeros(amount)}',
+                        style: TextStyle(
+                          fontSize: amount > 1000000 ? 12 : 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.green,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ) : const SizedBox(),
+                ),
+                
+                // Vertical line after Credit column
+                Container(
+                  height: 40,
+                  width: 0.5,
+                  color: Colors.grey.shade300,
+                ),
+                
+                // Balance column
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 120),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            runningBalance >= 0 ? '₹ ' : '₹ -',
+                            style: TextStyle(
+                              fontSize: runningBalance.abs() > 100000000 ? 12 : 14,
+                              fontWeight: FontWeight.w500,
+                              color: runningBalance >= 0 ? Colors.blue : Colors.red,
+                            ),
+                          ),
+                          Text(
+                            _formatCurrencyWithoutTrailingZeros(runningBalance.abs()),
+                            style: TextStyle(
+                              fontSize: runningBalance.abs() > 100000000 ? 12 : 14,
+                              fontWeight: FontWeight.w500,
+                              color: runningBalance >= 0 ? Colors.blue : Colors.red,
+                            ),
+                            textAlign: TextAlign.end,
+                            maxLines: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            // Note and images section
+            if (hasNote || imagePaths.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 4, left: 26),
+                width: double.infinity,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Display note if available
+                    if (hasNote)
+                      Text(
+                        tx['note'] as String,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade700,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    
+                    // Display image thumbnails if available
+                    if (imagePaths.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          children: [
+                            for (int i = 0; i < imagePaths.length && i < 3; i++)
+                              GestureDetector(
+                                onTap: () => _showFullImage(context, imagePaths[i]),
+                                child: Container(
+                                  height: 30,
+                                  width: 30,
+                                  margin: const EdgeInsets.only(right: 4),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300, width: 1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(3),
+                                    child: Image.file(
+                                      File(imagePaths[i]),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            // Show count if more than 3 images
+                            if (imagePaths.length > 3)
+                              Container(
+                                height: 30,
+                                width: 30,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '+${imagePaths.length - 3}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade700,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper method to build a filter tab
+  Widget _buildFilterTab(String label, bool isActive) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          // Update filter type based on tab selection
+          _filterType = label.toLowerCase();
+          _applyFilters();
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 1),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.blue.shade100 : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        // Use FittedBox to prevent text overflow
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              color: isActive ? Colors.blue : Colors.grey.shade700,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 } 

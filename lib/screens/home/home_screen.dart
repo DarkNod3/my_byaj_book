@@ -1453,7 +1453,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         boxShadow: [
           BoxShadow(
             color: AppTheme.primaryColor.withOpacity(0.15),
-            blurRadius: 6,
+            blurRadius: 4, // Reduced from 6
             offset: const Offset(0, 2),
           ),
         ],
@@ -1461,16 +1461,16 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       child: Column(
         children: [
           Container(
-            margin: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-            height: 42,
+            margin: const EdgeInsets.fromLTRB(12, 4, 12, 4), // Further reduced horizontal margins
+            height: 34, // Further reduced height
             decoration: BoxDecoration(
               color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10), // Reduced from 12
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
+                  blurRadius: 2, // Reduced from 4
+                  offset: const Offset(0, 1), // Reduced from 0,2
                 ),
               ],
             ),
@@ -1508,25 +1508,25 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               indicatorWeight: 0,
               dividerColor: Colors.transparent,
               indicatorPadding: EdgeInsets.zero,
-              labelPadding: EdgeInsets.zero,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 2), // Reduced padding
               labelColor: Colors.white,
               unselectedLabelColor: Colors.grey.shade700,
               labelStyle: const TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontSize: 11, // Further reduced from 12
               ),
               unselectedLabelStyle: const TextStyle(
                 fontWeight: FontWeight.w500,
-                fontSize: 13,
+                fontSize: 10, // Further reduced from 11
               ),
               tabs: const [
                 Tab(
-                  text: 'Standard Entries',
-                  height: 36,
+                  text: 'Standard',  // Shortened text
+                  height: 28, // Further reduced height
                 ),
                 Tab(
-                  text: 'Interest Entries',
-                  height: 36,
+                  text: 'Interest',  // Shortened text
+                  height: 28, // Further reduced height
                 ),
               ],
             ),
@@ -1556,7 +1556,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   Widget _buildBalanceSummary() {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 6), // Reduced from 16,10,16,8
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -1566,17 +1566,17 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12), // Reduced from 16
         boxShadow: [
           BoxShadow(
             color: AppTheme.primaryColor.withOpacity(0.25),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            blurRadius: 6, // Reduced from 8
+            offset: const Offset(0, 3), // Reduced from 0,4
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12.0), // Reduced from 16.0
       child: Column(
         children: [
           Row(
@@ -1588,47 +1588,47 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                     Row(
                       children: [
                         Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(6), // Reduced from 8
                           decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(8), // Reduced from 10
                           ),
                           child: const Icon(
                             Icons.arrow_upward_rounded,
                               color: Colors.white,
-                              size: 16,
+                              size: 14, // Reduced from 16
                           ),
                         ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6), // Reduced from 8
                         const Text(
                             'You Will Pay',
                           style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12, // Reduced from 13
                               color: Colors.white,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6), // Reduced from 8
                     // Remove the original FittedBox display and keep only the white button
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // Reduced from 16,8
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10), // Reduced from 12
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                            blurRadius: 3, // Reduced from 4
+                            offset: const Offset(0, 1), // Reduced from 0,2
                           ),
                         ],
                       ),
                       child: Text(
                         _formatCompactCurrency(_cachedTotalToGive),
                         style: TextStyle(
-                          fontSize: _getButtonFontSize(_cachedTotalToGive),
+                          fontSize: _getFontSizeForAmount(_cachedTotalToGive), // Using renamed method
                           fontWeight: FontWeight.bold,
                           color: Colors.red.shade700,
                         ),
@@ -1656,9 +1656,9 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                 ),
               ),
               Container(
-                  height: 50,
+                  height: 40, // Reduced from 50
                 width: 1,
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withOpacity(0.25), // Slightly reduced opacity
               ),
               Expanded(
                 child: Column(
@@ -1668,47 +1668,47 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(6), // Reduced from 8
                           decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(8), // Reduced from 10
                           ),
                           child: const Icon(
                             Icons.arrow_downward_rounded,
                               color: Colors.white,
-                              size: 16,
+                              size: 14, // Reduced from 16
                           ),
                         ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6), // Reduced from 8
                         const Text(
                             'You Will Receive',
                           style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12, // Reduced from 13
                               color: Colors.white,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6), // Reduced from 8
                     // Remove the original FittedBox display and keep only the white button
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // Reduced from 16,8
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10), // Reduced from 12
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                            blurRadius: 3, // Reduced from 4
+                            offset: const Offset(0, 1), // Reduced from 0,2
                           ),
                         ],
                       ),
                       child: Text(
                         _formatCompactCurrency(_cachedTotalToGet),
                         style: TextStyle(
-                          fontSize: _getButtonFontSize(_cachedTotalToGet),
+                          fontSize: _getFontSizeForAmount(_cachedTotalToGet), // Using renamed method
                           fontWeight: FontWeight.bold,
                           color: Colors.green.shade700,
                         ),
@@ -1744,23 +1744,23 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   }
   
   // Helper method to determine font size based on amount
-  double _getAdaptiveFontSize(double amount) {
+  double _getButtonFontSize(double amount) {
     if (amount >= 10000000) { // ≥ 1 crore
-      return 16;
+      return 14; // Reduced from 16
     } else if (amount >= 1000000) { // ≥ 10 lakh
-      return 18;
+      return 16; // Reduced from 18
     } else if (amount >= 100000) { // ≥ 1 lakh
-      return 20;
+      return 17; // Reduced from 20
     } else {
-      return 22;
+      return 18; // Reduced from 22
     }
   }
   
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // Reduced from 16,12
       child: Container(
-        height: 50,
+        height: 44, // Reduced from 50
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(15),
@@ -2311,7 +2311,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), // Reduced padding
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -2356,7 +2356,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               });
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), // Reduced inner padding
               child: Column(
                 children: [
                   Row(
@@ -3278,7 +3278,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   }
 
   // Helper method to determine font size for amount buttons based on the amount
-  double _getButtonFontSize(double amount) {
+  // This was renamed to avoid duplicate method declaration
+  double _getFontSizeForAmount(double amount) {
     if (amount >= 10000000) { // ≥ 1 crore (always abbreviated)
       return 16.0;
     } else if (amount >= 1000000) { // ≥ 10 lakh
