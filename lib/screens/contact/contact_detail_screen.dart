@@ -286,6 +286,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                     // Use the new table style UI for standard entries
                     ? Column(
                         children: [
+
+                          
                           // Header row
                           Container(
                             decoration: BoxDecoration(
@@ -325,7 +327,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                                       fontSize: 14,
                                       color: Colors.red.shade700,
                                     ),
-                                    textAlign: TextAlign.end,
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
                                 
@@ -345,27 +347,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                                       fontSize: 14,
                                       color: Colors.green.shade700,
                                     ),
-                                    textAlign: TextAlign.end,
-                                  ),
-                                ),
-                                
-                                // Vertical line
-                                Container(
-                                  height: 24,
-                                  width: 0.5,
-                                  color: Colors.grey.shade400,
-                                ),
-                                
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    'Balance',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                      color: Colors.blue.shade700,
-                                    ),
-                                    textAlign: TextAlign.end,
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
                               ],
@@ -636,10 +618,12 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
   void _showFullImage(BuildContext context, String imagePath) {
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) => Dialog(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Custom app bar with better actions
             AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
@@ -649,10 +633,35 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                 onPressed: () => Navigator.pop(context),
               ),
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.download),
-                  onPressed: () => _downloadImage(imagePath),
-                  tooltip: 'Download image',
+                // Download button with enhanced visual
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  child: Material(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => _downloadImage(imagePath),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.download, color: Colors.blue.shade700, size: 18),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Save',
+                              style: TextStyle(
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -660,12 +669,26 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(context).size.height * 0.6,
               ),
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context), // Tap image to close
               child: Image.file(
                 File(imagePath),
                 fit: BoxFit.contain,
               ),
             ),
-            const SizedBox(height: 16),
+            ),
+            // Footer with cancel button
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: TextButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.cancel_outlined),
+                label: const Text('Cancel'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -674,9 +697,25 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
   
   Future<void> _downloadImage(String imagePath) async {
     try {
-      // Show loading indicator
+      // Show loading indicator with improved message
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saving image...'))
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20, 
+                height: 20, 
+                child: CircularProgressIndicator(
+                  strokeWidth: 2, 
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Saving image to gallery...'),
+            ],
+          ),
+          duration: Duration(seconds: 1),
+        )
       );
       
       // Create a unique filename
@@ -697,24 +736,67 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
       final File originalFile = File(imagePath);
       await originalFile.copy(downloadPath);
       
-      // Show success message
+      // Show success message with action buttons
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Image saved to Downloads/$fileName'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green.shade300, size: 18),
+                  const SizedBox(width: 8),
+                  const Text('Image saved successfully'),
+                ],
+              ),
+              Text(
+                'Location: Download/$fileName',
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 4),
           action: SnackBarAction(
-            label: 'OK',
-            onPressed: () {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            label: 'OPEN',
+            onPressed: () async {
+              try {
+                // Try to open the saved file
+                await OpenFile.open(downloadPath);
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Unable to open file: $e')),
+                  );
+                }
+              }
             },
           ),
         ),
       );
+      
+      // Close the image viewer dialog after successful download
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
     } catch (e) {
-      // Show error message
+      // Show error message with more details
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving image: $e')),
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red.shade300),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Error saving image: $e'),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 5),
+        ),
       );
     }
   }
@@ -819,7 +901,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
     final TextEditingController amountController = TextEditingController();
     final TextEditingController noteController = TextEditingController();
     DateTime selectedDate = DateTime.now();
-    String? imagePath;
+    List<String> imagePaths = [];
     String? amountError; // Add this to track error state
     
     // Define maximum amount (99 crore)
@@ -981,7 +1063,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                   
                   const SizedBox(height: 12),
                   
-                  // Note Field
+                  // Note and Attach Bill in one row (70:30 ratio)
                   const Text(
                     'Note (optional)',
                     style: TextStyle(
@@ -990,7 +1072,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                     ),
                   ),
                   const SizedBox(height: 4),
-                  TextField(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Note field (70%)
+                      Expanded(
+                        flex: 7,
+                        child: TextField(
                     controller: noteController,
                     decoration: InputDecoration(
                       hintText: 'Add a note...',
@@ -1003,54 +1091,131 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
                     ),
-                  const SizedBox(height: 12),
-                  
-                  // Image Upload
-                  const Text(
-                    'Attach Receipt/Bill (optional)',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  GestureDetector(
+                      ),
+                      const SizedBox(width: 8),
+                      // Attach Bill button (30%)
+                      Expanded(
+                        flex: 3,
+                        child: GestureDetector(
                     onTap: () {
                       _showImageSourceOptions(context, (path) {
                         setState(() {
-                          imagePath = path;
+                                imagePaths.add(path);
                         });
                       });
                     },
                     child: Container(
-                      height: 80,
-                      width: double.infinity,
+                            height: 48, // Match height with text field
                       decoration: BoxDecoration(
                         color: Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(8),
-                        border: imagePath != null 
+                              border: imagePaths.isNotEmpty 
                           ? Border.all(color: type == 'gave' ? Colors.red : Colors.green, width: 1) 
                           : null,
                       ),
-                      child: imagePath != null
-                          ? Stack(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                ClipRRect(
+                                Icon(
+                                  imagePaths.isNotEmpty ? Icons.check_circle : Icons.add_photo_alternate,
+                                  size: 20,
+                                  color: type == 'gave' ? Colors.red.withOpacity(0.7) : Colors.green.withOpacity(0.7),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  imagePaths.isNotEmpty ? 'Photos (${imagePaths.length})' : 'Attach Bill',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: type == 'gave' ? Colors.red.withOpacity(0.7) : Colors.green.withOpacity(0.7),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  // Image Preview (only shows when images are attached)
+                  if (imagePaths.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: type == 'gave' ? Colors.red.shade300 : Colors.green.shade300,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Display image thumbnails horizontally
+                        Expanded(
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: imagePaths.length + 1, // +1 for the "add more" button
+                            itemBuilder: (context, index) {
+                              // Last item is "add more" button
+                              if (index == imagePaths.length) {
+                                return GestureDetector(
+                                  onTap: () {
+                                    _showImageSourceOptions(context, (path) {
+                                      setState(() {
+                                        imagePaths.add(path);
+                                      });
+                                    });
+                                  },
+                                  child: Container(
+                                    width: 60,
+                                    margin: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade200,
                                   borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.add_photo_alternate,
+                                      color: type == 'gave' ? Colors.red.withOpacity(0.7) : Colors.green.withOpacity(0.7),
+                                    ),
+                                  ),
+                                );
+                              }
+                              
+                              // Show image thumbnails
+                              return Stack(
+                                children: [
+                                  Container(
+                                    width: 60,
+                                    margin: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(5),
                                   child: Image.file(
-                                    File(imagePath!),
-                                    width: double.infinity,
-                                    height: double.infinity,
+                                        File(imagePaths[index]),
                                     fit: BoxFit.cover,
                                   ),
                                 ),
+                                  ),
+                                  // Remove button
                                 Positioned(
-                                  top: 4,
-                                  right: 4,
+                                    top: 2,
+                                    right: 2,
                                   child: GestureDetector(
                                     onTap: () {
                                       setState(() {
-                                        imagePath = null;
+                                          imagePaths.removeAt(index);
                                       });
                                     },
                                     child: Container(
@@ -1062,31 +1227,17 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                                       child: const Icon(
                                         Icons.close,
                                         color: Colors.white,
-                                        size: 14,
+                                          size: 12,
                                       ),
                                     ),
                                   ),
                                 ),
                               ],
-                            )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_photo_alternate,
-                                  size: 24,
-                                  color: type == 'gave' ? Colors.red.withOpacity(0.7) : Colors.green.withOpacity(0.7),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Tap to add photo',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: type == 'gave' ? Colors.red.withOpacity(0.7) : Colors.green.withOpacity(0.7),
+                              );
+                            },
                                   ),
                                 ),
                               ],
-                            ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -1194,18 +1345,21 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                               note = prefix + note;
                             }
 
-                            // Add transaction details
+                            // Add transaction details with support for multiple images
                             _transactionProvider.addTransactionDetails(
                               _contactId,
                               amount,
                               type,
                               selectedDate,
                               note,
-                              imagePath,
-                              extraData: isWithInterest ? {
+                              imagePaths.isNotEmpty ? imagePaths[0] : null, // Backwards compatibility for single image
+                              extraData: {
+                                if (isWithInterest) ...{
                                 'isPrincipal': actualIsPrincipal,
                                 'interestRate': widget.contact['interestRate'] as double,
-                              } : null,
+                                },
+                                if (imagePaths.length > 1) 'imagePaths': imagePaths,
+                              },
                             );
                             
                             // Refresh transactions
@@ -2472,13 +2626,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
                 ),
                 pw.SizedBox(height: 20),
                 
-                // Contact Summary Section
-                PdfTemplateService.buildSummaryCard(
+        // Contact Summary Section
+        PdfTemplateService.buildSummaryCard(
                   title: 'Account Statement',
-                  items: summaryItems,
-                ),
-                pw.SizedBox(height: 20),
-                
+          items: summaryItems,
+        ),
+        pw.SizedBox(height: 20),
+        
                 // Traditional Ledger Style Transaction Table
                 pw.Text(
                   'Transaction Ledger',
@@ -2634,38 +2788,38 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> with RouteAwa
         
         // Log the status
         print('OpenFile Result: ${result.type.toString()} - ${result.message}');
-        
-        // Show success message
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+      
+      // Show success message
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
                 const Text('Ledger PDF generated successfully'),
-                Text(
+              Text(
                   'Saved to: $filePath',
-                  style: const TextStyle(fontSize: 12, color: Colors.white70),
-                ),
-              ],
-            ),
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'OK',
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              },
-            ),
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ],
           ),
-        );
-      } catch (e) {
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'OK',
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ),
+      );
+    } catch (e) {
         print('Error saving or opening PDF: $e');
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
             content: Text('Error saving PDF: $e'),
-            duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -3374,7 +3528,15 @@ ${_getAppUserName()} 📱
     
     String type = tx['type'] ?? 'gave';
     DateTime selectedDate = tx['date'] ?? DateTime.now();
-    String? imagePath = tx['imagePath'];
+    
+    // Handle multiple images from extraData or fallback to single imagePath for backward compatibility
+    List<String> imagePaths = [];
+    if (tx['extraData'] != null && tx['extraData']['imagePaths'] != null) {
+      imagePaths = List<String>.from(tx['extraData']['imagePaths']);
+    } else if (tx['imagePath'] != null) {
+      imagePaths.add(tx['imagePath']);
+    }
+    
     String? amountError; // Add this to track error state
     
     // Define maximum amount (99 crore)
@@ -3594,7 +3756,7 @@ ${_getAppUserName()} 📱
                     onTap: () {
                       _showImageSourceOptions(context, (path) {
                         setState(() {
-                          imagePath = path;
+                          imagePaths.add(path);
                         });
                       });
                     },
@@ -3604,29 +3766,55 @@ ${_getAppUserName()} 📱
                       decoration: BoxDecoration(
                         color: Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(8),
-                        border: imagePath != null 
+                        border: imagePaths.isNotEmpty 
                           ? Border.all(color: type == 'gave' ? Colors.red : Colors.green, width: 1) 
                           : null,
                       ),
-                      child: imagePath != null
+                      child: imagePaths.isNotEmpty
                           ? Stack(
                               children: [
+                                // Show multiple image indicator if there are multiple images
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
-                                  child: Image.file(
-                                    File(imagePath!),
+                                  child: Stack(
+                                    children: [
+                                      Image.file(
+                                        File(imagePaths[0]),
                                     width: double.infinity,
                                     height: double.infinity,
                                     fit: BoxFit.cover,
                                   ),
+                                      if (imagePaths.length > 1)
+                                        Positioned(
+                                          bottom: 4,
+                                          right: 4,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.7),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              "+${imagePaths.length - 1}",
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ),
+                                // Delete button
                                 Positioned(
                                   top: 4,
                                   right: 4,
                                   child: GestureDetector(
                                     onTap: () {
                                       setState(() {
-                                        imagePath = null;
+                                        imagePaths.clear();
                                       });
                                     },
                                     child: Container(
@@ -3853,15 +4041,28 @@ ${_getAppUserName()} 📱
                               'note': note,
                             };
                             
-                            // Add image path if present
-                            if (imagePath != null) {
-                              updatedTx['imagePath'] = imagePath;
+                            // Add image path if present (for backwards compatibility)
+                            if (imagePaths.isNotEmpty) {
+                              updatedTx['imagePath'] = imagePaths[0];
                             }
+                            
+                            // Create extraData for additional info
+                            Map<String, dynamic> extraData = {};
                             
                             // Add interest/principal info if applicable
                             if (isWithInterest) {
-                              updatedTx['isPrincipal'] = actualIsPrincipal;
-                              updatedTx['interestRate'] = widget.contact['interestRate'] as double;
+                              extraData['isPrincipal'] = actualIsPrincipal;
+                              extraData['interestRate'] = widget.contact['interestRate'] as double;
+                            }
+                            
+                            // Add multiple images if present
+                            if (imagePaths.length > 1) {
+                              extraData['imagePaths'] = imagePaths;
+                            }
+                            
+                            // Only add extraData if not empty
+                            if (extraData.isNotEmpty) {
+                              updatedTx['extraData'] = extraData;
                             }
                             
                             // Update the transaction
@@ -3961,6 +4162,15 @@ ${_getAppUserName()} 📱
     final formattedDate = DateFormat('dd MMM yy').format(date);
     final formattedTime = DateFormat('hh:mm a').format(date);
     
+    // Skip displaying "Payment sent" or "Payment received" notes
+    bool skipPaymentNote = false;
+    if (hasNote) {
+      String noteText = (tx['note'] as String).toLowerCase();
+      if (noteText == 'payment sent' || noteText == 'payment received') {
+        skipPaymentNote = true;
+      }
+    }
+    
     return GestureDetector(
       // Edit transaction on tap
       onTap: () => _editTransaction(tx, originalIndex),
@@ -4031,26 +4241,26 @@ ${_getAppUserName()} 📱
                   color: Colors.grey.shade300,
                 ),
                 
-                // Debit column (only show if payment was made)
+                // Debit column (show value if payment was made, otherwise show "--")
                 Expanded(
                   flex: 2,
-                  child: isGave ? Container(
+                  child: Container(
                     constraints: const BoxConstraints(maxWidth: 100),
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.center,
                       child: Text(
-                        '₹ ${_formatCurrencyWithoutTrailingZeros(amount)}',
+                        isGave ? '₹ ${_formatCurrencyWithoutTrailingZeros(amount)}' : '--',
                         style: TextStyle(
-                          fontSize: amount > 1000000 ? 12 : 14,
+                          fontSize: isGave ? (amount > 1000000 ? 12 : 14) : 14,
                           fontWeight: FontWeight.w500,
-                          color: Colors.red,
+                          color: isGave ? Colors.red : Colors.grey.shade400,
                         ),
                         textAlign: TextAlign.center,
                         maxLines: 1,
                       ),
                     ),
-                  ) : const SizedBox(),
+                  ),
                 ),
                 
                 // Vertical line after Debit column
@@ -4060,83 +4270,71 @@ ${_getAppUserName()} 📱
                   color: Colors.grey.shade300,
                 ),
                 
-                // Credit column (only show if payment was received)
+                // Credit column (show value if payment was received, otherwise show "--")
                 Expanded(
                   flex: 2,
-                  child: !isGave ? Container(
+                  child: Container(
                     constraints: const BoxConstraints(maxWidth: 100),
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.center,
                       child: Text(
-                        '₹ ${_formatCurrencyWithoutTrailingZeros(amount)}',
+                        !isGave ? '₹ ${_formatCurrencyWithoutTrailingZeros(amount)}' : '--',
                         style: TextStyle(
-                          fontSize: amount > 1000000 ? 12 : 14,
+                          fontSize: !isGave ? (amount > 1000000 ? 12 : 14) : 14,
                           fontWeight: FontWeight.w500,
-                          color: Colors.green,
+                          color: !isGave ? Colors.green : Colors.grey.shade400,
                         ),
                         textAlign: TextAlign.center,
                         maxLines: 1,
                       ),
                     ),
-                  ) : const SizedBox(),
+                  ),
                 ),
                 
-                // Vertical line after Credit column
+                // No vertical line or Balance column - removed per requirement
+              ],
+            ),
+            
+            // Balance display in a row below debit/credit
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Balance display in button shape (right aligned)
                 Container(
-                  height: 40,
-                  width: 0.5,
-                  color: Colors.grey.shade300,
-                ),
-                
-                // Balance column
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 120),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerRight,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            runningBalance >= 0 ? '₹ ' : '₹ -',
-                            style: TextStyle(
-                              fontSize: runningBalance.abs() > 100000000 ? 12 : 14,
-                              fontWeight: FontWeight.w500,
-                              color: runningBalance >= 0 ? Colors.blue : Colors.red,
-                            ),
-                          ),
-                          Text(
-                            _formatCurrencyWithoutTrailingZeros(runningBalance.abs()),
-                            style: TextStyle(
-                              fontSize: runningBalance.abs() > 100000000 ? 12 : 14,
-                              fontWeight: FontWeight.w500,
-                              color: runningBalance >= 0 ? Colors.blue : Colors.red,
-                            ),
-                            textAlign: TextAlign.end,
-                            maxLines: 1,
-                          ),
-                        ],
-                      ),
+                  margin: const EdgeInsets.only(top: 4, right: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: runningBalance >= 0 ? Colors.green.shade100 : Colors.red.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: runningBalance >= 0 ? Colors.green.shade300 : Colors.red.shade300,
+                      width: 0.5,
                     ),
+                  ),
+                  child: Text(
+                    'Bal. ${_formatCurrencyWithoutTrailingZeros(runningBalance.abs())}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: runningBalance >= 0 ? Colors.green.shade800 : Colors.red.shade800,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ],
             ),
             
-            // Note and images section
-            if (hasNote || imagePaths.isNotEmpty)
+            // Show notes (except payment sent/received) and images
+            if ((hasNote && !skipPaymentNote) || imagePaths.isNotEmpty)
               Container(
                 margin: const EdgeInsets.only(top: 4, left: 26),
                 width: double.infinity,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Display note if available
-                    if (hasNote)
+                    // Display non-default notes if available
+                    if (hasNote && !skipPaymentNote)
                       Text(
                         tx['note'] as String,
                         style: TextStyle(
