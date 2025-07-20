@@ -513,11 +513,6 @@ class TransactionProvider extends ChangeNotifier {
       _contactTransactions[contactId] = [];
     }
     
-    // Ensure note is never null
-    if (transaction['note'] == null) {
-      transaction['note'] = transaction['type'] == 'gave' ? 'Payment sent' : 'Payment received';
-    }
-    
     // Add to memory
     _contactTransactions[contactId]!.add(transaction);
     
@@ -595,50 +590,8 @@ class TransactionProvider extends ChangeNotifier {
     if (_contactTransactions.containsKey(contactId) && 
         index >= 0 && 
         index < _contactTransactions[contactId]!.length) {
-      // Store the transaction before removing it
-      final deletedTransaction = _contactTransactions[contactId]![index];
-      
       // Remove from memory immediately
       _contactTransactions[contactId]!.removeAt(index);
-      
-      // Update lastEditedAt timestamp in the associated contact to keep it active
-      final contactIndex = _contacts.indexWhere((contact) => contact['phone'] == contactId);
-      if (contactIndex != -1) {
-        final contact = _contacts[contactIndex];
-        
-        // Preserve the original type before updating
-        final originalType = contact['type'];
-        final bool isInterestContact = originalType != null;
-        
-        // Update lastEditedAt to current time
-        contact['lastEditedAt'] = DateTime.now();
-        
-        // If this was the last transaction, ensure contact still has valid values
-        if (_contactTransactions[contactId]!.isEmpty) {
-          // Keep amount at 0 but don't remove the contact
-          contact['amount'] = 0.0;
-          contact['isGet'] = true; // Default to isGet=true when no transactions
-          
-          // For interest-based contacts, preserve interest type and rate
-          if (isInterestContact) {
-            // Ensure interest values don't disappear
-            contact['interestDue'] = 0.0;
-            contact['displayAmount'] = 0.0;
-            // Keep the contact type (borrower/lender) unchanged
-            contact['type'] = originalType; // Explicitly preserve the type
-            
-            // Force update tabType to ensure it stays in the right tab
-            contact['tabType'] = 'withInterest';
-          } else {
-            // For regular contacts, ensure they stay in the standard tab
-            contact['tabType'] = 'withoutInterest';
-          }
-        }
-        
-        // Save the updated contact
-        _contacts[contactIndex] = contact;
-        await _saveContacts();
-      }
       
       // Save to preferences to ensure permanent deletion
       await _saveTransactions();
@@ -654,21 +607,7 @@ class TransactionProvider extends ChangeNotifier {
   // Delete all transactions for a contact
   Future<void> deleteContactTransactions(String contactId) async {
     if (_contactTransactions.containsKey(contactId)) {
-      // Clear the transactions but keep an empty list to maintain the contact
-      _contactTransactions[contactId] = [];
-      
-      // Update lastEditedAt timestamp in the associated contact to keep it active
-      final contactIndex = _contacts.indexWhere((contact) => contact['phone'] == contactId);
-      if (contactIndex != -1) {
-        final contact = _contacts[contactIndex];
-        
-        // Update lastEditedAt to current time
-        contact['lastEditedAt'] = DateTime.now();
-        
-        // Save the updated contact
-        _contacts[contactIndex] = contact;
-        await _saveContacts();
-      }
+      _contactTransactions.remove(contactId);
       
       // Save to preferences
       await _saveTransactions();
@@ -685,19 +624,13 @@ class TransactionProvider extends ChangeNotifier {
     // Convert complex objects to strings
     final Map<String, List<String>> serializedData = {};
     
-          _contactTransactions.forEach((contactId, transactions) {
+    _contactTransactions.forEach((contactId, transactions) {
       serializedData[contactId] = transactions.map((tx) {
         // Convert DateTime to ISO string for easier serialization
         final txCopy = Map<String, dynamic>.from(tx);
         if (txCopy['date'] is DateTime) {
           txCopy['date'] = txCopy['date'].toIso8601String();
         }
-        
-        // Ensure note is never null
-        if (txCopy['note'] == null) {
-          txCopy['note'] = '';
-        }
-        
         return jsonEncode(txCopy);
       }).toList();
     });
@@ -731,11 +664,6 @@ class TransactionProvider extends ChangeNotifier {
           // Convert ISO string back to DateTime
           if (txMap['date'] is String) {
             txMap['date'] = DateTime.parse(txMap['date']);
-          }
-          
-          // Ensure note is never null
-          if (txMap['note'] == null) {
-            txMap['note'] = '';
           }
           
           return txMap;
@@ -782,11 +710,6 @@ class TransactionProvider extends ChangeNotifier {
   
   // Get all contacts
   List<Map<String, dynamic>> get contacts => _contacts;
-  
-  // Get contacts method for filtering
-  List<Map<String, dynamic>> getContacts() {
-    return List.from(_contacts);
-  }
   
   // Load contacts from SharedPreferences
   Future<void> _loadContacts() async {
@@ -1543,58 +1466,6 @@ class TransactionProvider extends ChangeNotifier {
       }
     } catch (e) {
       print('Error recalculating interest: $e');
-    }
-  }
-
-  // Force a complete refresh of contacts list
-  Future<void> forceRefreshContacts() async {
-    // Load contacts from storage
-    await _loadContacts();
-    
-    // Make sure our transaction mapping is up to date
-    await _ensureContactTransactionSynchronization();
-    
-    // Recalculate interest values
-    await _recalculateInterestValues();
-    
-    // Notify listeners about the changes
-    notifyListeners();
-  }
-
-  // Explicitly save a single contact to storage
-  Future<bool> saveContact(Map<String, dynamic> contactData) async {
-    try {
-      // Ensure we have a valid phone number as contactId
-      final contactId = contactData['phone'] as String?;
-      if (contactId == null || contactId.isEmpty) {
-        return false;
-      }
-      
-      // Find or add the contact
-      final contactIndex = _contacts.indexWhere((c) => c['phone'] == contactId);
-      
-      if (contactIndex >= 0) {
-        // Update existing contact
-        _contacts[contactIndex] = contactData;
-      } else {
-        // Add new contact
-        _contacts.add(contactData);
-      }
-      
-      // Make sure the contact has a transactions list
-      if (!_contactTransactions.containsKey(contactId)) {
-        _contactTransactions[contactId] = [];
-      }
-      
-      // Save to preferences
-      await _saveContacts();
-      
-      // Notify listeners
-      notifyListeners();
-      return true;
-    } catch (e) {
-      print('Error saving contact: $e');
-      return false;
     }
   }
 } 

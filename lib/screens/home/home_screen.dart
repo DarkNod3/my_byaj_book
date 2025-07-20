@@ -19,7 +19,6 @@ import 'package:my_byaj_book/providers/nav_preferences_provider.dart';
 import 'package:my_byaj_book/providers/transaction_provider.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -209,7 +208,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'bill_diary': const BillDiaryScreen(showAppBar: false),
       'milk_diary': const MilkDiaryScreen(showAppBar: false),
       'work_diary': const WorkDiaryScreen(showAppBar: false),
-      
       'tools': const MoreToolsScreen(),
       'emi_calc': const EmiCalculatorScreen(showAppBar: false),
       'sip_calc': const SipCalculatorScreen(showAppBar: false),
@@ -352,129 +350,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final homeContentState = _findHomeContentState(context);
     final bool isWithInterest = homeContentState?._isWithInterest ?? false;
     
-    // Directly navigate to SelectContactScreen (with search bar, create new contact button, and contact list)
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SelectContactScreen(isWithInterest: isWithInterest),
       ),
-    );
-  }
-  
-  // New method to show dialog for creating a new contact
-  void _showCreateNewContactDialog(BuildContext context, bool isWithInterest) {
-    final nameController = TextEditingController();
-    final phoneController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(isWithInterest ? 'Add With Interest Contact' : 'Add New Contact'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Name',
-                    hintText: 'Enter contact name',
-                    prefixIcon: Icon(Icons.person),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: phoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'Mobile Number (Optional)',
-                    hintText: 'Enter mobile number (optional)',
-                    prefixIcon: Icon(Icons.phone),
-                  ),
-                  keyboardType: TextInputType.phone,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                if (name.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter a name')),
-                  );
-                  return;
-                }
-                
-                final phoneNumber = phoneController.text.trim();
-                // Generate a unique ID for this contact using timestamp if phone is empty
-                final String contactId = phoneNumber.isEmpty 
-                    ? 'contact_${DateTime.now().millisecondsSinceEpoch}'
-                    : phoneNumber;
-                
-                // Get transaction provider
-                final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-                
-                // Create new contact data
-                final contactData = {
-                  'name': name,
-                  'phone': contactId,
-                  'displayPhone': phoneNumber.isEmpty ? 'No Phone' : phoneNumber,
-                  'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
-                  'color': Colors.primaries[name.length % Colors.primaries.length],
-                  'amount': 0.0,
-                  'isGet': true,
-                  'daysAgo': 0,
-                  'lastEditedAt': DateTime.now(),
-                  'tabType': isWithInterest ? 'withInterest' : 'withoutInterest',
-                };
-                
-                // Add interest-related fields if applicable
-                if (isWithInterest) {
-                  contactData['interestRate'] = 12.0; // Default interest rate
-                  contactData['type'] = 'borrower'; // Default to borrower
-                }
-                
-                // Add the contact
-                transactionProvider.addContactIfNotExists(contactData);
-                
-                Navigator.pop(context);
-                
-                // Navigate to edit contact screen or contact detail screen
-                if (isWithInterest) {
-                  // For interest contacts, go to edit screen to setup interest details
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EditContactScreen(
-                        contact: contactData,
-                        transactionProvider: transactionProvider,
-                      ),
-                    ),
-                  );
-                } else {
-                  // For regular contacts, go directly to contact details
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ContactDetailScreen(
-                        contact: contactData,
-                        showSetupPrompt: true,
-                      ),
-                    ),
-                  );
-                }
-              },
-              child: const Text('Next'),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -1165,29 +1045,20 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       return;
     }
     
-    // Clear existing lists
-    _withoutInterestContacts.clear();
-    _withInterestContacts.clear();
+    // Reset totals before processing any contacts to prevent accumulation
+    _principalToPay = 0.0;
+    _principalToReceive = 0.0;
+    _interestToPay = 0.0;
+    _interestToReceive = 0.0;
+    _cachedTotalToGive = 0.0;
+    _cachedTotalToGet = 0.0;
     
     // Process all contacts - for both tabs to ensure data is available
     for (final contact in allContacts) {
       final phone = contact['phone'] ?? '';
       if (phone.isEmpty) continue;
       
-      // Make sure interest contacts have their type field set
-      if (contact['tabType'] == 'withInterest' && contact['type'] == null) {
-        contact['type'] = 'borrower'; // Default to borrower if missing
-      }
-      
-      // Always add interest contacts to the interest list, regardless of transactions
-      if (contact['tabType'] == 'withInterest' || contact['type'] != null) {
-        // Make sure the tabType is set correctly
-        contact['tabType'] = 'withInterest';
-        _withInterestContacts.add(contact);
-        continue; // Skip the rest for interest contacts
-      }
-      
-      // For regular contacts, check transactions and calculate balance
+      // Get transactions for this contact
       final transactions = transactionProvider.getTransactionsForContact(phone);
       
       // Calculate balance - this is real money exchange recorded in transactions
@@ -1197,8 +1068,18 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       contact['amount'] = balance.abs();
       contact['isGet'] = balance >= 0;
       
-      // Add to the standard tab
+      // Add to appropriate list based on interest setting
+      if (contact['type'] != null && (contact['type'] == 'borrower' || contact['type'] == 'lender')) {
+        // With interest contacts
+        if (!_withInterestContacts.contains(contact)) {
+          _withInterestContacts.add(contact);
+        }
+      } else {
+        // Without interest contacts
+        if (!_withoutInterestContacts.contains(contact)) {
           _withoutInterestContacts.add(contact);
+        }
+      }
     }
     
     // Sort contacts by lastEditedAt (newest first)
@@ -1337,11 +1218,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     _principalToPay = 0.0;
     _principalToReceive = 0.0;
     
-    // Make a copy of the list to avoid modification issues
-    final contactsToProcess = List<Map<String, dynamic>>.from(_withInterestContacts);
-    
-    for (int i = 0; i < contactsToProcess.length; i++) {
-      final contact = contactsToProcess[i];
+    for (int i = 0; i < _withInterestContacts.length; i++) {
+      final contact = _withInterestContacts[i];
       final phone = contact['phone'] ?? '';
       if (phone.isEmpty) continue;
       
@@ -1352,37 +1230,19 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       
       final transactions = transactionProvider.getTransactionsForContact(phone);
         
-      // Calculate principal amount (or use zero if no transactions)
-      double principalAmount = 0.0;
-      double totalInterestDue = 0.0;
-      
-      // If there are no transactions, reset interest values but still keep the contact
+      // If there are no transactions, skip interest calculation
       if (transactions.isEmpty) {
         // Reset interest values for this contact
         contact['interestDue'] = 0.0;
-        contact['displayAmount'] = 0.0;
-        contact['amount'] = 0.0;
-        contact['tabType'] = 'withInterest'; // Ensure it stays in interest tab
-        
-        // Make sure the type field is preserved
-        if (contact['type'] == null) {
-          contact['type'] = contactType;
-        }
-        
-        // No need to add zero amounts to totals
+        contact['displayAmount'] = contact['amount'];
         continue;
       }
               
-      // Calculate balance from transactions for the principal amount
-      final balance = transactionProvider.calculateBalance(phone);
-      principalAmount = balance.abs();
-      
-      // Store the calculated amount in the contact
-      contact['amount'] = principalAmount;
-      contact['isGet'] = balance >= 0;
+      // Calculate principal (use amount from contact which is already set)
+      double principalAmount = contact['amount'] as double? ?? 0.0;
       
       // Calculate interest directly using helper method
-      totalInterestDue = _calculateInterestForContact(
+      double totalInterestDue = _calculateInterestForContact(
         contact,
         transactions,
         interestRate,
@@ -1396,13 +1256,16 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       // Update the display amount to include interest
       contact['displayAmount'] = principalAmount + totalInterestDue;
       
+      // Make sure we update the contact in the list
+      _withInterestContacts[i] = contact;
+      
       // Add to totals based on relationship type
       if (contactType == 'borrower') {
-        // For borrowers (they borrowed from us)
+        // For borrowers, we get the money
         _principalToReceive += principalAmount;
         _interestToReceive += totalInterestDue;
       } else if (contactType == 'lender') {
-        // For lenders (we borrowed from them)
+        // For lenders, we pay the money
         _principalToPay += principalAmount;
         _interestToPay += totalInterestDue;
       }
@@ -1588,7 +1451,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
         boxShadow: [
           BoxShadow(
             color: AppTheme.primaryColor.withOpacity(0.15),
-            blurRadius: 4, // Reduced from 6
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
@@ -1596,16 +1459,16 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       child: Column(
         children: [
           Container(
-            margin: const EdgeInsets.fromLTRB(12, 4, 12, 4), // Further reduced horizontal margins
-            height: 34, // Further reduced height
+            margin: const EdgeInsets.fromLTRB(20, 6, 20, 6),
+            height: 42,
             decoration: BoxDecoration(
               color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(10), // Reduced from 12
+              borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
-                  blurRadius: 2, // Reduced from 4
-                  offset: const Offset(0, 1), // Reduced from 0,2
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -1643,25 +1506,25 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               indicatorWeight: 0,
               dividerColor: Colors.transparent,
               indicatorPadding: EdgeInsets.zero,
-              labelPadding: const EdgeInsets.symmetric(horizontal: 2), // Reduced padding
+              labelPadding: EdgeInsets.zero,
               labelColor: Colors.white,
               unselectedLabelColor: Colors.grey.shade700,
               labelStyle: const TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 11, // Further reduced from 12
+                fontSize: 14,
               ),
               unselectedLabelStyle: const TextStyle(
                 fontWeight: FontWeight.w500,
-                fontSize: 10, // Further reduced from 11
+                fontSize: 13,
               ),
               tabs: const [
                 Tab(
-                  text: 'Standard',  // Shortened text
-                  height: 28, // Further reduced height
+                  text: 'Standard Entries',
+                  height: 36,
                 ),
                 Tab(
-                  text: 'Interest',  // Shortened text
-                  height: 28, // Further reduced height
+                  text: 'Interest Entries',
+                  height: 36,
                 ),
               ],
             ),
@@ -1691,7 +1554,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   Widget _buildBalanceSummary() {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 6, 12, 6), // Reduced from 16,10,16,8
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -1701,17 +1564,17 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(12), // Reduced from 16
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: AppTheme.primaryColor.withOpacity(0.25),
-            blurRadius: 6, // Reduced from 8
-            offset: const Offset(0, 3), // Reduced from 0,4
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0), // Reduced from 16.0
+        padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
           Row(
@@ -1723,47 +1586,47 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                     Row(
                       children: [
                         Container(
-                            padding: const EdgeInsets.all(6), // Reduced from 8
+                            padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8), // Reduced from 10
+                              borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.arrow_upward_rounded,
                               color: Colors.white,
-                              size: 14, // Reduced from 16
+                              size: 16,
                           ),
                         ),
-                          const SizedBox(width: 6), // Reduced from 8
+                          const SizedBox(width: 8),
                         const Text(
                             'You Will Pay',
                           style: TextStyle(
-                              fontSize: 12, // Reduced from 13
+                              fontSize: 13,
                               color: Colors.white,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                      const SizedBox(height: 6), // Reduced from 8
+                      const SizedBox(height: 8),
                     // Remove the original FittedBox display and keep only the white button
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // Reduced from 16,8
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(10), // Reduced from 12
+                        borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.1),
-                            blurRadius: 3, // Reduced from 4
-                            offset: const Offset(0, 1), // Reduced from 0,2
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: Text(
                         _formatCompactCurrency(_cachedTotalToGive),
                         style: TextStyle(
-                          fontSize: _getFontSizeForAmount(_cachedTotalToGive), // Using renamed method
+                          fontSize: _getButtonFontSize(_cachedTotalToGive),
                           fontWeight: FontWeight.bold,
                           color: Colors.red.shade700,
                         ),
@@ -1791,9 +1654,9 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                 ),
               ),
               Container(
-                  height: 40, // Reduced from 50
+                  height: 50,
                 width: 1,
-                  color: Colors.white.withOpacity(0.25), // Slightly reduced opacity
+                  color: Colors.white.withOpacity(0.3),
               ),
               Expanded(
                 child: Column(
@@ -1803,47 +1666,47 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Container(
-                            padding: const EdgeInsets.all(6), // Reduced from 8
+                            padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8), // Reduced from 10
+                              borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.arrow_downward_rounded,
                               color: Colors.white,
-                              size: 14, // Reduced from 16
+                              size: 16,
                           ),
                         ),
-                          const SizedBox(width: 6), // Reduced from 8
+                          const SizedBox(width: 8),
                         const Text(
                             'You Will Receive',
                           style: TextStyle(
-                              fontSize: 12, // Reduced from 13
+                              fontSize: 13,
                               color: Colors.white,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                      const SizedBox(height: 6), // Reduced from 8
+                      const SizedBox(height: 8),
                     // Remove the original FittedBox display and keep only the white button
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // Reduced from 16,8
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(10), // Reduced from 12
+                        borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.1),
-                            blurRadius: 3, // Reduced from 4
-                            offset: const Offset(0, 1), // Reduced from 0,2
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: Text(
                         _formatCompactCurrency(_cachedTotalToGet),
                         style: TextStyle(
-                          fontSize: _getFontSizeForAmount(_cachedTotalToGet), // Using renamed method
+                          fontSize: _getButtonFontSize(_cachedTotalToGet),
                           fontWeight: FontWeight.bold,
                           color: Colors.green.shade700,
                         ),
@@ -1879,23 +1742,23 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   }
   
   // Helper method to determine font size based on amount
-  double _getButtonFontSize(double amount) {
+  double _getAdaptiveFontSize(double amount) {
     if (amount >= 10000000) { // ≥ 1 crore
-      return 14; // Reduced from 16
+      return 16;
     } else if (amount >= 1000000) { // ≥ 10 lakh
-      return 16; // Reduced from 18
+      return 18;
     } else if (amount >= 100000) { // ≥ 1 lakh
-      return 17; // Reduced from 20
+      return 20;
     } else {
-      return 18; // Reduced from 22
+      return 22;
     }
   }
   
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // Reduced from 16,12
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Container(
-        height: 44, // Reduced from 50
+        height: 50,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(15),
@@ -2446,7 +2309,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), // Reduced padding
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -2491,7 +2354,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               });
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), // Reduced inner padding
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Column(
                 children: [
                   Row(
@@ -2758,8 +2621,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (BuildContext ctx) {
-        return Container(
+      builder: (context) => Container(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2838,9 +2700,8 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
               },
             ),
           ],
+        ),
       ),
-        );
-      },
     );
   }
 
@@ -3296,8 +3157,14 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       // Update based on transaction type
       if (note.contains('interest:')) {
         if (isGave) {
-          // Interest payment made - reduces accumulated interest
-          accumulatedInterest = (accumulatedInterest - amount > 0) ? accumulatedInterest - amount : 0;
+          // Interest payment made
+          if (contactType == 'borrower') {
+            // For borrowers: interest payment adds to accumulated interest
+            accumulatedInterest += amount;
+          } else {
+            // For lenders: interest payment reduces accumulated interest
+            accumulatedInterest = (accumulatedInterest - amount > 0) ? accumulatedInterest - amount : 0;
+          }
         } else {
           // Interest payment received
           interestPaid += amount;
@@ -3305,11 +3172,23 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
       } else {
         // Principal transaction
         if (isGave) {
-          // Payment sent - increases principal
-          runningPrincipal += amount;
+          // Payment sent
+          if (contactType == 'borrower') {
+            // For borrowers: principal payment adds to debt
+            runningPrincipal += amount;
+          } else {
+            // For lenders: principal payment reduces debt
+            runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
+          }
         } else {
-          // Payment received - decreases principal
-          runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
+          // Payment received
+          if (contactType == 'borrower') {
+            // For borrowers, receiving payment decreases principal
+            runningPrincipal = (runningPrincipal - amount > 0) ? runningPrincipal - amount : 0;
+          } else {
+            // For lenders, receiving payment increases principal (lender gave money)
+            runningPrincipal += amount;
+          }
         }
       }
       
@@ -3359,9 +3238,6 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
     // Adjust for interest already paid - show net interest due
     double totalInterestDue = (accumulatedInterest - interestPaid > 0) ? accumulatedInterest - interestPaid : 0;
     
-    // Store the principal amount in the contact for use in UI
-    contact['principalAmount'] = runningPrincipal;
-    
     return totalInterestDue;
   }
 
@@ -3369,6 +3245,9 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   void _updateCachedTotals() {
     if (_isWithInterest) {
       // For interest entries, use the pre-calculated values
+      // The _principalToPay, _principalToReceive, _interestToPay, and _interestToReceive 
+      // values should already be calculated in _calculateInterestValues
+      
       // Simply set the final totals 
       _cachedTotalToGive = _principalToPay + _interestToPay;
       _cachedTotalToGet = _principalToReceive + _interestToReceive;
@@ -3397,8 +3276,7 @@ class _HomeContentState extends State<HomeContent> with SingleTickerProviderStat
   }
 
   // Helper method to determine font size for amount buttons based on the amount
-  // This was renamed to avoid duplicate method declaration
-  double _getFontSizeForAmount(double amount) {
+  double _getButtonFontSize(double amount) {
     if (amount >= 10000000) { // ≥ 1 crore (always abbreviated)
       return 16.0;
     } else if (amount >= 1000000) { // ≥ 10 lakh
@@ -3710,20 +3588,9 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     // Check if this contact already exists in the transaction provider
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     final phone = contact['phone'] ?? '';
-    
-    // Check for contact in both modes
-    final existingNormalContact = transactionProvider.getContacts().firstWhere(
-      (c) => (c['phone'] == phone || c['displayPhone'] == phone) && c['tabType'] == 'withoutInterest',
-      orElse: () => {},
-    );
-    
-    final existingInterestContact = transactionProvider.getContacts().firstWhere(
-      (c) => (c['phone'] == phone || c['displayPhone'] == phone) && c['tabType'] == 'withInterest',
-      orElse: () => {},
-    );
-    
-    final hasNormalContact = existingNormalContact.isNotEmpty;
-    final hasInterestContact = existingInterestContact.isNotEmpty;
+    final existingContact = transactionProvider.getContactById(phone);
+    final bool hasExistingInterestType = existingContact != null && 
+        (existingContact['type'] != null || existingContact['interestRate'] != null);
     
     // For contacts from device, use a simpler display without transaction info
     return ListTile(
@@ -3748,343 +3615,212 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
           fontSize: 16,
         ),
       ),
-      subtitle: Row(
-        children: [
-          Text(
+      subtitle: Text(
         contact['phone'] ?? '',
         style: TextStyle(
           color: Colors.grey.shade600,
           fontSize: 14,
         ),
-          ),
-          if (hasNormalContact || hasInterestContact) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                hasNormalContact && hasInterestContact
-                    ? 'Both Types'
-                    : hasNormalContact
-                        ? 'Normal'
-                        : 'Interest',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ],
       ),
       onTap: () {
         // Close select contact screen
         Navigator.pop(context);
         
+        // Create a new contact and navigate to detail screen
         final name = contact['name'] ?? '';
+        final phone = contact['phone'] ?? '';
         
-        // If contact exists in requested mode, navigate directly to detail screen
-        if ((widget.isWithInterest && hasInterestContact) || (!widget.isWithInterest && hasNormalContact)) {
-          final existingContact = widget.isWithInterest ? existingInterestContact : existingNormalContact;
-          
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ContactDetailScreen(
-                contact: existingContact,
-                showSetupPrompt: false,
-              ),
-            ),
-          );
+        // If contact exists with interest type, respect that setting regardless of current tab
+        if (hasExistingInterestType) {
+          final contactData = Map<String, dynamic>.from(existingContact);
+          _refreshHomeScreenAndNavigateToDetail(context, contactData);
         } 
-        // If contact doesn't exist in requested mode but exists in other mode, ask user what to do
-        else if (hasNormalContact || hasInterestContact) {
-          _showEntryTypeSelectionDialog(context, name, phone);
+        // Otherwise, if we're in the With Interest tab, show the relationship selection
+        else if (widget.isWithInterest) {
+          // Skip relationship selection dialog and create a borrower contact by default
+          // The user can change the relationship type in the contact profile
+          _createContactWithType(context, name, phone, 'borrower');
         } 
-        // Contact doesn't exist at all, show entry type selection
+        // If we're in Without Interest tab, create a non-interest contact
         else {
-          _showEntryTypeSelectionDialog(context, name, phone);
+          // Create a new contact map with required fields for ContactDetailScreen
+          final contactData = {
+            'name': name,
+            'phone': phone,
+            'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
+            'color': Colors.primaries[name.length % Colors.primaries.length],
+            'amount': 0.0,
+            'isGet': true,
+            'daysAgo': 0,
+            'tabType': 'withoutInterest', // Explicitly mark this contact for the without interest tab
+          };
+          
+          // Get transaction provider to add this contact if it doesn't exist
+          transactionProvider.addContactIfNotExists(contactData);
+          
+          // Find the home screen state to refresh contacts
+          _refreshHomeScreenAndNavigateToDetail(context, contactData);
         }
       },
     );
   }
   
-  // New method to show dialog for selecting entry type
-  void _showEntryTypeSelectionDialog(BuildContext context, String name, String phone) {
-    // For interest setup
-    final interestRateController = TextEditingController(text: '12.0');
-    String selectedRateType = 'yearly'; // Default to yearly
-    bool showInterestOptions = false;
-    
+  void _showRelationshipTypeDialog(BuildContext context, String name, String phone) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text(
-                'What kind of entry do you want to create?',
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Select Relationship',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryColor
-                ),
-              ),
-              contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-              content: SizedBox(
-                width: MediaQuery.of(context).size.width,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-              Text(
-                'Contact: $name',
-                style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16
                 ),
                 textAlign: TextAlign.center,
               ),
-                      const SizedBox(height: 24),
-                      
-                      // Entry Type Options in a Single Row
+              const SizedBox(height: 8),
+              Text(
+                'Contact: $name',
+                style: const TextStyle(
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
               Row(
                 children: [
-                          // Normal Entry Option
                   Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        _createContactWithType(context, name, phone, 'borrower');
+                      },
                       child: Container(
-                              margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
-                                color: Colors.white,
+                          color: Colors.red.shade100,
                           borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.1),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  )
-                                ],
-                                border: Border.all(
-                                  color: !showInterestOptions 
-                                      ? AppTheme.primaryColor
-                                      : Colors.grey.shade300,
-                                  width: !showInterestOptions ? 2 : 1,
-                                ),
+                          border: Border.all(color: Colors.red, width: 1.0),
                         ),
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    showInterestOptions = false;
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(12),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: Colors.blue.shade100,
-                                          shape: BoxShape.circle,
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.arrow_downward_rounded,
+                                  color: Colors.red,
+                                  size: 24,
                                 ),
-                                        child: const Icon(Icons.note_alt, color: Colors.blue, size: 24),
+                                SizedBox(width: 6),
+                                Icon(
+                                  Icons.handshake_outlined,
+                                  color: Colors.red,
+                                  size: 24,
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 12),
                             const Text(
-                                        'Normal Entry',
+                              'Borrower',
                               style: TextStyle(
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                          fontSize: 14,
+                                color: Colors.red,
                               ),
                             ),
-                                      const SizedBox(height: 4),
                             Text(
-                                        'For simple transactions',
+                              'Lene Wale',
                               style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey.shade700,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red.shade800,
                               ),
-                                        textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 8),
-                                      Radio<bool>(
-                                        value: false,
-                                        groupValue: showInterestOptions,
-                                        onChanged: (value) {
-                                          setState(() {
-                                            showInterestOptions = false;
-                                          });
-                                        },
-                                        activeColor: Colors.blue,
+                            const Text(
+                              'They borrow money from you',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.black54,
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
                   ),
-                          ),
-                          
-                          // Interest Entry Option
+                  const SizedBox(width: 10),
                   Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        _createContactWithType(context, name, phone, 'lender');
+                      },
                       child: Container(
-                              margin: const EdgeInsets.only(left: 8),
                         decoration: BoxDecoration(
-                                color: Colors.white,
+                          color: Colors.green.shade100,
                           borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.1),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  )
-                                ],
-                                border: Border.all(
-                                  color: showInterestOptions 
-                                      ? AppTheme.primaryColor
-                                      : Colors.grey.shade300,
-                                  width: showInterestOptions ? 2 : 1,
-                                ),
+                          border: Border.all(color: Colors.green, width: 1.0),
                         ),
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    showInterestOptions = true;
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(12),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: Colors.orange.shade100,
-                                          shape: BoxShape.circle,
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.arrow_upward_rounded,
+                                  color: Colors.green,
+                                  size: 24,
                                 ),
-                                        child: const Icon(Icons.percent, color: Colors.orange, size: 24),
+                                SizedBox(width: 6),
+                                Icon(
+                                  Icons.account_balance_outlined,
+                                  color: Colors.green,
+                                  size: 24,
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 12),
                             const Text(
-                                        'Interest Entry',
+                              'Lender',
                               style: TextStyle(
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                          fontSize: 14,
+                                color: Colors.green,
                               ),
                             ),
-                                      const SizedBox(height: 4),
                             Text(
-                                        'For transactions with interest',
+                              'Dene Wale',
                               style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey.shade700,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade800,
                               ),
-                                        textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 8),
-                                      Radio<bool>(
-                                        value: true,
-                                        groupValue: showInterestOptions,
-                                        onChanged: (value) {
-                                          setState(() {
-                                            showInterestOptions = true;
-                                          });
-                                        },
-                                        activeColor: Colors.orange,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      // Spacing after entry type selection row
-                      const SizedBox(height: 16),
-                      
-                      // Interest Rate Settings (only visible when Interest Entry is selected)
-                      if (showInterestOptions) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.orange.shade200),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
                             const Text(
-                                'Interest Rate',
+                              'They lend money to you',
+                              textAlign: TextAlign.center,
                               style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Colors.deepOrange,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: interestRateController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: InputDecoration(
-                                  labelText: 'Interest Rate',
-                                  hintText: 'Enter interest rate',
-                                  suffix: const Text('%'),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'Rate Type',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.deepOrange,
+                                fontSize: 11,
+                                color: Colors.black54,
                               ),
                             ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildRateTypeButton(
-                                      title: 'Monthly',
-                                      isSelected: selectedRateType == 'monthly',
-                                      onTap: () {
-                                        setState(() {
-                                          selectedRateType = 'monthly';
-                                        });
-                                      },
+                          ],
+                        ),
                       ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _buildRateTypeButton(
-                                      title: 'Yearly',
-                                      isSelected: selectedRateType == 'yearly',
-                                      onTap: () {
-                                        setState(() {
-                                          selectedRateType = 'yearly';
-                                        });
-                                      },
                     ),
                   ),
                 ],
@@ -4092,340 +3828,171 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
             ],
           ),
         ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey.shade700,
-                  ),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    if (showInterestOptions) {
-                      // For interest contact, create directly without showing setup dialog
-                      final interestRate = double.tryParse(interestRateController.text) ?? 12.0;
-                      
-                      final contactData = {
-                        'name': name,
-                        'phone': phone,
-                        'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
-                        'color': Colors.primaries[name.length % Colors.primaries.length],
-                        'amount': 0.0,
-                        'isGet': true,
-                        'lastEditedAt': DateTime.now(),
-                        'type': 'borrower', // Default to borrower
-                        'interestRate': interestRate,
-                        'interestPeriod': selectedRateType,
-                        'tenure': 'not_fixed',
-                        'tabType': 'withInterest',
-                      };
-                      
-                      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-                      transactionProvider.addContactIfNotExists(contactData);
-                      
-                      // Show success message
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Contact added with ${interestRate}% interest'),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                      
-                      // Navigate directly to transaction dialog
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ContactDetailScreen(
-                            contact: contactData,
-                            showSetupPrompt: false,
-                            showTransactionDialogOnLoad: true,
-                          ),
-                        ),
-                      );
-                    } else {
-                      // For normal contact
-                      _createNormalContact(context, name, phone);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Save'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      ),
     );
   }
 
-  // Helper method to build rate type selection buttons
-    Widget _buildRateTypeButton({
+  Widget _buildRelationshipCard({
     required String title,
-    required bool isSelected,
-    required VoidCallback onTap,
+    required String emoji,
+    required Color color,
+    required Color borderColor,
+    required String description,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+    return Container(
       decoration: BoxDecoration(
-          color: isSelected ? Colors.orange.shade100 : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? Colors.orange : Colors.grey.shade300,
-            width: isSelected ? 2 : 1,
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 1.0),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            emoji,
+            style: const TextStyle(fontSize: 36),
           ),
-        ),
-        alignment: Alignment.center,
-        child: Text(
+          const SizedBox(height: 8),
+          Text(
             title,
             style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? Colors.orange.shade800 : Colors.grey.shade700,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: borderColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.black54,
             ),
           ),
+        ],
       ),
     );
   }
 
-  // Create normal contact and navigate to detail screen with transaction dialog
-  void _createNormalContact(BuildContext context, String name, String phone) {
+  void _createContactWithType(BuildContext context, String name, String phone, String relationshipType) {
+    // Check if contact with this phone number already exists in the other tab
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    final existingContact = transactionProvider.getContactById(phone);
+    
+    // Generate a unique ID if necessary
+    String contactId = phone;
+    
+    if (existingContact != null) {
+      // Check if the contact is in a different tab than we're trying to add to
+      final existingTabType = existingContact['tabType'] ?? 
+          (existingContact['type'] != null ? 'withInterest' : 'withoutInterest');
+      
+      // We're creating a with-interest contact
+      const newTabType = 'withInterest';
+      
+      if (existingTabType != newTabType) {
+        // This contact exists in the other tab, so create a unique ID
+        contactId = "${phone}_$newTabType";
+      } else {
+        // The contact exists in the same tab, update rather than create
+        final updatedContact = Map<String, dynamic>.from(existingContact);
+        updatedContact['name'] = name;
+        updatedContact['type'] = relationshipType;
+        updatedContact['interestRate'] = 12.0; // Default interest rate
+        updatedContact['lastEditedAt'] = DateTime.now();
+        
+        // Update the contact
+        transactionProvider.updateContact(updatedContact);
+        
+        // Navigate to edit screen
+        _navigateToEditContact(context, updatedContact, transactionProvider);
+        return;
+      }
+    }
+    
+    // Create contact data with interest type
     final contactData = {
       'name': name,
-      'phone': phone,
+      'phone': contactId,
+      'displayPhone': phone, // Store original phone if it's cross-tab
       'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
       'color': Colors.primaries[name.length % Colors.primaries.length],
       'amount': 0.0,
       'isGet': true,
-      'lastEditedAt': DateTime.now(),
-      'tabType': 'withoutInterest',
+      'daysAgo': 0,
+      'type': relationshipType,
+      'interestRate': 12.0, // Default interest rate
+      'tabType': 'withInterest', // Explicitly mark this contact for the with interest tab
+      'isNewContact': true, // Flag to indicate this is a newly created contact
     };
     
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    // Get transaction provider to add this contact
     transactionProvider.addContactIfNotExists(contactData);
     
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Contact ${name} added successfully'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-    
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ContactDetailScreen(
-          contact: contactData,
-          showSetupPrompt: false,
-          showTransactionDialogOnLoad: false, // Changed from true to false
-        ),
-      ),
-    );
+    // Navigate directly to edit contact screen instead of contact details with setup prompt
+    _navigateToEditContact(context, contactData, transactionProvider);
   }
   
-  // Show dialog for setting up interest entry details
-  void _showInterestSetupDialog(BuildContext context, String name, String phone, [Map<String, dynamic>? prefillData]) {
-    // Use prefilled data if available, otherwise use defaults
-    final interestRateController = TextEditingController(
-      text: (prefillData?['interestRate'] ?? 12.0).toString()
-    );
-    String selectedRateType = prefillData?['interestPeriod'] ?? 'yearly'; // Default to yearly
-    String selectedType = prefillData?['type'] ?? 'borrower'; // Default to borrower
-    String selectedTenure = 'not_fixed'; // Default to not fixed
+  void _navigateToEditContact(BuildContext context, Map<String, dynamic> contactData, TransactionProvider transactionProvider) {
+    // Find the home screen state to refresh contacts
+    final homeScreenState = context.findAncestorStateOfType<_HomeScreenState>();
+    if (homeScreenState != null) {
+      // Try to find HomeContent state to refresh its contacts
+      final homeContentState = homeScreenState._findHomeContentState(context);
+      if (homeContentState != null) {
+        homeContentState.setState(() {
+          // Force refresh
+          homeContentState._syncContactsWithTransactions();
+          
+          // If this is a with-interest contact, switch to with-interest tab
+          if (contactData.containsKey('type')) {
+            homeContentState._tabController.animateTo(1); // Index 1 is With Interest tab
+          }
+        });
+      }
+    }
     
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text(
-                'Interest Entry Setup',
-                style: TextStyle(
-                  fontSize: 18, 
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryColor
-                ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Contact: $name', 
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold, 
-                        fontSize: 16
-                      )
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    // Interest Rate and Period
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.orange.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Interest Rate',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.deepOrange,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: interestRateController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: InputDecoration(
-                              labelText: 'Interest Rate',
-                              hintText: 'Enter interest rate',
-                              suffix: const Text('%'),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Rate Period',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.deepOrange,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildRateTypeButton(
-                                  title: 'Monthly',
-                                  isSelected: selectedRateType == 'monthly',
-                                  onTap: () {
-                                    setState(() {
-                                      selectedRateType = 'monthly';
-                                    });
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildRateTypeButton(
-                                  title: 'Yearly',
-                                  isSelected: selectedRateType == 'yearly',
-                                  onTap: () {
-                                    setState(() {
-                                      selectedRateType = 'yearly';
-                                    });
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey.shade700,
-                  ),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final interestRate = double.tryParse(interestRateController.text) ?? 12.0;
-                    
-                    // Create contact with interest data
-    final contactData = {
-      'name': name,
-                      'phone': phone,
-      'initials': name.isNotEmpty ? name.substring(0, min(2, name.length)).toUpperCase() : 'AA',
-      'color': Colors.primaries[name.length % Colors.primaries.length],
-      'amount': 0.0,
-      'isGet': true,
-                      'lastEditedAt': DateTime.now(),
-                      'type': selectedType,
-                      'interestRate': interestRate,
-                      'interestPeriod': selectedRateType,
-                      'tenure': selectedTenure,
-                      'tabType': 'withInterest',
-                    };
-                    
-                    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-    transactionProvider.addContactIfNotExists(contactData);
-    
-                    Navigator.pop(context);
-                    
-                    // Show a success message
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Contact added with ${interestRate}% interest'),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-    
-                    // Navigate directly to contact detail screen with transaction dialog
+    // Navigate directly to edit contact screen
     Navigator.push(
       context,
       MaterialPageRoute(
-                        builder: (context) => ContactDetailScreen(
-                    contact: contactData,
-          showSetupPrompt: false, // Don't show the setup prompt
-          showTransactionDialogOnLoad: false, // Don't show transaction dialog automatically
-                        ),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Save'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+        builder: (context) => EditContactScreen(
+          contact: contactData,
+          transactionProvider: transactionProvider,
+        ),
+      ),
+    ).then((result) {
+      // If contact was successfully updated, navigate to contact detail screen
+      if (result == true) {
+        // Get the updated contact
+        final updatedContact = transactionProvider.getContactById(contactData['phone']);
+        if (updatedContact != null) {
+          // Navigate to contact detail screen with the updated contact
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ContactDetailScreen(
+                contact: updatedContact,
+                showSetupPrompt: false, // No need for setup prompt since we already set up in edit screen
+              ),
+            ),
+          );
+        }
+      }
+      
+      // Refresh the contacts list when returning
+      if (homeScreenState != null) {
+        final homeContentState = homeScreenState._findHomeContentState(context);
+        if (homeContentState != null) {
+          homeContentState.setState(() {
+            homeContentState._syncContactsWithTransactions();
+          });
+        }
+      }
+    });
   }
   
   void _showAddContactDialog(BuildContext context) {

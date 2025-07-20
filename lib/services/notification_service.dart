@@ -1149,4 +1149,85 @@ class NotificationService {
       debugPrint('Error canceling notification: $e');
     }
   }
+
+  // Schedule daily reminder notifications at set times (9AM, 12PM, 5PM)
+  Future<void> scheduleDailyReminders() async {
+    try {
+      // Cancel any existing daily reminders first to avoid duplicates
+      await _cancelDailyReminders();
+      
+      // Check for upcoming due items
+      final now = DateTime.now();
+      
+      // Get tomorrow's date for notification scheduling
+      final tomorrow = DateTime(now.year, now.month, now.day + 1);
+      
+      // Define the times for daily reminders
+      final morningTime = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 0, 0); // 9:00 AM
+      final afternoonTime = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 12, 0, 0); // 12:00 PM
+      final eveningTime = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 17, 0, 0); // 5:00 PM
+      
+      // Schedule the daily reminders
+      await _scheduleDailyReminderAt(morningTime, "Morning Reminder", 60001);
+      await _scheduleDailyReminderAt(afternoonTime, "Afternoon Reminder", 60002);
+      await _scheduleDailyReminderAt(eveningTime, "Evening Reminder", 60003);
+    } catch (e) {
+      debugPrint('Error scheduling daily reminders: $e');
+    }
+  }
+  
+  // Helper method to schedule a reminder at a specific time
+  Future<void> _scheduleDailyReminderAt(DateTime scheduledTime, String timeLabel, int notificationId) async {
+    const androidDetails = AndroidNotificationDetails(
+      'daily_reminder_channel',
+      'Daily Reminders',
+      channelDescription: 'Daily reminders for payments and tasks',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    
+    const iOSDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    
+    const notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iOSDetails,
+    );
+    
+    // Convert to timezone format
+    final scheduledDateTZ = tz.TZDateTime.from(scheduledTime, tz.local);
+    
+    final String title = "Daily Payment Reminder";
+    final String body = "Check your pending payments and upcoming due dates";
+    
+    try {
+      await _flutterLocalNotificationsPlugin.zonedSchedule(
+        notificationId,
+        title,
+        body,
+        scheduledDateTZ,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time, // This makes it repeat daily at the same time
+        payload: json.encode({'type': 'daily_reminder', 'time': timeLabel}),
+      );
+    } catch (e) {
+      debugPrint('Error scheduling daily reminder: $e');
+    }
+  }
+  
+  // Cancel existing daily reminders
+  Future<void> _cancelDailyReminders() async {
+    try {
+      // Cancel the fixed notification IDs used for daily reminders
+      await _flutterLocalNotificationsPlugin.cancel(60001); // Morning
+      await _flutterLocalNotificationsPlugin.cancel(60002); // Afternoon
+      await _flutterLocalNotificationsPlugin.cancel(60003); // Evening
+    } catch (e) {
+      debugPrint('Error canceling daily reminders: $e');
+    }
+  }
 }

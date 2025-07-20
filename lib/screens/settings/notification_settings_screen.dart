@@ -310,45 +310,56 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     required String label,
     required bool isEnabled,
   }) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: isEnabled
-                ? AppTheme.primaryColor.withOpacity(0.1)
-                : Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
+    return GestureDetector(
+      onTap: isEnabled ? () {
+        // Toggle the schedule when tapped if notifications are enabled
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$label notifications will be sent at $time'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } : null,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
               color: isEnabled
-                  ? AppTheme.primaryColor.withOpacity(0.5)
-                  : Colors.grey.shade300,
+                  ? AppTheme.primaryColor.withOpacity(0.1)
+                  : Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isEnabled
+                    ? AppTheme.primaryColor.withOpacity(0.5)
+                    : Colors.grey.shade300,
+              ),
+            ),
+            child: Text(
+              time,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isEnabled ? AppTheme.primaryColor : Colors.grey.shade600,
+              ),
             ),
           ),
-          child: Text(
-            time,
+          const SizedBox(width: 12),
+          Text(
+            label,
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: isEnabled ? AppTheme.primaryColor : Colors.grey.shade600,
+              color: isEnabled ? Colors.black87 : Colors.grey.shade600,
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: isEnabled ? Colors.black87 : Colors.grey.shade600,
+          const Spacer(),
+          Icon(
+            isEnabled ? Icons.circle : Icons.circle_outlined,
+            size: 10,
+            color: isEnabled ? Colors.green : Colors.grey.shade400,
           ),
-        ),
-        const Spacer(),
-        Icon(
-          Icons.circle,
-          size: 10,
-          color: isEnabled ? Colors.green : Colors.grey.shade400,
-        ),
-      ],
+        ],
+      ),
     );
   }
 } 

@@ -149,14 +149,8 @@ class _EditContactScreenState extends State<EditContactScreen> {
       'profileImagePath': _profileImage?.path,
     };
 
-    // Preserve existing interest-related fields if they exist
-    if (widget.contact['type'] != null) {
-      // Keep the existing interest type
-      updatedContact['type'] = widget.contact['type'];
-      updatedContact['interestRate'] = widget.contact['interestRate'];
-      updatedContact['interestPeriod'] = widget.contact['interestPeriod'];
-    } else if (_isWithInterest) {
-      // Fallback for new interest contacts
+    // Add interest-related fields if this is a with-interest contact
+    if (_isWithInterest) {
       updatedContact['type'] = _selectedType;
       updatedContact['interestRate'] = double.tryParse(_interestRateController.text) ?? 0.0;
       updatedContact['interestPeriod'] = _interestPeriod;
@@ -191,12 +185,12 @@ class _EditContactScreenState extends State<EditContactScreen> {
       if (widget.contact['isNewContact'] == true) {
         // Short delay to allow the previous screen to process the result
         Future.delayed(const Duration(milliseconds: 300), () {
-          // Find the ContactDetailScreen and show the contact without auto transaction dialog
+          // Find the ContactDetailScreen and show the transaction entry dialog
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => ContactDetailScreen(
                 contact: updatedContact,
-                showTransactionDialogOnLoad: false,
+                showTransactionDialogOnLoad: true,
               ),
             ),
           );
@@ -409,174 +403,452 @@ class _EditContactScreenState extends State<EditContactScreen> {
                     // Category has been removed
                     const SizedBox(height: 16),
 
-                    // REMOVED: With Interest Account toggle for standard entries
-
-                    // REMOVED: Interest Rate and Period settings for all contacts
-
-                    // REMOVED: Account Type selection for all contacts
-
-                    // Added Interest rate information display
-                    if (_isWithInterest) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey.shade200),
+                    // With Interest Toggle
+                    Row(
+                      children: [
+                        const Text(
+                          'With Interest Account',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                        const Spacer(),
+                        Switch(
+                          value: _isWithInterest,
+                          onChanged: hasTransactions && !_isWithInterest
+                              ? null // Disable converting to interest if there are transactions and it's not already interest
+                              : (value) {
+                                  setState(() {
+                                    _isWithInterest = value;
+                                    
+                                    // If switching to with-interest, set default values
+                                    if (value && _interestRateController.text.isEmpty) {
+                                      _interestRateController.text = '12.0'; // Default interest rate
+                                    }
+                                  });
+                                },
+                          activeColor: themeProvider.primaryColor,
+                        ),
+                      ],
+                    ),
+                    if (hasTransactions && !_isWithInterest)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Cannot convert to interest account after transactions',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    if (_isWithInterest)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Specify if this contact is a borrower (owes you money) or lender (you owe them)',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+
+                    // Interest Rate and Type (Only if with interest)
+                    if (_isWithInterest) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  Icons.percent,
-                                  size: 16,
-                                  color: Colors.blue.shade700,
-                                ),
-                                const SizedBox(width: 8),
                                 const Text(
                                   'Interest Rate',
                                   style: TextStyle(
-                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                TextFormField(
+                                  controller: _interestRateController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter rate',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                    suffixText: '%',
+                                  ),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  validator: (value) {
+                                    if (_isWithInterest) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter a rate';
+                                      }
+                                      if (double.tryParse(value) == null) {
+                                        return 'Enter a valid number';
+                                      }
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Per Period',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade400),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: InkWell(
+                                          onTap: () {
+                                            setState(() {
+                                              _interestPeriod = 'monthly';
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                            decoration: BoxDecoration(
+                                              color: _interestPeriod == 'monthly' 
+                                                ? Colors.amber.withOpacity(0.2) 
+                                                : Colors.transparent,
+                                              borderRadius: const BorderRadius.horizontal(
+                                                left: Radius.circular(7),
+                                              ),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              'Monthly',
+                                              style: TextStyle(
+                                                fontWeight: _interestPeriod == 'monthly' 
+                                                  ? FontWeight.bold 
+                                                  : FontWeight.normal,
+                                                color: _interestPeriod == 'monthly'
+                                                  ? Colors.amber.shade900
+                                                  : Colors.grey.shade700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                        width: 1,
+                                        height: 30,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                      Expanded(
+                                        child: InkWell(
+                                          onTap: () {
+                                            setState(() {
+                                              _interestPeriod = 'yearly';
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                            decoration: BoxDecoration(
+                                              color: _interestPeriod == 'yearly' 
+                                                ? Colors.amber.withOpacity(0.2) 
+                                                : Colors.transparent,
+                                              borderRadius: const BorderRadius.horizontal(
+                                                right: Radius.circular(7),
+                                              ),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              'Yearly',
+                                              style: TextStyle(
+                                                fontWeight: _interestPeriod == 'yearly' 
+                                                  ? FontWeight.bold 
+                                                  : FontWeight.normal,
+                                                color: _interestPeriod == 'yearly'
+                                                  ? Colors.amber.shade900
+                                                  : Colors.grey.shade700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            
-                            // Display both monthly and yearly rates
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Monthly Rate:',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _interestPeriod == 'monthly'
-                                          ? '${_interestRateController.text}% p.m.'
-                                          : '${(double.tryParse(_interestRateController.text) ?? 0.0) / 12}% p.m.',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.orange.shade800,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Yearly Rate:',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _interestPeriod == 'yearly'
-                                          ? '${_interestRateController.text}% p.a.'
-                                          : '${(double.tryParse(_interestRateController.text) ?? 0.0) * 12}% p.a.',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.blue.shade700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      const Text(
+                        'Account Type',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Column(
+                        children: [
+                          // Borrower Option
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              color: _selectedType == 'borrower' 
+                                ? Colors.red.withOpacity(0.08)
+                                : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedType == 'borrower'
+                                  ? Colors.red
+                                  : Colors.grey.shade300,
+                                width: _selectedType == 'borrower' ? 2 : 1,
+                              ),
+                              boxShadow: _selectedType == 'borrower' 
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.red.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ]
+                                : null,
                             ),
-                            
-                            // Update button
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('Update Interest Rate'),
-                                      content: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          TextField(
-                                            controller: _interestRateController,
-                                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                            decoration: InputDecoration(
-                                              labelText: 'Interest Rate',
-                                              hintText: '12.0',
-                                              suffixText: '%',
-                                              border: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                            ),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _selectedType = 'borrower';
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.withOpacity(0.1),
+                                            shape: BoxShape.circle,
                                           ),
-                                          const SizedBox(height: 16),
-                                          // Period selector
-                                          Row(
+                                          child: const Icon(
+                                            Icons.account_balance_wallet,
+                                            color: Colors.red,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              const Text('Period: '),
-                                              const SizedBox(width: 8),
-                                              DropdownButton<String>(
-                                                value: _interestPeriod,
-                                                items: const [
-                                                  DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                                                  DropdownMenuItem(value: 'yearly', child: Text('Yearly')),
+                                              Row(
+                                                children: [
+                                                  const Expanded(
+                                                    child: Text(
+                                                      'Jisne Paise Liye Hai',
+                                                      style: TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 16,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Column(
+                                                    children: [
+                                                      Radio<String>(
+                                                        value: 'borrower',
+                                                        groupValue: _selectedType,
+                                                        onChanged: (value) {
+                                                          setState(() {
+                                                            _selectedType = value!;
+                                                          });
+                                                        },
+                                                        activeColor: Colors.red,
+                                                      ),
+                                                      const Text(
+                                                        'Borrower',
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.w500,
+                                                          color: Colors.red,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ],
-                                                onChanged: (value) {
-                                                  if (value != null) {
-                                                    setState(() {
-                                                      _interestPeriod = value;
-                                                    });
-                                                  }
-                                                },
+                                              ),
+                                              const SizedBox(height: 4),
+                                              const Text(
+                                                'वह आपका पैसा लेकर देनदार है',
+                                                style: TextStyle(
+                                                  color: Colors.red,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              const Text(
+                                                'This contact owes you money',
+                                                style: TextStyle(
+                                                  color: Colors.red,
+                                                  fontSize: 13,
+                                                ),
                                               ),
                                             ],
                                           ),
-                                        ],
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context),
-                                          child: const Text('Cancel'),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () {
-                                            Navigator.pop(context);
-                                            setState(() {});
-                                          },
-                                          child: const Text('Update'),
                                         ),
                                       ],
                                     ),
-                                  );
-                                },
-                                icon: const Icon(Icons.edit, size: 14),
-                                label: const Text('Update Rate'),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  foregroundColor: Colors.blue.shade700,
-                                  visualDensity: VisualDensity.compact,
+                                  ],
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                          
+                          // Lender Option
+                          Container(
+                            decoration: BoxDecoration(
+                              color: _selectedType == 'lender'
+                                ? Colors.green.withOpacity(0.08)
+                                : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedType == 'lender'
+                                  ? Colors.green
+                                  : Colors.grey.shade300,
+                                width: _selectedType == 'lender' ? 2 : 1,
+                              ),
+                              boxShadow: _selectedType == 'lender'
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.green.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ]
+                                : null,
+                            ),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _selectedType = 'lender';
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.green.withOpacity(0.1),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.account_balance,
+                                            color: Colors.green,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Expanded(
+                                                    child: Text(
+                                                      'Jisne Paise Diye Hai',
+                                                      style: TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 16,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Column(
+                                                    children: [
+                                                      Radio<String>(
+                                                        value: 'lender',
+                                                        groupValue: _selectedType,
+                                                        onChanged: (value) {
+                                                          setState(() {
+                                                            _selectedType = value!;
+                                                          });
+                                                        },
+                                                        activeColor: Colors.green,
+                                                      ),
+                                                      const Text(
+                                                        'Lender',
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.w500,
+                                                          color: Colors.green,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              const Text(
+                                                'आपने इनसे पैसे उधार लिए हैं',
+                                                style: TextStyle(
+                                                  color: Colors.green,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              const Text(
+                                                'You owe money to this contact',
+                                                style: TextStyle(
+                                                  color: Colors.green,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
                     ],
                   ],
                 ),

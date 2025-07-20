@@ -669,7 +669,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: DateTime.now(),
+      firstDate: DateTime(2023),
       lastDate: DateTime(2030),
       builder: (context, child) {
         return Theme(

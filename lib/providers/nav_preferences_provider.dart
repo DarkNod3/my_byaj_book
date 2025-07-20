@@ -26,7 +26,7 @@ class NavPreferencesProvider with ChangeNotifier {
     NavItem(id: 'tax_calc', title: 'Tax Calc', icon: Icons.savings),
     NavItem(id: 'milk_diary', title: 'Milk', icon: Icons.local_drink_rounded),
     NavItem(id: 'work_diary', title: 'Work', icon: Icons.work_rounded),
-    
+    NavItem(id: 'tea_diary', title: 'Tea', icon: Icons.emoji_food_beverage_rounded),
   ];
 
   // Default nav items
